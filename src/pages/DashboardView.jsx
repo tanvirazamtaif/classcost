@@ -2,11 +2,19 @@ import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { makeFmt } from '../utils/format';
 
+const today = () => new Date().toISOString().slice(0, 10);
+const currentMonth = () => new Date().toISOString().slice(0, 7);
+
 export const DashboardView = () => {
-  const { user, expenses, navigate, theme, toggleTheme } = useApp();
+  const { user, expenses, addExpense, navigate, theme, toggleTheme } = useApp();
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || "BDT");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeForm, setActiveForm] = useState(null); // "education" | "transport" | "canteen" | "hostel"
+  const [saving, setSaving] = useState(false);
+
+  // Form states
+  const [formData, setFormData] = useState({});
 
   const d = theme === "dark";
   const profileIncomplete = !user?.profileComplete;
@@ -14,12 +22,48 @@ export const DashboardView = () => {
   const byType = (t) => expenses.filter((e) => e.type === t).reduce((s, e) => s + Number(e.amount), 0);
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
 
+  const openForm = (type) => {
+    if (activeForm === type) { setActiveForm(null); return; }
+    const defaults = {
+      education: { amount: "", details: "" },
+      transport: { date: today(), amount: "" },
+      canteen: { date: today(), amount: "" },
+      hostel: { month: currentMonth(), amount: "" },
+    };
+    setFormData(defaults[type] || {});
+    setActiveForm(type);
+  };
+
+  const handleSave = async () => {
+    if (!formData.amount || isNaN(formData.amount) || Number(formData.amount) <= 0) return;
+    setSaving(true);
+    try {
+      const expense = {
+        userId: user?.id,
+        type: activeForm,
+        amount: Number(formData.amount),
+        date: formData.date || formData.month || today(),
+        label: activeForm === "education" ? "Education Fee" : activeForm === "transport" ? "Transport" : activeForm === "canteen" ? "Canteen" : "Residence",
+        details: formData.details || "",
+      };
+      await addExpense(expense);
+      setActiveForm(null);
+      setFormData({});
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const categories = [
     { id: "education", label: "Education", icon: "🎓", amount: byType("education"), gradient: d ? "from-indigo-900/60 to-indigo-800/40" : "from-indigo-50 to-indigo-100", text: d ? "text-indigo-300" : "text-indigo-700", border: d ? "border-indigo-700/30" : "border-indigo-200" },
     { id: "transport", label: "Transport", icon: "🚌", amount: byType("transport"), gradient: d ? "from-sky-900/60 to-sky-800/40" : "from-sky-50 to-sky-100", text: d ? "text-sky-300" : "text-sky-700", border: d ? "border-sky-700/30" : "border-sky-200" },
     { id: "canteen", label: "Canteen", icon: "🍽️", amount: byType("canteen"), gradient: d ? "from-amber-900/60 to-amber-800/40" : "from-amber-50 to-amber-100", text: d ? "text-amber-300" : "text-amber-700", border: d ? "border-amber-700/30" : "border-amber-200" },
     { id: "hostel", label: "Residence", icon: "🏠", amount: byType("hostel"), gradient: d ? "from-emerald-900/60 to-emerald-800/40" : "from-emerald-50 to-emerald-100", text: d ? "text-emerald-300" : "text-emerald-700", border: d ? "border-emerald-700/30" : "border-emerald-200" },
   ];
+
+  const inputClass = `w-full rounded-xl py-2.5 px-3 text-sm outline-none transition ${d ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500"} border`;
 
   return (
     <div className={`min-h-screen transition-colors ${d ? "bg-slate-950" : "bg-slate-50"}`}>
@@ -35,14 +79,9 @@ export const DashboardView = () => {
             </button>
             <h1 className={`text-lg font-bold ${d ? "text-white" : "text-slate-900"}`}>ClassCost</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={toggleTheme} className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition ${d ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}>
-              {d ? "☀️" : "🌙"}
-            </button>
-            <button onClick={() => navigate("add-daily")} className="w-10 h-10 bg-indigo-600 hover:bg-indigo-500 rounded-xl flex items-center justify-center text-white text-xl font-light transition active:scale-95 shadow-lg shadow-indigo-600/25">
-              +
-            </button>
-          </div>
+          <button onClick={toggleTheme} className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition ${d ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}>
+            {d ? "☀️" : "🌙"}
+          </button>
         </div>
       </header>
 
@@ -50,7 +89,7 @@ export const DashboardView = () => {
       {menuOpen && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
-          <div className={`fixed top-0 left-0 bottom-0 w-72 sm:w-80 z-50 shadow-2xl flex flex-col transition-colors ${d ? "bg-slate-900" : "bg-white"}`} style={{ animation: "slideRight .2s ease-out" }}>
+          <div className={`fixed top-0 left-0 bottom-0 w-72 sm:w-80 z-50 shadow-2xl flex flex-col ${d ? "bg-slate-900" : "bg-white"}`} style={{ animation: "slideRight .2s ease-out" }}>
             <div className={`p-5 border-b ${d ? "border-slate-800" : "border-slate-100"}`}>
               <div className="flex items-center justify-between mb-4">
                 <span className={`font-bold ${d ? "text-white" : "text-slate-900"}`}>Menu</span>
@@ -76,7 +115,6 @@ export const DashboardView = () => {
             <nav className="flex-1 p-2 overflow-y-auto">
               {[
                 { label: "Home", icon: "🏠", view: "dashboard" },
-                { label: "Add Expense", icon: "➕", view: "add-daily" },
                 { label: "Semesters", icon: "📚", view: "semester" },
                 { label: "Loans", icon: "💳", view: "loans" },
                 { label: "Reports", icon: "📊", view: "reports" },
@@ -101,25 +139,89 @@ export const DashboardView = () => {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-        {/* Total Cost — Big Card */}
+        {/* Total Cost — Display only */}
         <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-8 mb-6 shadow-xl shadow-indigo-600/20">
           <p className="text-white/60 text-xs sm:text-sm font-medium mb-2">Total Cost</p>
           <p className="text-white text-4xl sm:text-5xl font-bold tracking-tight">{fmt(total)}</p>
-          <div className="flex items-center gap-4 mt-4">
-            <span className="text-white/40 text-xs">{expenses.length} transaction{expenses.length !== 1 ? "s" : ""}</span>
-            <button onClick={() => navigate("add-daily")} className="ml-auto bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-4 py-2 rounded-xl transition active:scale-95">
-              + Add Expense
-            </button>
-          </div>
+          <p className="text-white/40 text-xs mt-3">{expenses.length} transaction{expenses.length !== 1 ? "s" : ""}</p>
         </div>
 
-        {/* 4 Category Cards — responsive grid */}
+        {/* 4 Category Cards — clickable */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {categories.map((cat) => (
-            <div key={cat.id} className={`bg-gradient-to-br ${cat.gradient} border ${cat.border} rounded-2xl p-4 sm:p-5 transition-all hover:scale-[1.02]`}>
-              <div className="text-2xl sm:text-3xl mb-3">{cat.icon}</div>
-              <p className={`text-xs sm:text-sm font-medium mb-1 ${d ? "text-slate-400" : "text-slate-500"}`}>{cat.label}</p>
-              <p className={`text-xl sm:text-2xl font-bold ${cat.text}`}>{fmt(cat.amount)}</p>
+            <div key={cat.id}>
+              <button onClick={() => openForm(cat.id)}
+                className={`w-full text-left bg-gradient-to-br ${cat.gradient} border ${cat.border} rounded-2xl p-4 sm:p-5 transition-all hover:scale-[1.02] active:scale-[0.98] ${activeForm === cat.id ? "ring-2 ring-indigo-500" : ""}`}>
+                <div className="text-2xl sm:text-3xl mb-3">{cat.icon}</div>
+                <p className={`text-xs sm:text-sm font-medium mb-1 ${d ? "text-slate-400" : "text-slate-500"}`}>{cat.label}</p>
+                <p className={`text-xl sm:text-2xl font-bold ${cat.text}`}>{fmt(cat.amount)}</p>
+              </button>
+
+              {/* Inline input form */}
+              {activeForm === cat.id && (
+                <div className={`mt-2 rounded-2xl p-4 border transition-all ${d ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-lg"}`}
+                  style={{ animation: "slideDown .2s ease-out" }}>
+
+                  {/* Education: amount + optional details */}
+                  {cat.id === "education" && (
+                    <div className="flex flex-col gap-2.5">
+                      <input type="number" placeholder="Amount" value={formData.amount || ""}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        className={inputClass} inputMode="numeric" autoFocus />
+                      <input type="text" placeholder="Details (optional)" value={formData.details || ""}
+                        onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                        className={inputClass} />
+                    </div>
+                  )}
+
+                  {/* Transport: date (default today) + amount */}
+                  {cat.id === "transport" && (
+                    <div className="flex flex-col gap-2.5">
+                      <input type="date" value={formData.date || today()}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        className={inputClass} />
+                      <input type="number" placeholder="Amount" value={formData.amount || ""}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        className={inputClass} inputMode="numeric" autoFocus />
+                    </div>
+                  )}
+
+                  {/* Canteen: date (default today) + amount */}
+                  {cat.id === "canteen" && (
+                    <div className="flex flex-col gap-2.5">
+                      <input type="date" value={formData.date || today()}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        className={inputClass} />
+                      <input type="number" placeholder="Amount" value={formData.amount || ""}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        className={inputClass} inputMode="numeric" autoFocus />
+                    </div>
+                  )}
+
+                  {/* Residence: month/year (required) + amount */}
+                  {cat.id === "hostel" && (
+                    <div className="flex flex-col gap-2.5">
+                      <input type="month" value={formData.month || currentMonth()}
+                        onChange={(e) => setFormData({ ...formData, month: e.target.value })}
+                        className={inputClass} />
+                      <input type="number" placeholder="Amount" value={formData.amount || ""}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        className={inputClass} inputMode="numeric" autoFocus />
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={handleSave} disabled={saving || !formData.amount}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition active:scale-95">
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                    <button onClick={() => setActiveForm(null)}
+                      className={`px-4 py-2.5 rounded-xl text-sm font-medium transition ${d ? "bg-slate-800 text-slate-300 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
