@@ -92,6 +92,7 @@ export default function App() {
           *{box-sizing:border-box;margin:0;padding:0}html,body{background:#f8f7ff;overscroll-behavior:none}
           @keyframes slideDown{from{transform:translateY(-16px);opacity:0}to{transform:translateY(0);opacity:1}}
           @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+          @keyframes slideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
           @keyframes spin{to{transform:rotate(360deg)}}
           @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
           .animate-slideup{animation:slideup .35s cubic-bezier(.22,.61,.36,1) forwards}

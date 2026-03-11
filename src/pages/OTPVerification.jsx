@@ -38,7 +38,7 @@ export const OTPVerification = () => {
       setUser((p) => ({ ...p, ...result, isLoggedIn: true, trialStart: p?.trialStart || Date.now() }));
       addToast("Logged in!", "success");
       if (result.id) await loadUserData(result.id);
-      navigate(result.profileComplete ? "dashboard" : "onboarding");
+      navigate("dashboard");
     } catch (e) {
       addToast(e.message || "Invalid code", "error");
       setOtp(["", "", "", "", "", ""]);

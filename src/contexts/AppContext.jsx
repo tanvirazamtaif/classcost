@@ -157,8 +157,7 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (user?.isLoggedIn) {
-      if (!user.profileComplete && !user.onboardingSkipped) setView("onboarding");
-      else if (["landing", "otp"].includes(view)) setView("dashboard");
+      if (["landing", "otp"].includes(view)) setView("dashboard");
     }
   }, []);
 

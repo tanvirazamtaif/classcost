@@ -43,7 +43,7 @@ export const LandingPage = () => {
       }));
       addToast("Signed in with Google!", "success");
       if (result.id) await loadUserData(result.id);
-      navigate(result.profileComplete ? "dashboard" : "onboarding");
+      navigate("dashboard");
     } catch (e) {
       addToast(e.message || "Google sign-in failed", "error");
     } finally {
