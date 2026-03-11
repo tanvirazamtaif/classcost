@@ -1,8 +1,83 @@
 const express = require('express');
 const router = express.Router();
 const { prisma } = require('../db.cjs');
+const { generateOTP, sendOTPEmail } = require('../mail.cjs');
 
-// POST /api/auth/register
+// POST /api/auth/send-otp — send OTP to email (register or login)
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Delete any previous OTPs for this email
+    await prisma.otp.deleteMany({ where: { email } });
+
+    // Create new OTP
+    await prisma.otp.create({ data: { email, code, expiresAt } });
+
+    // Send email
+    await sendOTPEmail(email, code);
+
+    res.json({ success: true, message: 'OTP sent to your email' });
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    res.status(500).json({ error: 'Failed to send OTP. Check email configuration.' });
+  }
+});
+
+// POST /api/auth/verify-otp — verify OTP and login/register
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
+
+    // Find valid OTP
+    const otp = await prisma.otp.findFirst({
+      where: { email, code, verified: false, expiresAt: { gt: new Date() } },
+    });
+
+    if (!otp) return res.status(400).json({ error: 'Invalid or expired code' });
+
+    // Mark OTP as verified
+    await prisma.otp.update({ where: { id: otp.id }, data: { verified: true } });
+
+    // Find or create user
+    let user = await prisma.user.findUnique({ where: { email } });
+    let isNew = false;
+
+    if (!user) {
+      isNew = true;
+      user = await prisma.user.create({ data: { email, isLoggedIn: true } });
+      await prisma.settings.create({
+        data: {
+          userId: user.id,
+          notifications: { enabled: true, canteen: true, transport: true },
+          privacy: {},
+          promotion: {},
+          customModules: [],
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { isLoggedIn: true },
+      });
+    }
+
+    // Clean up old OTPs for this email
+    await prisma.otp.deleteMany({ where: { email } });
+
+    res.json({ ...user, isNew });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
+// POST /api/auth/register (kept for backwards compatibility)
 router.post('/register', async (req, res) => {
   try {
     const { email } = req.body;
@@ -30,7 +105,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /api/auth/login
+// POST /api/auth/login (kept for backwards compatibility)
 router.post('/login', async (req, res) => {
   try {
     const { email } = req.body;

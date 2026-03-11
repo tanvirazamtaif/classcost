@@ -45,6 +45,17 @@ model PromoCode {
   createdAt   DateTime  @default(now())
 }
 
+model Otp {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+}
+
 model Expense {
   id        String   @id @default(uuid())
   userId    String

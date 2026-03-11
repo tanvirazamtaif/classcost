@@ -14,6 +14,20 @@ async function request(url, options = {}) {
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
+export async function sendOTP(email) {
+  return request('/api/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyOTP(email, code) {
+  return request('/api/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
+}
+
 export async function registerUser(email) {
   return request('/api/auth/register', {
     method: 'POST',
