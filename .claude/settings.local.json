@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(node -e \":*)",
+      "Bash(node -e 'const fs=require\\(\"\"fs\"\"\\);let c=fs.readFileSync\\(\"\"src/pages/OnboardingWizard.jsx\"\",\"\"utf8\"\"\\);c=c.replace\\(new RegExp\\(\"\"\\\\\\\\\\\\\\\\\\(?=[^\\\\\\\\x00-\\\\\\\\x7F]\\)\"\",\"\"g\"\"\\),\"\"\"\"\\);c=c.replace\\(/\\\\\\\\u2713/g,\"\"\\\\u2713\"\"\\);c=c.replace\\(/\\\\\\\\u2190/g,\"\"\\\\u2190\"\"\\);c=c.replace\\(/\\\\\\\\u2192/g,\"\"\\\\u2192\"\"\\);c=c.replace\\(/\\\\\\\\uFE0F/g,\"\"\\\\uFE0F\"\"\\);fs.writeFileSync\\(\"\"src/pages/OnboardingWizard.jsx\"\",c\\);console.log\\(\"\"Done\"\"\\);')",
+      "Bash(node fix-unicode.cjs)",
+      "Bash(npx vitest:*)",
+      "Bash(npx vite:*)",
+      "Bash(gh auth:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

@@ -1,0 +1,308 @@
+export const EDU = {
+  preprimary: {
+    id:"preprimary", group:"early", label:"Pre-Primary / Playgroup", shortLabel:"Pre-Primary",
+    icon:"🧒", color:"rose", bgColor:"bg-rose-50", borderColor:"border-rose-300",
+    desc:"Playgroup, Nursery, KG-1, KG-2",
+    levels:["Playgroup","Nursery","KG-1","KG-2","Reception"],
+    periodLabel:"Year", semLabel:"Term", courseLabel:"Activity",
+    institutionLabel:"School Name",
+    semTypes:["term"], hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Registration Fee","Annual Activity Fee","Sports Fee","Transport Fee","Tiffin Fee"],
+    periodicUnit:"monthly",
+    hasHostel:false, hasCoaching:false, hasBatch:false, hasExam:false,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:false, hasLabFee:false, hasWaiver:false,
+    note:"Fees are mostly monthly. No formal exams.",
+  },
+  primary: {
+    id:"primary", group:"school", label:"Primary School", shortLabel:"Primary",
+    icon:"🏫", color:"sky", bgColor:"bg-sky-50", borderColor:"border-sky-300",
+    desc:"Class 1 to Class 5 (Government & Private)",
+    levels:["Class 1","Class 2","Class 3","Class 4","Class 5"],
+    periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"School Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Annual Exam Fee","Development Fee","Library Fee","Science Kit Fee","Tiffin Fee"],
+    periodicUnit:"monthly",
+    hasHostel:false, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:false, hasLabFee:false, hasWaiver:false,
+    note:"Class 1–5. PEC / Primary Terminal exams.",
+    variants:[
+      { id:"govt_primary",    label:"Government Primary School" },
+      { id:"private_primary", label:"Private Primary School"    },
+      { id:"english_medium",  label:"English Medium (KG to 5)"  },
+      { id:"madrasha_primary",label:"Madrasha (Ebtedaye)"        },
+    ],
+  },
+  junior: {
+    id:"junior", group:"school", label:"Junior Secondary School", shortLabel:"Junior School",
+    icon:"🏫", color:"teal", bgColor:"bg-teal-50", borderColor:"border-teal-300",
+    desc:"Class 6 to Class 8 (JSC / JDC track)",
+    levels:["Class 6","Class 7","Class 8"],
+    periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"School Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Annual Exam Fee","JSC Form Fill-up","Library Fee","Science Lab Fee","Development Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"JSC/JDC Board Exam at Class 8.",
+    variants:[
+      { id:"regular",   label:"Regular Secondary School" },
+      { id:"cadet",     label:"Cadet College (Junior)"   },
+      { id:"madrasha",  label:"Madrasha (Dakhil Junior)" },
+    ],
+  },
+  secondary: {
+    id:"secondary", group:"school", label:"Secondary School (SSC)", shortLabel:"Secondary",
+    icon:"📘", color:"blue", bgColor:"bg-blue-50", borderColor:"border-blue-300",
+    desc:"Class 9 & 10 — SSC / Dakhil / O-Level track",
+    levels:["Class 9","Class 10 (SSC Year)"],
+    periodLabel:"Class", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"School Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","SSC Registration Fee","SSC Form Fill-up","Practical Exam Fee","Library Fee","Science Lab Fee","Development Fee","Re-admission Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"SSC / Dakhil / O-Level Board Exam.",
+    variants:[
+      { id:"ssc_general",  label:"SSC — General"          },
+      { id:"ssc_science",  label:"SSC — Science Group"    },
+      { id:"ssc_commerce", label:"SSC — Commerce Group"   },
+      { id:"ssc_arts",     label:"SSC — Arts Group"       },
+      { id:"dakhil",       label:"Dakhil (Madrasha SSC)"  },
+      { id:"o_level",      label:"O-Level (IGCSE)"        },
+    ],
+  },
+  fullschool: {
+    id:"fullschool", group:"school", label:"Full School (Class 1–12)", shortLabel:"Full School",
+    icon:"🏫", color:"cyan", bgColor:"bg-cyan-50", borderColor:"border-cyan-300",
+    desc:"Schools running Class 1 to 12 under one roof",
+    levels:["Class 1","Class 2","Class 3","Class 4","Class 5","Class 6","Class 7","Class 8","Class 9","Class 10","Class 11 (HSC-1)","Class 12 (HSC-2)"],
+    periodLabel:"Class", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"School & College Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Annual Exam Fee","SSC Registration","SSC Form Fill-up","HSC Registration","HSC Form Fill-up","Lab Fee","Library Fee","Development Fee","Re-admission Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"Covers SSC + HSC. Separate fees for each board exam.",
+    variants:[
+      { id:"school_college",  label:"School & College (1–12)"    },
+      { id:"cadet_college",   label:"Cadet College (Full)"        },
+      { id:"cantonment",      label:"Cantonment School & College" },
+      { id:"residential",     label:"Residential School (1–12)"  },
+    ],
+  },
+  hsc: {
+    id:"hsc", group:"college", label:"Intermediate / HSC College", shortLabel:"HSC / Inter",
+    icon:"🏛️", color:"violet", bgColor:"bg-violet-50", borderColor:"border-violet-300",
+    desc:"Class 11 & 12 only — Pure HSC / A-Level / Alim colleges",
+    levels:["Class 11 (1st Year)","Class 12 (2nd Year / Board Exam)"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"College Name",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Session Fee","HSC Registration Fee","HSC Form Fill-up Fee","Practical Exam Fee","Lab Fee","Library Fee","Development Fee","Re-admission Fee","Tuition Fee (Monthly)"],
+    periodicUnit:"mixed",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"HSC Board Exam at Class 12. Only 2 years — no lower classes in institution.",
+    variants:[
+      { id:"hsc_general",  label:"HSC — General"          },
+      { id:"hsc_science",  label:"HSC — Science Group"    },
+      { id:"hsc_commerce", label:"HSC — Commerce Group"   },
+      { id:"hsc_arts",     label:"HSC — Humanities Group" },
+      { id:"alim",         label:"Alim (Madrasha HSC)"    },
+      { id:"a_level",      label:"A-Level (IGCSE)"        },
+      { id:"bm",           label:"Business Management"    },
+    ],
+  },
+  degree_college: {
+    id:"degree_college", group:"college", label:"Degree College (Pass Course)", shortLabel:"Degree College",
+    icon:"🏛️", color:"amber", bgColor:"bg-amber-50", borderColor:"border-amber-300",
+    desc:"BA / BSc / BCom 3-year Pass Course under National University",
+    levels:["1st Year","2nd Year","3rd Year (Final)"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"College Name",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Session Fee","Form Fill-up Fee","Practical Fee","Library Fee","Development Fee","National University Fee","Re-admission Fee"],
+    periodicUnit:"yearly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:false, hasWaiver:false,
+    note:"National University affiliated. Yearly exams.",
+  },
+  honours_college: {
+    id:"honours_college", group:"college", label:"Honours College (4-Year)", shortLabel:"Honours",
+    icon:"🏛️", color:"orange", bgColor:"bg-orange-50", borderColor:"border-orange-300",
+    desc:"4-Year Honours under National University (NU)",
+    levels:["1st Year","2nd Year","3rd Year","4th Year (Honours Final)"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"College Name",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Session Fee","Form Fill-up Fee","Practical Fee","Library Fee","Development Fee","NU Registration Fee","Re-admission Fee"],
+    periodicUnit:"yearly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:false, hasWaiver:false,
+    note:"National University Honours. 4-year annual exam system.",
+    variants:[
+      { id:"nu_honours", label:"NU — Honours (College Affiliated)" },
+      { id:"nu_evening", label:"NU — Evening Programme"           },
+    ],
+  },
+  undergrad_private: {
+    id:"undergrad_private", group:"university", label:"Private University (UG)", shortLabel:"Private Uni",
+    icon:"🎓", color:"indigo", bgColor:"bg-indigo-50", borderColor:"border-indigo-300",
+    desc:"Semester-based private university undergrad (3–5 years)",
+    levels:["1st Year","2nd Year","3rd Year","4th Year","5th Year"],
+    periodLabel:"Year", semLabel:"Semester", courseLabel:"Course",
+    institutionLabel:"University Name",
+    hasSemesterChoice:true,
+    semChoiceOptions:[{v:"tri",l:"Trimester (3/year)"},{v:"bi",l:"Semester (2/year)"}],
+    feeTypes:["Admission Fee","Semester Fee","Course Fee","Lab Fee","Library Fee","Activity Fee","Student Welfare Fee","Penalty Fee","Re-admission Fee","Waiver Adjustment"],
+    periodicUnit:"semester",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:true,
+    note:"Credit-based. Semester/trimester system. Waivers based on admission test score.",
+  },
+  undergrad_public: {
+    id:"undergrad_public", group:"university", label:"Public University (UG)", shortLabel:"Public Uni",
+    icon:"🏛️", color:"green", bgColor:"bg-green-50", borderColor:"border-green-300",
+    desc:"Session-based public university undergrad (4–5 years)",
+    levels:["1st Year","2nd Year","3rd Year","4th Year","5th Year (Honours)"],
+    periodLabel:"Year", semLabel:"Year/Session", courseLabel:"Course",
+    institutionLabel:"University Name",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Hall Admission","Session Fee","Form Fill-up Fee","Lab Fee","Library Fee","Sports Fee","Medical Fee","Re-admission Fee"],
+    periodicUnit:"yearly",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"Hall/dormitory is common. Session system, not semester.",
+    variants:[
+      { id:"general",    label:"General (Arts/Science/Commerce)" },
+      { id:"engineering",label:"Engineering (BUET, CUET, RUET)"  },
+      { id:"medical",    label:"Medical / Dental (MBBS, BDS)"    },
+      { id:"agriculture",label:"Agricultural University"          },
+      { id:"science_tech",label:"Science & Technology University" },
+    ],
+  },
+  masters: {
+    id:"masters", group:"postgrad", label:"Masters Programme", shortLabel:"Masters",
+    icon:"👩‍🎓", color:"purple", bgColor:"bg-purple-50", borderColor:"border-purple-300",
+    desc:"MA / MSc / MBA / MEng / MCom (1–2 years)",
+    levels:["1st Semester","2nd Semester","3rd Semester","4th Semester"],
+    periodLabel:"Semester", semLabel:"Semester", courseLabel:"Course",
+    institutionLabel:"University / Institution",
+    hasSemesterChoice:true,
+    semChoiceOptions:[{v:"tri",l:"Trimester"},{v:"bi",l:"Semester"}],
+    feeTypes:["Admission Fee","Semester Fee","Course Fee","Thesis Fee","Research Fee","Library Fee","Lab Fee","Penalty Fee"],
+    periodicUnit:"semester",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:true,
+    variants:[
+      {v:"mba",  l:"MBA"},    {v:"msc",   l:"MSc"},
+      {v:"ma",   l:"MA"},     {v:"meng",  l:"MEng / M.Engg"},
+      {v:"llm",  l:"LLM"},    {v:"mpharm",l:"M.Pharm"},
+    ],
+  },
+  research: {
+    id:"research", group:"postgrad", label:"MPhil / PhD (Research)", shortLabel:"MPhil / PhD",
+    icon:"🔬", color:"fuchsia", bgColor:"bg-fuchsia-50", borderColor:"border-fuchsia-300",
+    desc:"Research degrees — MPhil (2yr) / PhD (3–5yr)",
+    levels:["Year 1","Year 2","Year 3","Year 4","Year 5 (Extension)"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Research Module",
+    institutionLabel:"University",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Annual Fee","Research Fee","Thesis Submission Fee","Lab Fee","Library Fee","Conference Fee","Publication Fee","Extension Fee"],
+    periodicUnit:"yearly",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:false,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:false, hasLabFee:true, hasWaiver:false,
+    note:"Supervisor-guided research. No coursework exams after Year 1.",
+    variants:[
+      {v:"mphil",l:"MPhil"},{v:"phd",l:"PhD"},{v:"integrated",l:"Integrated MPhil-PhD"},
+    ],
+  },
+};
+
+export const EDU_GROUPS = [
+  { id:"early",     label:"Early Education", icon:"🧒",  color:"rose",   ids:["preprimary"] },
+  { id:"school",    label:"School",          icon:"🏫",  color:"sky",    ids:["primary","junior","secondary","fullschool"] },
+  { id:"college",   label:"College",         icon:"🏛️",  color:"violet", ids:["hsc","degree_college","honours_college"] },
+  { id:"university",label:"University",      icon:"🎓",  color:"indigo", ids:["undergrad_private","undergrad_public"] },
+  { id:"postgrad",  label:"Postgraduate",    icon:"👩‍🎓", color:"purple", ids:["masters","research"] },
+];
+
+export const PROMOTION_CONFIG = {
+  preprimary:       { mode:"smart",  nudgeMonth:0, nudgeDay:1,  snoozeDays:30,  termLabel:"academic year" },
+  primary:          { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
+  junior:           { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
+  secondary:        { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
+  fullschool:       { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
+  hsc:              { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"year" },
+  degree_college:   { mode:"manual", nudgeMonth:5, nudgeDay:1,  snoozeDays:60,  termLabel:"session",
+                      manualNote:"NU sessions often run 6–18 months late. Update manually." },
+  honours_college:  { mode:"manual", nudgeMonth:5, nudgeDay:1,  snoozeDays:60,  termLabel:"session",
+                      manualNote:"National University Honours — update session manually." },
+  undergrad_private:{ mode:"smart",  nudgeMonth:4, nudgeDay:15, snoozeDays:14,  termLabel:"semester",
+                      secondNudge:{ month:11, day:15 } },
+  undergrad_public: { mode:"manual", nudgeMonth:5, nudgeDay:1,  snoozeDays:60,  termLabel:"session",
+                      manualNote:"Public university sessions may be delayed. Update manually." },
+  masters:          { mode:"smart",  nudgeMonth:4, nudgeDay:15, snoozeDays:14,  termLabel:"semester",
+                      secondNudge:{ month:11, day:15 } },
+  research:         { mode:"never",  nudgeMonth:0, nudgeDay:1,  snoozeDays:365, termLabel:"year",
+                      manualNote:"Research duration is open-ended. Update year manually." },
+};
+
+export const shouldNudgeToday = (profile, promotionState) => {
+  if (!profile?.educationLevel || !profile?.classYear) return false;
+  const cfg = PROMOTION_CONFIG[profile.educationLevel];
+  if (!cfg || cfg.mode === "never") return false;
+  const now = new Date();
+  const month = now.getMonth();
+  const day = now.getDate();
+  const year = now.getFullYear();
+  const mod = EDU[profile.educationLevel];
+  const levels = mod?.levels || [];
+  const curIdx = levels.indexOf(profile.classYear);
+  if (curIdx >= levels.length - 1) return false;
+  const nudgeDate = new Date(year, cfg.nudgeMonth, cfg.nudgeDay);
+  const daysDiff = Math.floor((now - nudgeDate) / 86400000);
+  const inWindow = daysDiff >= 0 && daysDiff <= 7;
+  const inWindow2 = cfg.secondNudge
+    ? (() => { const d2 = new Date(year, cfg.secondNudge.month, cfg.secondNudge.day); const diff2 = Math.floor((now-d2)/86400000); return diff2>=0&&diff2<=7; })()
+    : false;
+  if (!inWindow && !inWindow2) return false;
+  if (promotionState?.lastAnsweredYear === year) return false;
+  if (promotionState?.snoozedUntil && new Date(promotionState.snoozedUntil) > now) return false;
+  if (profile.enrolledAt) {
+    const monthsSinceEnroll = (now - new Date(profile.enrolledAt)) / (30*86400000);
+    if (monthsSinceEnroll < 8) return false;
+  }
+  return true;
+};
+
+export const INSTITUTIONS = {
+  preprimary:       ["Maple Leaf International","Scholastica (Preschool)","Sunbeams Preschool","PlayPen","ABC International Pre-School","Tiny Tots","Hummingbird Preschool","Little Flower Nursery"],
+  primary:          ["Viqarunnisa Noon School","Motijheel Ideal School","Willes Little Flower School","BRAC Primary School","Aga Khan School","Milestone College (Primary)","Cantonment Board School","Sunbeams School"],
+  junior:           ["Viqarunnisa Noon School","Motijheel Ideal School","St. Joseph Higher Secondary School","Holy Cross Girls' High School","Dhaka Cantonment Girls' Public School","Willes Little Flower School"],
+  secondary:        ["Viqarunnisa Noon School","Motijheel Ideal School","Holy Cross Girls' High School","Rajuk Uttara Model College","St. Joseph Higher Secondary School","Dhaka Residential Model College","Milestone College","Cantonment Board School"],
+  fullschool:       ["Rajuk Uttara Model College","Dhaka Residential Model College","Cantonment English School & College","St. Joseph Higher Secondary School","Maple Leaf International School","Milestone College","BAF Shaheen College"],
+  hsc:              ["Notre Dame College","Holy Cross College","Dhaka College","Eden Mohila College","Tejgaon College","Rajshahi College","Chittagong College","Mymensingh Girls' Cadet College","BUET HSC Wing"],
+  degree_college:   ["Titumir College","Siddheswari Degree College","Dhaka City College","Govt. Bangla College","Kabi Nazrul Govt. College","Govt. Tolaram College","Govt. Hazi Muhammad Mohsin College"],
+  honours_college:  ["Titumir College (Honours)","Dhaka City College (Honours)","Govt. Bangla College (Honours)","Eden Mohila College (Honours)","Jahangirnagar College","National Ideal College"],
+  undergrad_private:["North South University (NSU)","BRAC University","IUB","EWU","DIU","UIU","AIUB","Green University","Southeast University","Stamford University","American International University-Bangladesh"],
+  undergrad_public: ["University of Dhaka","BUET","Jahangirnagar University","University of Rajshahi","University of Chittagong","SUST","IUT","Khulna University","MIST","Bangladesh Agricultural University"],
+  masters:          ["University of Dhaka","BUET","NSU (MBA/MS)","BRAC University","IUB Graduate","IBA — MBA","East West University Graduate","SUST Graduate","Jahangirnagar University Graduate"],
+  research:         ["University of Dhaka","BUET","Jahangirnagar University","SUST","University of Rajshahi","University of Chittagong","Bangladesh Agricultural University"],
+};
