@@ -12,7 +12,12 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }) => {
-  const [view, setView] = useLocalStorage("ut_v3_view", "landing");
+  // Detect /admin URL path on initial load
+  const initialView = (() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/admin') return 'admin';
+    return null;
+  })();
+  const [view, setView] = useLocalStorage("ut_v3_view", initialView || "landing");
   const [user, setUserLocal] = useLocalStorage("ut_v3_user", null);
   const [expenses, setExpensesLocal] = useLocalStorage("ut_v3_expenses", []);
   const [semesters, setSemestersLocal] = useLocalStorage("ut_v3_semesters", []);
@@ -134,6 +139,13 @@ export const AppProvider = ({ children }) => {
     ));
     try { await api.addLoanPayment(loanId, payment); }
     catch (e) { console.error('Failed to sync loan payment:', e); }
+  }, []);
+
+  // Handle /admin URL path — always show admin panel if URL is /admin
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/admin') {
+      setView('admin');
+    }
   }, []);
 
   // On initial load, if user is logged in, sync from server

@@ -5,6 +5,7 @@ import { makeFmt, todayStr } from '../utils';
 import { usePrivacy } from '../hooks';
 import { Btn, Card, Input, Badge, Toggle } from '../components/ui';
 import { PINPad } from '../components/feature';
+import { redeemPromoCode } from '../api';
 
 const SettingsView = () => {
   const { user, setUser, notifications, setNotifications, navigate, addToast } = useApp();
@@ -15,6 +16,26 @@ const SettingsView = () => {
   const [showLevelPicker, setShowLevelPicker] = useState(false);
   const [privModal, setPrivModal] = useState(null);
   const { priv, setPIN, clearPIN, unlock } = usePrivacy();
+
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const isPremium = user?.premiumUntil && new Date(user.premiumUntil) > new Date();
+  const premDays = isPremium ? Math.ceil((new Date(user.premiumUntil) - new Date()) / 86400000) : 0;
+
+  const handleRedeem = async () => {
+    if (!promoCode.trim() || !user?.id) return;
+    setPromoLoading(true);
+    try {
+      const result = await redeemPromoCode(user.id, promoCode.trim());
+      setUser(p => ({ ...p, premiumUntil: result.premiumUntil, premiumSource: promoCode.toUpperCase() }));
+      addToast(result.message, "success");
+      setPromoCode("");
+    } catch (e) {
+      addToast(e.message || "Invalid promo code", "error");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   const setCurrency=id=>{setUser(p=>({...p,profile:{...p.profile,currency:id}}));addToast(`Currency: ${id}`,"success");};
   const setLevel=lv=>{
@@ -200,6 +221,30 @@ const SettingsView = () => {
           </div>
         </div>
       )}
+
+      <Card className="p-5">
+        <h3 className="text-sm font-bold text-slate-700 mb-3">🎫 Promo Code</h3>
+        {isPremium ? (
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-amber-50 border border-amber-100 mb-3">
+            <span className="text-xl">⭐</span>
+            <div>
+              <p className="font-bold text-sm text-amber-700">Premium Active</p>
+              <p className="text-xs text-amber-600">{premDays} days remaining</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-slate-400 text-xs mb-3">Enter a promo code to unlock premium features</p>
+        )}
+        <div className="flex gap-2">
+          <input value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())}
+            onKeyDown={e => e.key === "Enter" && handleRedeem()}
+            placeholder="Enter promo code"
+            className="flex-1 rounded-xl bg-slate-50 border border-slate-200 py-2.5 px-4 text-slate-800 placeholder-slate-400 text-sm outline-none focus:border-indigo-400 font-mono tracking-wider" />
+          <Btn onClick={handleRedeem} disabled={promoLoading || !promoCode.trim()} size="sm">
+            {promoLoading ? "..." : "Redeem"}
+          </Btn>
+        </div>
+      </Card>
 
       <Card className="p-5">
         <div className={`flex items-center gap-3 p-3 rounded-2xl mb-3 ${trialDays<10?"bg-amber-50":"bg-emerald-50"}`}>

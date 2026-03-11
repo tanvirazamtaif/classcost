@@ -136,3 +136,52 @@ export async function updateSettings(userId, data) {
     body: JSON.stringify(data),
   });
 }
+
+// ── Admin ──────────────────────────────────────────────────────────────────
+
+function adminHeaders(password) {
+  return { 'Content-Type': 'application/json', 'x-admin-password': password };
+}
+
+export async function getAdminStats(password) {
+  return request('/api/admin/stats', { headers: adminHeaders(password) });
+}
+
+export async function getAdminUsers(password) {
+  return request('/api/admin/users', { headers: adminHeaders(password) });
+}
+
+export async function getAdminPromos(password) {
+  return request('/api/admin/promos', { headers: adminHeaders(password) });
+}
+
+export async function createAdminPromo(password, data) {
+  return request('/api/admin/promos', {
+    method: 'POST',
+    headers: adminHeaders(password),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAdminPromo(password, id) {
+  return request(`/api/admin/promos/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(password),
+  });
+}
+
+export async function toggleAdminPromo(password, id) {
+  return request(`/api/admin/promos/${id}/toggle`, {
+    method: 'PUT',
+    headers: adminHeaders(password),
+  });
+}
+
+// ── Promo Redemption (public) ──────────────────────────────────────────────
+
+export async function redeemPromoCode(userId, code) {
+  return request('/api/admin/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ userId, code }),
+  });
+}

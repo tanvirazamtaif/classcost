@@ -8,6 +8,7 @@ const expenseRoutes = require('./routes/expenses.cjs');
 const semesterRoutes = require('./routes/semesters.cjs');
 const loanRoutes = require('./routes/loans.cjs');
 const settingsRoutes = require('./routes/settings.cjs');
+const adminRoutes = require('./routes/admin.cjs');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/semesters', semesterRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {
