@@ -26,7 +26,12 @@ export const AppProvider = ({ children }) => {
     enabled: true, canteen: true, transport: true,
   });
   const [syncing, setSyncing] = useState(false);
+  const [theme, setThemeLocal] = useLocalStorage("ut_v3_theme", "dark");
   const { toasts, addToast } = useToast();
+
+  const toggleTheme = useCallback(() => {
+    setThemeLocal((prev) => (prev === "dark" ? "light" : "dark"));
+  }, []);
 
   const navigate = (v) => setView(v);
 
@@ -180,6 +185,7 @@ export const AppProvider = ({ children }) => {
     loans, setLoans,
     notifications, setNotifications,
     toasts, addToast,
+    theme, toggleTheme,
     // Server-synced helpers
     addExpense, removeExpense,
     addSemester, editSemester,

@@ -18,24 +18,13 @@ import {
   AdminPanel,
 } from './pages';
 
-// ─── Main App Shell ───────────────────────────────────────────────────────────
-const MainApp = () => {
-  const { view, navigate } = useApp();
-
-  const tabMap = {
-    dashboard: "home",
-    "add-daily": "add",
-    semester: "semester",
-    reports: "reports",
-    settings: "settings",
-    loans: "loans",
-  };
-
-  const activeTab = tabMap[view] || "home";
+// ─── Inner pages with bottom nav (non-dashboard) ─────────────────────────────
+const InnerPage = () => {
+  const { view, navigate, theme } = useApp();
+  const d = theme === "dark";
 
   const pages = {
-    home: <DashboardView />,
-    add: <AddExpenseView />,
+    "add-daily": <AddExpenseView />,
     loans: <LoansView />,
     reports: <ReportsView />,
     settings: <SettingsView />,
@@ -43,14 +32,11 @@ const MainApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={`min-h-screen ${d ? "bg-slate-950" : "bg-slate-50"}`}>
       <div className="max-w-md mx-auto pb-24 px-4 pt-6">
-        {pages[activeTab] || pages.home}
+        {pages[view] || pages["add-daily"]}
       </div>
-      <BottomNav
-        active={activeTab === "home" ? "dashboard" : activeTab === "add" ? "add-daily" : view}
-        navigate={navigate}
-      />
+      <BottomNav active={view} navigate={navigate} />
     </div>
   );
 };
@@ -69,8 +55,9 @@ const ViewRouter = () => {
       {view === "stage-upgrade" && <StageUpgradeWizard />}
       {view === "academic-journey" && <AcademicJourneyView />}
       {view === "admin" && <AdminPanel />}
-      {["dashboard", "add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
-        <MainApp />
+      {view === "dashboard" && <DashboardView />}
+      {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
+        <InnerPage />
       )}
     </>
   );
@@ -83,13 +70,12 @@ export default function App() {
       <div
         style={{
           fontFamily: "'DM Sans',system-ui,sans-serif",
-          background: "#f8f7ff",
           minHeight: "100vh",
         }}
       >
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300..700&family=Fraunces:wght@600;700;800&display=swap');
-          *{box-sizing:border-box;margin:0;padding:0}html,body{background:#f8f7ff;overscroll-behavior:none}
+          *{box-sizing:border-box;margin:0;padding:0}html,body{overscroll-behavior:none}
           @keyframes slideDown{from{transform:translateY(-16px);opacity:0}to{transform:translateY(0);opacity:1}}
           @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
           @keyframes slideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
