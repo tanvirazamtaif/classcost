@@ -11,7 +11,7 @@ const AdminPanel = () => {
   const [error, setError] = useState("");
 
   // Data
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({ userCount: 0, expenseCount: 0, semesterCount: 0, loanCount: 0, promoCount: 0, premiumCount: 0 });
   const [users, setUsers] = useState([]);
   const [promos, setPromos] = useState([]);
 
@@ -35,7 +35,8 @@ const AdminPanel = () => {
       setPromos(p);
       setError("");
     } catch (e) {
-      setError(e.message);
+      console.error('Admin load error:', e);
+      setError(e.message || 'Failed to load data. Check your admin password.');
     } finally {
       setLoading(false);
     }
@@ -144,7 +145,7 @@ const AdminPanel = () => {
         )}
 
         {/* OVERVIEW TAB */}
-        {!loading && tab === "overview" && stats && (
+        {!loading && tab === "overview" && (
           <>
             <div className="grid grid-cols-2 gap-3">
               {[

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { EDU_GROUPS } from '../constants/education';
 import { sendOTP, googleSignIn } from '../api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -12,21 +11,23 @@ export const LandingPage = () => {
   const [gLoading, setGLoading] = useState(false);
   const googleBtnRef = useRef(null);
 
-  // Initialize Google Sign-In
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !window.google?.accounts) return;
 
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleResponse,
+      locale: 'en',
     });
 
     window.google.accounts.id.renderButton(googleBtnRef.current, {
       theme: 'outline',
       size: 'large',
-      width: '100%',
+      width: 320,
       text: 'continue_with',
-      shape: 'pill',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      locale: 'en',
     });
   }, []);
 
@@ -66,74 +67,75 @@ export const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-purple-900">
-      <div className="absolute top-20 -left-20 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 -right-20 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
-      <button onClick={() => navigate("admin")} className="absolute top-5 right-5 text-white/30 hover:text-white/60 text-xs">Admin →</button>
+    <div className="min-h-screen flex flex-col items-center justify-center p-5 bg-slate-950 relative overflow-hidden">
+      {/* Subtle gradient orbs */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-600/8 rounded-full blur-[100px]" />
 
-      <div className="relative z-10 w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl border border-white/20">🎓</div>
-            <div className="text-left">
-              <div className="text-white font-bold text-2xl" style={{ fontFamily: "'Fraunces',serif" }}>ClassCost</div>
-              <div className="text-white/50 text-xs">Education Expense Manager</div>
-            </div>
+      <button onClick={() => navigate("admin")} className="absolute top-4 right-4 text-white/20 hover:text-white/50 text-xs transition">Admin</button>
+
+      <div className="relative z-10 w-full max-w-[380px]">
+        {/* Logo & Brand */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg shadow-indigo-600/30">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5" />
+            </svg>
           </div>
-          <span className="inline-block px-3 py-1 bg-amber-400/20 text-amber-300 rounded-full text-xs font-bold border border-amber-400/30">🎉 2 Months Free Trial</span>
+          <h1 className="text-white text-3xl font-bold tracking-tight mb-1">ClassCost</h1>
+          <p className="text-slate-400 text-sm">Smart expense tracking for students</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mb-6">
-          {[["🎒", "Student", "Track daily expenses"], ["👨‍👩‍👦", "Parent Mode", "Switch with a PIN"], ["💳", "Loans", "Manage EMIs"]].map(([icon, label, sub]) => (
-            <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-              <div className="text-2xl mb-1">{icon}</div>
-              <div className="text-white text-xs font-bold">{label}</div>
-              <div className="text-white/40 text-xs mt-0.5 leading-tight">{sub}</div>
-            </div>
+        {/* Feature pills */}
+        <div className="flex justify-center gap-2 mb-8">
+          {["Expenses", "Loans", "Family"].map((label) => (
+            <span key={label} className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs text-slate-400 font-medium">
+              {label}
+            </span>
           ))}
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl">
-          <p className="text-white/60 text-xs text-center mb-3">One account for the whole family</p>
+        {/* Auth Card */}
+        <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl p-6 border border-white/10 shadow-xl">
+          <h2 className="text-white text-lg font-semibold text-center mb-1">Get started</h2>
+          <p className="text-slate-500 text-xs text-center mb-6">Sign in or create an account</p>
 
-          {/* Google Sign-In Button */}
+          {/* Google Sign-In */}
           {GOOGLE_CLIENT_ID && (
             <>
-              <div ref={googleBtnRef} className="flex justify-center mb-3" style={{ minHeight: 44 }} />
+              <div ref={googleBtnRef} className="flex justify-center mb-4" style={{ minHeight: 44 }} />
               {gLoading && (
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span className="text-white/60 text-xs">Signing in...</span>
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <div className="w-4 h-4 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                  <span className="text-slate-400 text-xs">Signing in...</span>
                 </div>
               )}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1 h-px bg-white/20" />
-                <span className="text-white/40 text-xs">or use email</span>
-                <div className="flex-1 h-px bg-white/20" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-slate-500 text-xs font-medium">or</span>
+                <div className="flex-1 h-px bg-white/10" />
               </div>
             </>
           )}
 
-          <div className="relative mb-4">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2">✉️</span>
+          {/* Email Input */}
+          <div className="mb-3">
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
-              placeholder="yourname@gmail.com" onKeyDown={(e) => e.key === "Enter" && handleContinue()}
-              className="w-full rounded-2xl bg-white/10 border border-white/20 py-3 pl-12 pr-4 text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50 transition" />
+              placeholder="Email address" onKeyDown={(e) => e.key === "Enter" && handleContinue()}
+              className="w-full rounded-xl bg-slate-800 border border-white/10 py-3 px-4 text-white placeholder-slate-500 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition" />
           </div>
+
           <button onClick={handleContinue} disabled={loading}
-            className="w-full text-sm font-bold rounded-2xl py-3.5 flex items-center justify-center gap-3 transition active:scale-95 shadow-lg disabled:opacity-50 bg-white hover:bg-slate-50 text-indigo-700">
+            className="w-full text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25">
             {loading
-              ? <><div className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />Sending code...</>
-              : <>✉️ Continue with Email</>}
+              ? <><div className="w-4 h-4 border-2 border-indigo-300 border-t-white rounded-full animate-spin" />Sending code...</>
+              : "Continue with Email"}
           </button>
-          <p className="text-white/30 text-xs text-center mt-2">No password · 6-digit code sent to your email</p>
+
+          <p className="text-slate-600 text-xs text-center mt-3">We'll send a 6-digit verification code</p>
         </div>
 
-        <div className="mt-5 flex gap-2 flex-wrap justify-center">
-          {EDU_GROUPS.map((g) => (
-            <span key={g.id} className="text-xs text-white/40 flex items-center gap-1">{g.icon} {g.label}</span>
-          ))}
-        </div>
       </div>
     </div>
   );
