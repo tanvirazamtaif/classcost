@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { prisma } = require('../db.cjs');
 const { generateOTP, sendOTPEmail } = require('../mail.cjs');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client();
 
 // POST /api/auth/send-otp — send OTP to email (register or login)
 router.post('/send-otp', async (req, res) => {
@@ -74,6 +77,54 @@ router.post('/verify-otp', async (req, res) => {
   } catch (err) {
     console.error('Verify OTP error:', err);
     res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
+// POST /api/auth/google — Google Sign-In
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Google credential is required' });
+
+    // Verify the Google ID token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { email, name, picture } = payload;
+
+    if (!email) return res.status(400).json({ error: 'No email in Google account' });
+
+    // Find or create user
+    let user = await prisma.user.findUnique({ where: { email } });
+    let isNew = false;
+
+    if (!user) {
+      isNew = true;
+      user = await prisma.user.create({
+        data: { email, name: name || null, isLoggedIn: true },
+      });
+      await prisma.settings.create({
+        data: {
+          userId: user.id,
+          notifications: { enabled: true, canteen: true, transport: true },
+          privacy: {},
+          promotion: {},
+          customModules: [],
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { isLoggedIn: true, name: user.name || name || null },
+      });
+    }
+
+    res.json({ ...user, isNew, googleName: name, googlePicture: picture });
+  } catch (err) {
+    console.error('Google auth error:', err);
+    res.status(401).json({ error: 'Invalid Google credential' });
   }
 });
 

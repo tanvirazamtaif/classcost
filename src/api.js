@@ -28,6 +28,13 @@ export async function verifyOTP(email, code) {
   });
 }
 
+export async function googleSignIn(credential) {
+  return request('/api/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ credential }),
+  });
+}
+
 export async function registerUser(email) {
   return request('/api/auth/register', {
     method: 'POST',

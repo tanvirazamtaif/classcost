@@ -1,12 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU_GROUPS } from '../constants/education';
-import { sendOTP } from '../api';
+import { sendOTP, googleSignIn } from '../api';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 export const LandingPage = () => {
-  const { navigate, setUser, addToast } = useApp();
+  const { navigate, setUser, addToast, loadUserData } = useApp();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [gLoading, setGLoading] = useState(false);
+  const googleBtnRef = useRef(null);
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !window.google?.accounts) return;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleResponse,
+    });
+
+    window.google.accounts.id.renderButton(googleBtnRef.current, {
+      theme: 'outline',
+      size: 'large',
+      width: '100%',
+      text: 'continue_with',
+      shape: 'pill',
+    });
+  }, []);
+
+  const handleGoogleResponse = async (response) => {
+    if (!response.credential) return;
+    setGLoading(true);
+    try {
+      const result = await googleSignIn(response.credential);
+      setUser((p) => ({
+        ...p, ...result,
+        isLoggedIn: true,
+        trialStart: p?.trialStart || Date.now(),
+      }));
+      addToast("Signed in with Google!", "success");
+      if (result.id) await loadUserData(result.id);
+      navigate(result.profileComplete ? "dashboard" : "onboarding");
+    } catch (e) {
+      addToast(e.message || "Google sign-in failed", "error");
+    } finally {
+      setGLoading(false);
+    }
+  };
 
   const handleContinue = async () => {
     if (!email || !email.includes("@")) { addToast("Enter a valid email", "error"); return; }
@@ -53,6 +95,25 @@ export const LandingPage = () => {
 
         <div className="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl">
           <p className="text-white/60 text-xs text-center mb-3">One account for the whole family</p>
+
+          {/* Google Sign-In Button */}
+          {GOOGLE_CLIENT_ID && (
+            <>
+              <div ref={googleBtnRef} className="flex justify-center mb-3" style={{ minHeight: 44 }} />
+              {gLoading && (
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="text-white/60 text-xs">Signing in...</span>
+                </div>
+              )}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 h-px bg-white/20" />
+                <span className="text-white/40 text-xs">or use email</span>
+                <div className="flex-1 h-px bg-white/20" />
+              </div>
+            </>
+          )}
+
           <div className="relative mb-4">
             <span className="absolute left-4 top-1/2 -translate-y-1/2">✉️</span>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
