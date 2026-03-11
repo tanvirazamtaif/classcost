@@ -1,0 +1,138 @@
+const BASE = import.meta.env.VITE_API_URL || '';
+
+async function request(url, options = {}) {
+  const res = await fetch(`${BASE}${url}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || body.message || res.statusText);
+  }
+  return res.json();
+}
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+
+export async function registerUser(email) {
+  return request('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function loginUser(email) {
+  return request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function getUser(id) {
+  return request(`/api/auth/user/${id}`);
+}
+
+export async function updateProfile(id, data) {
+  return request(`/api/auth/profile/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// ── Expenses ────────────────────────────────────────────────────────────────
+
+export async function getExpenses(userId) {
+  return request(`/api/expenses/${userId}`);
+}
+
+export async function createExpense(data) {
+  return request('/api/expenses', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateExpense(id, data) {
+  return request(`/api/expenses/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteExpense(id) {
+  return request(`/api/expenses/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Semesters ───────────────────────────────────────────────────────────────
+
+export async function getSemesters(userId) {
+  return request(`/api/semesters/${userId}`);
+}
+
+export async function createSemester(data) {
+  return request('/api/semesters', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSemester(id, data) {
+  return request(`/api/semesters/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSemester(id) {
+  return request(`/api/semesters/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Loans ───────────────────────────────────────────────────────────────────
+
+export async function getLoans(userId) {
+  return request(`/api/loans/${userId}`);
+}
+
+export async function createLoan(data) {
+  return request('/api/loans', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateLoan(id, data) {
+  return request(`/api/loans/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function addLoanPayment(id, payment) {
+  return request(`/api/loans/${id}/payment`, {
+    method: 'PUT',
+    body: JSON.stringify({ payment }),
+  });
+}
+
+export async function deleteLoan(id) {
+  return request(`/api/loans/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────
+
+export async function getSettings(userId) {
+  return request(`/api/settings/${userId}`);
+}
+
+export async function updateSettings(userId, data) {
+  return request(`/api/settings/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
