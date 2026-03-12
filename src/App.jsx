@@ -14,6 +14,7 @@ import {
   SettingsView,
   LoansView,
   EducationSetupView,
+  HistoricalDataView,
 } from './pages';
 
 // ─── Inner pages with bottom nav (non-dashboard) ─────────────────────────────
@@ -53,6 +54,7 @@ const ViewRouter = () => {
       {view === "onboarding" && <OnboardingWizard />}
       {view === "parent-onboarding" && <ParentOnboardingView />}
       {view === "education-setup" && <EducationSetupView />}
+      {view === "historical-data" && <HistoricalDataView />}
       {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
       {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
         <InnerPage />

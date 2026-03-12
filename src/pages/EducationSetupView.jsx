@@ -47,7 +47,7 @@ export const EducationSetupView = () => {
         : null,
     };
     setUser(prev => ({ ...prev, educationProfile }));
-    navigate('dashboard');
+    navigate(data.hasHistoricalData ? 'historical-data' : 'dashboard');
   };
 
   const canProceed = () => {
