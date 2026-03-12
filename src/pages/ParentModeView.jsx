@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, EDU_GROUPS, CURRENCIES } from '../constants';
 import { makeFmt } from '../utils';
@@ -8,6 +8,7 @@ import { PINPad } from '../components/feature';
 
 const ParentModeView = () => {
   const { user, setUser, expenses, setExpenses, semesters, loans, setLoans, navigate, addToast, notifications, setNotifications } = useApp();
+  useEffect(() => { document.title = "Parent Mode — ClassCost"; }, []);
   const [tab,setTab] = useState("overview");
   const [authState,setAuthState] = useState("locked");
   const { priv, setParentPIN, clearParentPIN, setBudget, setParentSetting } = usePrivacy();

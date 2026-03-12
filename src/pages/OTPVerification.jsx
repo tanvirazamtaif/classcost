@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Btn } from '../components/ui';
 import { verifyOTP, sendOTP } from '../api';
 
 export const OTPVerification = () => {
   const { navigate, user, setUser, addToast, loadUserData } = useApp();
+  useEffect(() => { document.title = "Verify OTP — ClassCost"; }, []);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputs = useRef([]);
   const [loading, setLoading] = useState(false);

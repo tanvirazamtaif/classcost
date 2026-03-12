@@ -6,6 +6,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 export const LandingPage = () => {
   const { navigate, setUser, addToast, loadUserData } = useApp();
+  useEffect(() => { document.title = "ClassCost — Track Your Education Journey"; }, []);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [gLoading, setGLoading] = useState(false);

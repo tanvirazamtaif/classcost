@@ -9,7 +9,7 @@ export const DashboardView = () => {
   const { user, expenses, addExpense, navigate, theme, toggleTheme } = useApp();
   const profile = user?.profile;
 
-  useEffect(() => { document.title = "ClassCost — Dashboard"; }, []);
+  useEffect(() => { document.title = "Dashboard — ClassCost"; }, []);
   const fmt = makeFmt(profile?.currency || "BDT");
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeForm, setActiveForm] = useState(null); // "education" | "transport" | "canteen" | "hostel"

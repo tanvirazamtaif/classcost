@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU } from '../constants';
 import { makeFmt } from '../utils';
@@ -5,6 +6,7 @@ import { Card } from '../components/ui';
 
 const AcademicJourneyView = () => {
   const { user, expenses, semesters, navigate } = useApp();
+  useEffect(() => { document.title = "Academic Journey — ClassCost"; }, []);
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency||"BDT");
   const currentMod = EDU[profile?.educationLevel];

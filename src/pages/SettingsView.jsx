@@ -8,7 +8,7 @@ import { PINPad } from '../components/feature';
 import { redeemPromoCode } from '../api';
 
 const SettingsView = () => {
-  useEffect(() => { document.title = "ClassCost — Settings"; }, []);
+  useEffect(() => { document.title = "Settings — ClassCost"; }, []);
   const { user, setUser, notifications, setNotifications, navigate, addToast } = useApp();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];

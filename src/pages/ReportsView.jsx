@@ -10,7 +10,7 @@ export const ReportsView = () => {
   const fmt = makeFmt(profile?.currency || "BDT");
   const d = theme === "dark";
 
-  useEffect(() => { document.title = "ClassCost — Reports"; }, []);
+  useEffect(() => { document.title = "Reports — ClassCost"; }, []);
 
   const byType = (t) => expenses.filter((e) => e.type === t).reduce((s, e) => s + Number(e.amount), 0);
   const transport = byType("transport"), canteen = byType("canteen"), hostel = byType("hostel"),

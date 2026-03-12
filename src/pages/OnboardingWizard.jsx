@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, EDU_GROUPS, INSTITUTIONS } from '../constants/education';
 import { CURRENCIES } from '../constants/currencies';
@@ -7,6 +7,7 @@ import { Btn, Input, Select, Toggle } from '../components/ui';
 
 export const OnboardingWizard = () => {
   const { user, setUser, navigate, addToast } = useApp();
+  useEffect(() => { document.title = "Setup Profile — ClassCost"; }, []);
   const [step, setStep] = useState(0);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [form, setForm] = useState({

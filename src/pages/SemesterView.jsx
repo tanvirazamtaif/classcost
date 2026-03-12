@@ -5,7 +5,7 @@ import { makeFmt, uid } from '../utils';
 import { Btn, Card, Input, Badge, Modal } from '../components/ui';
 
 const SemesterView = () => {
-  useEffect(() => { document.title = "ClassCost — Semesters"; }, []);
+  useEffect(() => { document.title = "Semesters — ClassCost"; }, []);
   const { user, semesters, setSemesters, addToast } = useApp();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];

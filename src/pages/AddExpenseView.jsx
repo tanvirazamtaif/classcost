@@ -6,7 +6,7 @@ import { useLocalStorage } from '../hooks';
 import { Btn, Card, Input, Modal } from '../components/ui';
 
 const AddExpenseView = () => {
-  useEffect(() => { document.title = "ClassCost — Add Expense"; }, []);
+  useEffect(() => { document.title = "Add Expense — ClassCost"; }, []);
   const { user, expenses, setExpenses, addToast } = useApp();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, EDU_GROUPS, INSTITUTIONS, WAIVER_OPTIONS } from '../constants';
 import { uid, todayStr } from '../utils';
@@ -6,6 +6,7 @@ import { Btn, Card } from '../components/ui';
 
 const StageUpgradeWizard = () => {
   const { user, setUser, expenses, semesters, setSemesters, navigate, addToast } = useApp();
+  useEffect(() => { document.title = "Stage Upgrade — ClassCost"; }, []);
   const profile = user?.profile;
   const currentMod = EDU[profile?.educationLevel];
   const [step,setStep] = useState(0);

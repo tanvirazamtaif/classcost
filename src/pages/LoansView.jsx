@@ -7,7 +7,7 @@ import { Btn, Card, Input } from '../components/ui';
 import { PINPad } from '../components/feature';
 
 const LoansView = () => {
-  useEffect(() => { document.title = "ClassCost — Loans"; }, []);
+  useEffect(() => { document.title = "Loans — ClassCost"; }, []);
   const { user, loans, setLoans, navigate, addToast } = useApp();
   const profile      = user?.profile;
   const fmt          = makeFmt(profile?.currency || "BDT");

@@ -4,6 +4,7 @@ import * as api from '../api';
 
 const AdminPanel = () => {
   const { navigate } = useApp();
+  useEffect(() => { document.title = "Admin — ClassCost"; }, []);
   const [auth, setAuth] = useState(false);
   const [pass, setPass] = useState("");
   const [tab, setTab] = useState("overview");
