@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, CURRENCIES, PROMOTION_CONFIG } from '../constants';
 import { makeFmt, todayStr } from '../utils';
@@ -8,6 +8,7 @@ import { PINPad } from '../components/feature';
 import { redeemPromoCode } from '../api';
 
 const SettingsView = () => {
+  useEffect(() => { document.title = "ClassCost — Settings"; }, []);
   const { user, setUser, notifications, setNotifications, navigate, addToast } = useApp();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];
@@ -48,7 +49,7 @@ const SettingsView = () => {
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-24">
       <h2 className="text-xl font-bold text-slate-900" style={{fontFamily:"'Fraunces',serif"}}>Settings</h2>
       <Card className="p-5">
         <div className="flex items-center gap-4 mb-4">
@@ -64,15 +65,6 @@ const SettingsView = () => {
           {[["Class/Year",profile?.classYear||"—"],["Currency",(CURRENCIES.find(c=>c.id===(profile?.currency||"BDT"))||CURRENCIES[0]).flag+" "+(profile?.currency||"BDT")],["Level",mod?.shortLabel||"—"]].map(([l,v])=>(
             <div key={l} className="bg-slate-50 rounded-xl p-2"><p className="text-slate-400 text-xs">{l}</p><p className="font-bold text-slate-700 text-sm">{v}</p></div>
           ))}
-        </div>
-      </Card>
-
-      <Card className="p-5">
-        <h3 className="text-sm font-bold text-slate-700 mb-2">🔗 Family Code</h3>
-        <p className="text-slate-400 text-xs mb-3">Share with your parent to let them monitor your expenses</p>
-        <div className="flex items-center gap-3 bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-          <span className="text-2xl font-bold text-indigo-700 font-mono tracking-widest flex-1">{profile?.familyCode||"------"}</span>
-          <button onClick={()=>addToast("Code copied!","success")} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg">Copy</button>
         </div>
       </Card>
 
@@ -268,7 +260,7 @@ const SettingsView = () => {
         <span className="text-white/60 text-lg">›</span>
       </button>
 
-      <div className="text-center text-slate-300 text-xs py-2">EduTrack v3.0 · Playgroup → PhD</div>
+      <div className="text-center text-slate-300 text-xs py-2">ClassCost v1.0</div>
     </div>
   );
 };

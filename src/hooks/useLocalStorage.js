@@ -4,7 +4,11 @@ export const useLocalStorage = (key, initialValue) => {
   const [storedValue, setStoredValue] = useState(() => {
     try {
       const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (item === null || item === undefined) return initialValue;
+      const parsed = JSON.parse(item);
+      // If parsed is null/undefined but we have a default, use the default
+      if (parsed === null || parsed === undefined) return initialValue;
+      return parsed;
     } catch {
       return initialValue;
     }
@@ -12,7 +16,7 @@ export const useLocalStorage = (key, initialValue) => {
 
   const setValue = useCallback((value) => {
     setStoredValue((prev) => {
-      const nextValue = typeof value === 'function' ? value(prev) : value;
+      const nextValue = typeof value === 'function' ? value(prev ?? initialValue) : value;
       try {
         localStorage.setItem(key, JSON.stringify(nextValue));
       } catch (e) {
@@ -20,7 +24,7 @@ export const useLocalStorage = (key, initialValue) => {
       }
       return nextValue;
     });
-  }, [key]);
+  }, [key, initialValue]);
 
-  return [storedValue, setValue];
+  return [storedValue ?? initialValue, setValue];
 };

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, CURRENCIES, WAIVER_OPTIONS } from '../constants';
 import { makeFmt, uid } from '../utils';
 import { Btn, Card, Input, Badge, Modal } from '../components/ui';
 
 const SemesterView = () => {
+  useEffect(() => { document.title = "ClassCost — Semesters"; }, []);
   const { user, semesters, setSemesters, addToast } = useApp();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];

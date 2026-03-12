@@ -1,5 +1,4 @@
 import React from 'react';
-import { Btn } from '../ui/Btn';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,27 +11,35 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('EduTrack Error:', error, errorInfo);
+    console.error('ClassCost Error:', error, errorInfo);
   }
+
+  handleReset = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-          <div className="text-center max-w-sm">
-            <div className="text-6xl mb-4">🔧</div>
-            <h1 className="text-xl font-bold text-slate-800 mb-2" style={{ fontFamily: "'Fraunces',serif" }}>
-              Something went wrong
-            </h1>
-            <p className="text-slate-500 text-sm mb-6">
-              An unexpected error occurred. Your data is safely stored in your browser.
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: '#080812', color: '#e2e0ff', fontFamily: "'DM Sans',system-ui,sans-serif" }}>
+          <div style={{ textAlign: 'center', maxWidth: '360px' }}>
+            <div style={{ fontSize: '64px', marginBottom: '16px' }}>⚠️</div>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>Something went wrong</h1>
+            <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '24px' }}>
+              The app encountered an error. Tap below to reset and start fresh.
             </p>
-            <p className="text-xs text-red-400 bg-red-50 rounded-xl p-3 mb-6 font-mono break-all">
+            <p style={{ fontSize: '12px', color: '#ef4444', background: '#1a0a0a', borderRadius: '12px', padding: '12px', marginBottom: '24px', wordBreak: 'break-all' }}>
               {this.state.error?.message || "Unknown error"}
             </p>
-            <Btn onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}>
-              Reload App
-            </Btn>
+            <button onClick={this.handleReset}
+              style={{ width: '100%', padding: '14px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+              Reset & Reload
+            </button>
+            <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
+              style={{ width: '100%', padding: '14px', marginTop: '8px', background: 'transparent', color: '#94a3b8', border: '1px solid #1e1e3a', borderRadius: '12px', fontSize: '14px', cursor: 'pointer' }}>
+              Try Reload Without Reset
+            </button>
           </div>
         </div>
       );

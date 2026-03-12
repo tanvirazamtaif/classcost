@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { makeFmt } from '../utils/format';
 
@@ -8,6 +8,8 @@ const currentMonth = () => new Date().toISOString().slice(0, 7);
 export const DashboardView = () => {
   const { user, expenses, addExpense, navigate, theme, toggleTheme } = useApp();
   const profile = user?.profile;
+
+  useEffect(() => { document.title = "ClassCost — Dashboard"; }, []);
   const fmt = makeFmt(profile?.currency || "BDT");
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeForm, setActiveForm] = useState(null); // "education" | "transport" | "canteen" | "hostel"
@@ -18,6 +20,20 @@ export const DashboardView = () => {
 
   const d = theme === "dark";
   const profileIncomplete = !user?.profileComplete;
+
+  // Subtle nudge: show if no transport logged today, dismissible for 24h
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    try {
+      const ts = localStorage.getItem("ut_v3_nudge_dismissed");
+      return ts && (Date.now() - Number(ts)) < 86400000;
+    } catch { return false; }
+  });
+  const hasTransportToday = expenses.some((e) => e.type === "transport" && e.date === today());
+  const showNudge = !nudgeDismissed && !hasTransportToday && expenses.length > 0;
+  const dismissNudge = () => {
+    localStorage.setItem("ut_v3_nudge_dismissed", String(Date.now()));
+    setNudgeDismissed(true);
+  };
 
   const byType = (t) => expenses.filter((e) => e.type === t).reduce((s, e) => s + Number(e.amount), 0);
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
@@ -138,7 +154,16 @@ export const DashboardView = () => {
       )}
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Subtle nudge tip */}
+        {showNudge && (
+          <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-xl text-xs ${d ? "bg-slate-900 text-slate-400 border border-slate-800" : "bg-slate-100 text-slate-500"}`}>
+            <span>🚌</span>
+            <span className="flex-1">No transport logged today</span>
+            <button onClick={dismissNudge} className={`${d ? "text-slate-600 hover:text-slate-400" : "text-slate-400 hover:text-slate-600"}`}>✕</button>
+          </div>
+        )}
+
         {/* Total Cost — Display only */}
         <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-8 mb-6 shadow-xl shadow-indigo-600/20">
           <p className="text-white/60 text-xs sm:text-sm font-medium mb-2">Total Cost</p>

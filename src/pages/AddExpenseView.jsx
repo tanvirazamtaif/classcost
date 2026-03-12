@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, CURRENCIES, TRANSPORT_TYPES, HOSTEL_TYPES, COURSE_TYPES, ADMISSION_TYPES, MODULE_CATEGORY_SUGGESTIONS } from '../constants';
 import { makeFmt, todayStr, uid } from '../utils';
@@ -6,6 +6,7 @@ import { useLocalStorage } from '../hooks';
 import { Btn, Card, Input, Modal } from '../components/ui';
 
 const AddExpenseView = () => {
+  useEffect(() => { document.title = "ClassCost — Add Expense"; }, []);
   const { user, expenses, setExpenses, addToast } = useApp();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];
@@ -98,7 +99,7 @@ const AddExpenseView = () => {
   const MOD_ICON_OPTIONS = ["✨","💻","🎨","⚽","🎵","📸","🤖","🎙️","🏆","📚","🔬","🗺️","🕌","🌍","💃","📜","🧪","🏋️","🎭","🖥️"];
 
   return (
-    <div>
+    <div className="pb-24">
       <div className="mb-5">
         <h2 className="text-xl font-bold text-slate-900" style={{fontFamily:"'Fraunces',serif"}}>Add Expense</h2>
         <p className="text-slate-400 text-sm">Log daily spending</p>

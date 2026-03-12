@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, CURRENCIES, LOAN_TYPES, LOAN_PURPOSES } from '../constants';
 import { makeFmt, todayStr, uid, calcLoanSummary, calcPaidVsSchedule, buildAmortization } from '../utils';
@@ -7,6 +7,7 @@ import { Btn, Card, Input } from '../components/ui';
 import { PINPad } from '../components/feature';
 
 const LoansView = () => {
+  useEffect(() => { document.title = "ClassCost — Loans"; }, []);
   const { user, loans, setLoans, navigate, addToast } = useApp();
   const profile      = user?.profile;
   const fmt          = makeFmt(profile?.currency || "BDT");
@@ -151,7 +152,7 @@ const LoansView = () => {
 
   // SCREEN: LIST
   if (screen === "list") return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-24">
       <div className="bg-gradient-to-br from-rose-600 via-rose-500 to-orange-500 rounded-3xl p-5 text-white shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div>

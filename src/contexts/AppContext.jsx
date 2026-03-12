@@ -61,7 +61,7 @@ export const AppProvider = ({ children }) => {
       try {
         await api.updateProfile(u.id, {
           name: u.name, eduType: u.eduType, institution: u.institution,
-          classLevel: u.classLevel, currency: u.currency, familyCode: u.familyCode,
+          classLevel: u.classLevel, currency: u.currency,
           pin: u.pin, parentPin: u.parentPin, isLoggedIn: u.isLoggedIn,
           profileComplete: u.profileComplete, onboardingSkipped: u.onboardingSkipped,
           profile: u.profile || null,
@@ -166,16 +166,7 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!user?.isLoggedIn || !notifications.enabled) return;
-    const t = setTimeout(() => {
-      const last = (type) => expenses.filter((e) => e.type === type).slice(-1)[0];
-      const days = (e) => e ? Math.floor((Date.now() - new Date(e.date)) / 86400000) : 99;
-      if (notifications.transport && days(last("transport")) >= 2) addToast("\u{1F68C} Log your transport!", "warn");
-      else if (notifications.canteen && days(last("canteen")) >= 2) addToast("\u{1F37D}\uFE0F Log your canteen!", "warn");
-    }, 2500);
-    return () => clearTimeout(t);
-  }, [user?.isLoggedIn]);
+  // Nudge reminders moved to DashboardView as subtle dismissible tips
 
   const value = {
     view, navigate,
