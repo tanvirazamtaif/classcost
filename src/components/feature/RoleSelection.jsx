@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
 
 /**
  * RoleSelection - Student vs Parent role selection screen
- *
- * Usage:
- * <RoleSelection onSelect={(role) => handleRoleSelect(role)} />
+ * Shown once during signup, between auth and onboarding.
  */
-export const RoleSelection = ({ onSelect }) => {
-  const { theme } = useApp();
+export const RoleSelection = () => {
+  const { theme, navigate, setAccountType, setPendingAccountType } = useApp();
   const d = theme === 'dark';
+
+  useEffect(() => { document.title = "Choose Your Role — ClassCost"; }, []);
 
   const roles = [
     {
@@ -27,6 +27,12 @@ export const RoleSelection = ({ onSelect }) => {
       features: ['Link children', 'View their expenses', 'Set budgets', 'Get alerts'],
     },
   ];
+
+  const handleSelect = (role) => {
+    setPendingAccountType(role);
+    setAccountType(role);
+    navigate('onboarding');
+  };
 
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${d ? 'bg-gray-900' : 'bg-slate-50'}`}>
@@ -48,7 +54,7 @@ export const RoleSelection = ({ onSelect }) => {
         {roles.map((role) => (
           <button
             key={role.id}
-            onClick={() => onSelect(role.id)}
+            onClick={() => handleSelect(role.id)}
             className={`w-full text-left rounded-2xl p-5 transition-all active:scale-[0.98] border-2 ${
               d
                 ? 'bg-gray-800 border-gray-700 hover:border-blue-500'

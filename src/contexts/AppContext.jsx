@@ -48,6 +48,8 @@ export const AppProvider = ({ children }) => {
     enabled: true, canteen: true, transport: true,
   });
   const [syncing, setSyncing] = useState(false);
+  const [pendingAccountType, setPendingAccountType] = useState(null); // temp during signup
+  const [signupMethod, setSignupMethod] = useState(null); // 'email' | 'google' | null
   const [theme, setThemeLocal] = useLocalStorage("ut_v3_theme", "dark");
   const { toasts, addToast } = useToast();
 
@@ -193,7 +195,7 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (user?.isLoggedIn) {
-      if (["landing", "otp"].includes(view)) setView("dashboard");
+      if (["landing", "otp", "role-selection"].includes(view)) setView("dashboard");
     }
   }, []);
 
@@ -209,6 +211,8 @@ export const AppProvider = ({ children }) => {
     toasts, addToast,
     theme, toggleTheme,
     updateSubscription, setAccountType,
+    pendingAccountType, setPendingAccountType,
+    signupMethod, setSignupMethod,
     // Server-synced helpers
     addExpense, removeExpense,
     addSemester, editSemester,

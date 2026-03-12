@@ -5,7 +5,7 @@ import { sendOTP, googleSignIn } from '../api';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 export const LandingPage = () => {
-  const { navigate, setUser, addToast, loadUserData } = useApp();
+  const { navigate, setUser, addToast, loadUserData, setSignupMethod } = useApp();
   useEffect(() => { document.title = "ClassCost — Track Your Education Journey"; }, []);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,13 @@ export const LandingPage = () => {
       }));
       addToast("Signed in with Google!", "success");
       if (result.id) await loadUserData(result.id);
-      navigate("dashboard");
+      // New user → role selection; returning user → dashboard
+      if (result.profileComplete) {
+        navigate("dashboard");
+      } else {
+        setSignupMethod('google');
+        navigate("role-selection");
+      }
     } catch (e) {
       addToast(e.message || "Google sign-in failed", "error");
     } finally {
@@ -58,6 +64,7 @@ export const LandingPage = () => {
     try {
       await sendOTP(email);
       setUser((p) => ({ ...p, email }));
+      setSignupMethod('email');
       addToast("Code sent to your email!", "success");
       navigate("otp");
     } catch (e) {

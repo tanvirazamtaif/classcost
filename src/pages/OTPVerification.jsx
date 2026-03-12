@@ -4,7 +4,7 @@ import { Btn } from '../components/ui';
 import { verifyOTP, sendOTP } from '../api';
 
 export const OTPVerification = () => {
-  const { navigate, user, setUser, addToast, loadUserData } = useApp();
+  const { navigate, user, setUser, addToast, loadUserData, setSignupMethod } = useApp();
   useEffect(() => { document.title = "Verify OTP — ClassCost"; }, []);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputs = useRef([]);
@@ -39,7 +39,13 @@ export const OTPVerification = () => {
       setUser((p) => ({ ...p, ...result, isLoggedIn: true, trialStart: p?.trialStart || Date.now() }));
       addToast("Logged in!", "success");
       if (result.id) await loadUserData(result.id);
-      navigate("dashboard");
+      // New user → role selection; returning user → dashboard
+      if (result.profileComplete) {
+        navigate("dashboard");
+      } else {
+        setSignupMethod('email');
+        navigate("role-selection");
+      }
     } catch (e) {
       addToast(e.message || "Invalid code", "error");
       setOtp(["", "", "", "", "", ""]);

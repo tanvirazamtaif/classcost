@@ -1,7 +1,6 @@
 import { AppProvider, useApp } from './contexts/AppContext';
-import { ErrorBoundary } from './components/feature';
+import { ErrorBoundary, BottomNav, RoleSelection } from './components/feature';
 import { ToastContainer } from './components/ui';
-import { BottomNav } from './components/feature';
 import {
   LandingPage,
   OTPVerification,
@@ -46,6 +45,7 @@ const ViewRouter = () => {
       <ToastContainer toasts={toasts} />
       {view === "landing" && <LandingPage />}
       {view === "otp" && <OTPVerification />}
+      {view === "role-selection" && <RoleSelection />}
       {view === "onboarding" && <OnboardingWizard />}
       {view === "dashboard" && <DashboardView />}
       {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
