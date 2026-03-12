@@ -3,3 +3,4 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { CostSummaryCard } from './CostSummaryCard';
 export { PromotionBanner } from './PromotionBanner';
 export { PaywallModal } from './PaywallModal';
+export { RoleSelection } from './RoleSelection';
