@@ -166,6 +166,25 @@ export const DashboardView = () => {
           </div>
         )}
 
+        {/* Education setup reminder */}
+        {!user?.educationProfile?.setupComplete && (
+          <button onClick={() => navigate('education-setup')}
+            className={`w-full mb-4 p-4 rounded-2xl flex items-center gap-3 transition active:scale-[0.98] ${
+              d ? 'bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border border-orange-500/30'
+                : 'bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200'
+            }`}>
+            <span className="relative flex">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75" />
+              <span className="relative inline-flex rounded-full w-3 h-3 bg-orange-500" />
+            </span>
+            <div className="flex-1 text-left">
+              <p className={`font-semibold text-sm ${d ? 'text-orange-400' : 'text-orange-700'}`}>Setup Your Education Profile</p>
+              <p className={`text-xs ${d ? 'text-orange-300/70' : 'text-orange-500/80'}`}>Tap to complete setup for better tracking</p>
+            </div>
+            <span className={d ? 'text-orange-400' : 'text-orange-600'}>→</span>
+          </button>
+        )}
+
         {/* Total Cost — Display only */}
         <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-8 mb-6 shadow-xl shadow-indigo-600/20">
           <p className="text-white/60 text-xs sm:text-sm font-medium mb-2">Total Cost</p>

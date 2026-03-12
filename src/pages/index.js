@@ -9,3 +9,4 @@ export { default as SemesterView } from './SemesterView';
 export { ReportsView } from './ReportsView';
 export { default as SettingsView } from './SettingsView';
 export { default as LoansView } from './LoansView';
+export { EducationSetupView } from './EducationSetupView';

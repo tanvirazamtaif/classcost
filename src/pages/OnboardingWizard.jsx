@@ -40,7 +40,7 @@ export const OnboardingWizard = () => {
     if (!form.fullName || !form.educationLevel) { addToast("Fill required fields", "error"); return; }
     setUser((p) => ({ ...p, profile: form, profileComplete: true }));
     addToast("🎉 Profile ready!", "success");
-    navigate("dashboard");
+    navigate("education-setup");
   };
 
   const ProgBar = () => (
