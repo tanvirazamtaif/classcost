@@ -6,6 +6,51 @@ import { makeFmt } from '../utils/format';
 const today = () => new Date().toISOString().slice(0, 10);
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
+// Sub-category labels for each expense type
+const SUB_CATEGORIES = {
+  education: [
+    { id: 'tuition', icon: '📖', label: 'Tuition Fee' },
+    { id: 'admission', icon: '📋', label: 'Admission Fee' },
+    { id: 'exam', icon: '📝', label: 'Exam Fee' },
+    { id: 'books', icon: '📚', label: 'Books/Supplies' },
+    { id: 'coaching', icon: '👨‍🏫', label: 'Coaching/Tutor' },
+    { id: 'lab', icon: '🔬', label: 'Lab Fee' },
+    { id: 'library', icon: '🏛️', label: 'Library Fee' },
+    { id: 'other_edu', icon: '📌', label: 'Other' },
+  ],
+  transport: [
+    { id: 'bus', icon: '🚌', label: 'Bus' },
+    { id: 'rickshaw', icon: '🛺', label: 'Rickshaw/CNG' },
+    { id: 'ride_share', icon: '🚗', label: 'Uber/Pathao' },
+    { id: 'train', icon: '🚆', label: 'Train' },
+    { id: 'fuel', icon: '⛽', label: 'Fuel/Petrol' },
+    { id: 'other_transport', icon: '🚶', label: 'Other' },
+  ],
+  canteen: [
+    { id: 'lunch', icon: '🍛', label: 'Lunch' },
+    { id: 'snacks', icon: '🍿', label: 'Snacks' },
+    { id: 'tea_coffee', icon: '☕', label: 'Tea/Coffee' },
+    { id: 'breakfast', icon: '🥪', label: 'Breakfast' },
+    { id: 'dinner', icon: '🍽️', label: 'Dinner' },
+    { id: 'other_food', icon: '🧃', label: 'Other' },
+  ],
+  hostel: [
+    { id: 'rent', icon: '🏠', label: 'Rent' },
+    { id: 'electricity', icon: '💡', label: 'Electricity' },
+    { id: 'internet', icon: '📶', label: 'Internet/WiFi' },
+    { id: 'water', icon: '💧', label: 'Water Bill' },
+    { id: 'laundry', icon: '👕', label: 'Laundry' },
+    { id: 'other_hostel', icon: '📌', label: 'Other' },
+  ],
+};
+
+const getExpenseLabel = (type, subType) => {
+  const cats = SUB_CATEGORIES[type];
+  if (!cats) return type;
+  const sub = cats.find(s => s.id === subType);
+  return sub ? sub.label : type;
+};
+
 export const DashboardView = () => {
   const { user, expenses, addExpense, navigate, theme, toggleTheme } = useApp();
   const { canAccessHistory, isPro } = useSubscription();
@@ -43,10 +88,10 @@ export const DashboardView = () => {
   const openForm = (type) => {
     if (activeForm === type) { setActiveForm(null); return; }
     const defaults = {
-      education: { amount: "", details: "" },
-      transport: { date: today(), amount: "" },
-      canteen: { date: today(), amount: "" },
-      hostel: { month: currentMonth(), amount: "" },
+      education: { amount: "", details: "", subType: "" },
+      transport: { date: today(), amount: "", subType: "" },
+      canteen: { date: today(), amount: "", subType: "" },
+      hostel: { month: currentMonth(), amount: "", subType: "" },
     };
     setFormData(defaults[type] || {});
     setActiveForm(type);
@@ -54,14 +99,16 @@ export const DashboardView = () => {
 
   const handleSave = async () => {
     if (!formData.amount || isNaN(formData.amount) || Number(formData.amount) <= 0) return;
+    if (!formData.subType) return;
     setSaving(true);
     try {
       const expense = {
         userId: user?.id,
         type: activeForm,
+        subType: formData.subType,
         amount: Number(formData.amount),
         date: formData.date || formData.month || today(),
-        label: activeForm === "education" ? "Education Fee" : activeForm === "transport" ? "Transport" : activeForm === "canteen" ? "Canteen" : "Residence",
+        label: getExpenseLabel(activeForm, formData.subType),
         details: formData.details || "",
       };
       await addExpense(expense);
@@ -82,6 +129,24 @@ export const DashboardView = () => {
   ];
 
   const inputClass = `w-full rounded-xl py-2.5 px-3 text-sm outline-none transition ${d ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500"} border`;
+
+  const SubChips = ({ type }) => (
+    <div className="flex flex-wrap gap-1.5">
+      {SUB_CATEGORIES[type]?.map(sub => (
+        <button key={sub.id} type="button"
+          onClick={() => setFormData({ ...formData, subType: sub.id })}
+          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
+            formData.subType === sub.id
+              ? 'bg-indigo-600 text-white'
+              : d ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+          }`}>
+          <span>{sub.icon}</span>
+          <span>{sub.label}</span>
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className={`min-h-screen transition-colors ${d ? "bg-slate-950" : "bg-slate-50"}`}>
@@ -211,9 +276,10 @@ export const DashboardView = () => {
                 <div className={`mt-2 rounded-2xl p-4 border transition-all ${d ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-lg"}`}
                   style={{ animation: "slideDown .2s ease-out" }}>
 
-                  {/* Education: amount + optional details */}
+                  {/* Education: sub-type + amount + optional details */}
                   {cat.id === "education" && (
                     <div className="flex flex-col gap-2.5">
+                      <SubChips type="education" />
                       <input type="number" placeholder="Amount" value={formData.amount || ""}
                         onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                         className={inputClass} inputMode="numeric" autoFocus />
@@ -223,9 +289,10 @@ export const DashboardView = () => {
                     </div>
                   )}
 
-                  {/* Transport: date (default today) + amount */}
+                  {/* Transport: sub-type + date + amount */}
                   {cat.id === "transport" && (
                     <div className="flex flex-col gap-2.5">
+                      <SubChips type="transport" />
                       <input type="date" value={formData.date || today()}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         className={inputClass} />
@@ -235,9 +302,10 @@ export const DashboardView = () => {
                     </div>
                   )}
 
-                  {/* Canteen: date (default today) + amount */}
+                  {/* Canteen: sub-type + date + amount */}
                   {cat.id === "canteen" && (
                     <div className="flex flex-col gap-2.5">
+                      <SubChips type="canteen" />
                       <input type="date" value={formData.date || today()}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         className={inputClass} />
@@ -247,9 +315,10 @@ export const DashboardView = () => {
                     </div>
                   )}
 
-                  {/* Residence: month/year (required) + amount */}
+                  {/* Residence: sub-type + month + amount */}
                   {cat.id === "hostel" && (
                     <div className="flex flex-col gap-2.5">
+                      <SubChips type="hostel" />
                       <input type="month" value={formData.month || currentMonth()}
                         onChange={(e) => setFormData({ ...formData, month: e.target.value })}
                         className={inputClass} />
@@ -260,7 +329,7 @@ export const DashboardView = () => {
                   )}
 
                   <div className="flex gap-2 mt-3">
-                    <button onClick={handleSave} disabled={saving || !formData.amount}
+                    <button onClick={handleSave} disabled={saving || !formData.amount || !formData.subType}
                       className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition active:scale-95">
                       {saving ? "Saving..." : "Save"}
                     </button>
