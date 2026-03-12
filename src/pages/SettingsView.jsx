@@ -250,16 +250,6 @@ const SettingsView = () => {
         <button onClick={()=>{setUser(null);navigate("landing");addToast("Signed out","info");}} className="flex justify-between w-full py-3 text-sm font-semibold text-red-500">Sign Out <span>›</span></button>
       </Card>
 
-      <button onClick={()=>navigate("parent-mode")}
-        className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-3xl p-4 flex items-center gap-4 shadow-lg active:scale-98 transition">
-        <div className="w-11 h-11 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">👨‍👩‍👦</div>
-        <div className="text-left flex-1">
-          <p className="font-bold text-sm">Switch to Parent Mode</p>
-          <p className="text-white/70 text-xs">View budgets, loans & full analytics</p>
-        </div>
-        <span className="text-white/60 text-lg">›</span>
-      </button>
-
       <div className="text-center text-slate-300 text-xs py-2">ClassCost v1.0</div>
     </div>
   );

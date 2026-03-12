@@ -14,7 +14,6 @@ import {
   StageUpgradeWizard,
   LoansView,
   AcademicJourneyView,
-  ParentModeView,
   AdminPanel,
 } from './pages';
 
@@ -50,7 +49,6 @@ const ViewRouter = () => {
       <ToastContainer toasts={toasts} />
       {view === "landing" && <LandingPage />}
       {view === "otp" && <OTPVerification />}
-      {view === "parent-mode" && <ParentModeView />}
       {view === "onboarding" && <OnboardingWizard />}
       {view === "stage-upgrade" && <StageUpgradeWizard />}
       {view === "academic-journey" && <AcademicJourneyView />}
