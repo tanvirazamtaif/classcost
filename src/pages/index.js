@@ -6,6 +6,5 @@ export { default as AddExpenseView } from './AddExpenseView';
 export { default as SemesterView } from './SemesterView';
 export { ReportsView } from './ReportsView';
 export { default as SettingsView } from './SettingsView';
-export { default as StageUpgradeWizard } from './StageUpgradeWizard';
 export { default as LoansView } from './LoansView';
 export { default as AcademicJourneyView } from './AcademicJourneyView';

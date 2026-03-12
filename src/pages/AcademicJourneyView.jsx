@@ -73,12 +73,6 @@ const AcademicJourneyView = () => {
                         {stage.expenseCount>0&&<span className="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-xl font-medium">{stage.expenseCount} expenses</span>}
                         {stage.semesterCount>0&&<span className="text-xs bg-purple-50 text-purple-600 px-2.5 py-1 rounded-xl font-medium">{stage.semesterCount} {mod?.semLabel||"semester"}s</span>}
                       </div>
-                      {isActive&&(
-                        <button onClick={()=>navigate("stage-upgrade")}
-                          className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-indigo-200 text-indigo-600 text-xs font-bold hover:bg-indigo-50 transition">
-                          + Move to Next Stage →
-                        </button>
-                      )}
                     </Card>
                   </div>
                 );

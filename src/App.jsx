@@ -11,7 +11,6 @@ import {
   SemesterView,
   ReportsView,
   SettingsView,
-  StageUpgradeWizard,
   LoansView,
   AcademicJourneyView,
 } from './pages';
@@ -49,7 +48,6 @@ const ViewRouter = () => {
       {view === "landing" && <LandingPage />}
       {view === "otp" && <OTPVerification />}
       {view === "onboarding" && <OnboardingWizard />}
-      {view === "stage-upgrade" && <StageUpgradeWizard />}
       {view === "academic-journey" && <AcademicJourneyView />}
       {view === "dashboard" && <DashboardView />}
       {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
