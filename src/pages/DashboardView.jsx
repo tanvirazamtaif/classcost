@@ -61,6 +61,7 @@ export const DashboardView = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeForm, setActiveForm] = useState(null); // "education" | "transport" | "canteen" | "hostel"
   const [saving, setSaving] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({});
@@ -129,6 +130,55 @@ export const DashboardView = () => {
   ];
 
   const inputClass = `w-full rounded-xl py-2.5 px-3 text-sm outline-none transition ${d ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500"} border`;
+
+  const quickAdd = async (type, subType, amount, label) => {
+    try {
+      await addExpense({
+        userId: user?.id,
+        type,
+        subType,
+        amount,
+        date: today(),
+        label,
+        details: 'Quick add',
+      });
+    } catch (e) {
+      console.error('Quick add failed:', e);
+    }
+  };
+
+  const QuickAddButton = ({ icon, label, onAdd }) => {
+    const [added, setAdded] = useState(false);
+
+    const handleClick = async () => {
+      await onAdd();
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1500);
+    };
+
+    return (
+      <button
+        onClick={handleClick}
+        disabled={added}
+        className={`p-3 rounded-xl text-center transition active:scale-95 ${
+          added
+            ? 'bg-green-500/20 border-green-500/50'
+            : d
+              ? 'bg-slate-700/50 hover:bg-slate-700 border-slate-600'
+              : 'bg-white hover:bg-slate-100 border-slate-200'
+        } border`}
+      >
+        <span className="text-xl">{added ? '✓' : icon}</span>
+        <p className={`text-xs mt-1 font-medium ${
+          added
+            ? 'text-green-400'
+            : d ? 'text-slate-300' : 'text-slate-700'
+        }`}>
+          {added ? 'Added!' : label}
+        </p>
+      </button>
+    );
+  };
 
   const SubChips = ({ type }) => (
     <div className="flex flex-wrap gap-1.5">
@@ -249,6 +299,41 @@ export const DashboardView = () => {
             <span className={d ? 'text-orange-400' : 'text-orange-600'}>→</span>
           </button>
         )}
+
+        {/* Quick Add Section */}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowQuickAdd(!showQuickAdd)}
+            className={`w-full p-3 rounded-xl flex items-center justify-between ${
+              d ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-white hover:bg-slate-50'
+            } border ${d ? 'border-slate-700' : 'border-slate-200'} transition`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⚡</span>
+              <span className={`font-medium ${d ? 'text-white' : 'text-slate-900'}`}>Quick Add</span>
+            </div>
+            <span className={`text-sm ${d ? 'text-slate-400' : 'text-slate-500'}`}>
+              {showQuickAdd ? '▲' : '▼'}
+            </span>
+          </button>
+
+          {showQuickAdd && (
+            <div className={`mt-2 p-3 rounded-xl ${d ? 'bg-slate-800/30' : 'bg-slate-50'} border ${d ? 'border-slate-700' : 'border-slate-200'}`}
+              style={{ animation: "slideDown .2s ease-out" }}>
+              <p className={`text-xs mb-3 ${d ? 'text-slate-500' : 'text-slate-400'}`}>
+                Tap to add instantly
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <QuickAddButton icon="🚌" label="Bus ৳20" onAdd={() => quickAdd('transport', 'bus', 20, 'Bus')} />
+                <QuickAddButton icon="🛺" label="CNG ৳50" onAdd={() => quickAdd('transport', 'rickshaw', 50, 'Rickshaw/CNG')} />
+                <QuickAddButton icon="🍛" label="Lunch ৳80" onAdd={() => quickAdd('canteen', 'lunch', 80, 'Lunch')} />
+                <QuickAddButton icon="☕" label="Tea ৳15" onAdd={() => quickAdd('canteen', 'tea_coffee', 15, 'Tea/Coffee')} />
+                <QuickAddButton icon="🍿" label="Snacks ৳30" onAdd={() => quickAdd('canteen', 'snacks', 30, 'Snacks')} />
+                <QuickAddButton icon="📖" label="Copy ৳20" onAdd={() => quickAdd('education', 'books', 20, 'Photocopy')} />
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Total Cost — Display only */}
         <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-8 mb-6 shadow-xl shadow-indigo-600/20">
