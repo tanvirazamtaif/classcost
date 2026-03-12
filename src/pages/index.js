@@ -9,4 +9,3 @@ export { default as SettingsView } from './SettingsView';
 export { default as StageUpgradeWizard } from './StageUpgradeWizard';
 export { default as LoansView } from './LoansView';
 export { default as AcademicJourneyView } from './AcademicJourneyView';
-export { default as AdminPanel } from './AdminPanel';

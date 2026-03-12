@@ -14,7 +14,6 @@ import {
   StageUpgradeWizard,
   LoansView,
   AcademicJourneyView,
-  AdminPanel,
 } from './pages';
 
 // ─── Inner pages with bottom nav (non-dashboard) ─────────────────────────────
@@ -52,7 +51,6 @@ const ViewRouter = () => {
       {view === "onboarding" && <OnboardingWizard />}
       {view === "stage-upgrade" && <StageUpgradeWizard />}
       {view === "academic-journey" && <AcademicJourneyView />}
-      {view === "admin" && <AdminPanel />}
       {view === "dashboard" && <DashboardView />}
       {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
         <InnerPage />

@@ -73,8 +73,6 @@ export const LandingPage = () => {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-600/8 rounded-full blur-[100px]" />
 
-      <button onClick={() => navigate("admin")} className="absolute top-4 right-4 text-white/20 hover:text-white/50 text-xs transition">Admin</button>
-
       <div className="relative z-10 w-full max-w-[380px]">
         {/* Logo & Brand */}
         <div className="text-center mb-10">
