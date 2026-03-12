@@ -1,6 +1,6 @@
-# EduTrack v3.0 — Education Expense Manager
+# ClassCost v3.0 — Education Expense Manager
 
-A comprehensive, multi-role education expense tracking application built for the Bangladeshi education system, covering every stage from Playgroup to PhD. EduTrack helps students log daily spending, manage semester fees, track education loans, and gives parents a dedicated monitoring dashboard — all from a single shared account.
+A comprehensive, multi-role education expense tracking application built for the Bangladeshi education system, covering every stage from Playgroup to PhD. ClassCost helps students log daily spending, manage semester fees, track education loans, and gives parents a dedicated monitoring dashboard — all from a single shared account.
 
 ## Table of Contents
 
@@ -49,7 +49,7 @@ A comprehensive, multi-role education expense tracking application built for the
 
 ## Education Modules
 
-EduTrack supports **12 distinct education types** organized into 5 groups:
+ClassCost supports **12 distinct education types** organized into 5 groups:
 
 | Group | Modules | Description |
 |-------|---------|-------------|
@@ -88,7 +88,7 @@ Each module has its own:
 
 ## Architecture
 
-EduTrack follows a **modular component architecture** with clear separation of concerns:
+ClassCost follows a **modular component architecture** with clear separation of concerns:
 
 - **React Context** (`AppProvider`) manages all global state, replacing prop drilling
 - **Custom hooks** encapsulate reusable logic (localStorage persistence, toast notifications, promotion engine, privacy system)
@@ -102,7 +102,7 @@ EduTrack follows a **modular component architecture** with clear separation of c
 ## Project Structure
 
 ```
-edutrack/
+classcost/
 ├── index.html                  # Entry HTML
 ├── package.json                # Dependencies and scripts (v3.0.0)
 ├── vite.config.js              # Vite + Vitest configuration
@@ -167,7 +167,7 @@ edutrack/
 ### Installation
 
 ```bash
-cd edutrack
+cd classcost
 npm install
 npm run dev
 ```
@@ -265,7 +265,7 @@ A 6-digit code generated during onboarding that links student and parent account
 
 ## Testing
 
-EduTrack uses **Vitest** with **@testing-library/react** for testing.
+ClassCost uses **Vitest** with **@testing-library/react** for testing.
 
 ```bash
 # Run all tests

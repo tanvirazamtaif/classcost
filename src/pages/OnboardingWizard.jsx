@@ -59,7 +59,7 @@ export const OnboardingWizard = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="flex items-center justify-between px-6 pt-6 pb-2">
-        <div className="text-sm font-bold text-indigo-600">EduTrack 🎓</div>
+        <div className="text-sm font-bold text-indigo-600">ClassCost 🎓</div>
         <button onClick={() => { setUser((p) => ({ ...p, onboardingSkipped: true })); navigate("dashboard"); }} className="text-slate-400 text-sm">Skip</button>
       </div>
 
