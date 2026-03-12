@@ -3,6 +3,32 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
 import * as api from '../api';
 
+const DEFAULT_USER = {
+  id: null,
+  email: null,
+  accountType: 'student', // 'student' | 'parent'
+  profileComplete: false,
+  subscription: {
+    planId: 'student_free',
+    expiresAt: null,
+    billingCycle: null, // 'monthly' | 'yearly' | null
+  },
+  linkedAccounts: [], // For parents: array of child user IDs
+  inviteCode: null, // For students: their shareable invite code
+  parentId: null, // For students: linked parent's user ID
+};
+
+/** Merge stored user with defaults so new fields always exist */
+const mergeUserDefaults = (stored) => {
+  if (!stored) return null;
+  return {
+    ...DEFAULT_USER,
+    ...stored,
+    subscription: { ...DEFAULT_USER.subscription, ...(stored.subscription || {}) },
+    linkedAccounts: stored.linkedAccounts || DEFAULT_USER.linkedAccounts,
+  };
+};
+
 const AppContext = createContext(null);
 
 export const useApp = () => {
@@ -13,7 +39,8 @@ export const useApp = () => {
 
 export const AppProvider = ({ children }) => {
   const [view, setView] = useLocalStorage("ut_v3_view", "landing");
-  const [user, setUserLocal] = useLocalStorage("ut_v3_user", null);
+  const [rawUser, setUserLocal] = useLocalStorage("ut_v3_user", null);
+  const user = rawUser ? mergeUserDefaults(rawUser) : null;
   const [expenses, setExpensesLocal] = useLocalStorage("ut_v3_expenses", []);
   const [semesters, setSemestersLocal] = useLocalStorage("ut_v3_semesters", []);
   const [loans, setLoansLocal] = useLocalStorage("ut_v3_loans", []);
@@ -60,10 +87,26 @@ export const AppProvider = ({ children }) => {
           pin: u.pin, parentPin: u.parentPin, isLoggedIn: u.isLoggedIn,
           profileComplete: u.profileComplete, onboardingSkipped: u.onboardingSkipped,
           profile: u.profile || null,
+          accountType: u.accountType || 'student',
+          subscription: u.subscription || DEFAULT_USER.subscription,
+          linkedAccounts: u.linkedAccounts || [],
+          inviteCode: u.inviteCode || null,
+          parentId: u.parentId || null,
         });
       } catch (e) { console.error('Failed to sync user:', e); }
     }
   }, [user]);
+
+  const updateSubscription = useCallback((subscriptionData) => {
+    setUser(prev => ({
+      ...prev,
+      subscription: { ...prev.subscription, ...subscriptionData },
+    }));
+  }, [setUser]);
+
+  const setAccountType = useCallback((type) => {
+    setUser(prev => ({ ...prev, accountType: type }));
+  }, [setUser]);
 
   const setExpenses = useCallback(async (newExpenses) => {
     const exps = typeof newExpenses === 'function' ? newExpenses(expenses) : newExpenses;
@@ -165,6 +208,7 @@ export const AppProvider = ({ children }) => {
     notifications, setNotifications,
     toasts, addToast,
     theme, toggleTheme,
+    updateSubscription, setAccountType,
     // Server-synced helpers
     addExpense, removeExpense,
     addSemester, editSemester,
