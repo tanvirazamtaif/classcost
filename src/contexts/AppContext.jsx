@@ -110,6 +110,17 @@ export const AppProvider = ({ children }) => {
     setUser(prev => ({ ...prev, accountType: type }));
   }, [setUser]);
 
+  const generateInviteCode = useCallback(() => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 for readability
+    let code = '';
+    const arr = new Uint8Array(6);
+    crypto.getRandomValues(arr);
+    for (let i = 0; i < 6; i++) code += chars[arr[i] % chars.length];
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    setUser(prev => ({ ...prev, inviteCode: code, inviteCodeExpiresAt: expiresAt }));
+    return { code, expiresAt };
+  }, [setUser]);
+
   const setExpenses = useCallback(async (newExpenses) => {
     const exps = typeof newExpenses === 'function' ? newExpenses(expenses) : newExpenses;
     setExpensesLocal(exps);
@@ -210,7 +221,7 @@ export const AppProvider = ({ children }) => {
     notifications, setNotifications,
     toasts, addToast,
     theme, toggleTheme,
-    updateSubscription, setAccountType,
+    updateSubscription, setAccountType, generateInviteCode,
     pendingAccountType, setPendingAccountType,
     signupMethod, setSignupMethod,
     // Server-synced helpers
