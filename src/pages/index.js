@@ -11,3 +11,4 @@ export { default as SettingsView } from './SettingsView';
 export { default as LoansView } from './LoansView';
 export { EducationSetupView } from './EducationSetupView';
 export { HistoricalDataView } from './HistoricalDataView';
+export { BudgetSettingsView } from './BudgetSettingsView';

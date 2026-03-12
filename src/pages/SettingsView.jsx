@@ -145,6 +145,22 @@ const SettingsView = () => {
         <Toggle label="Canteen Reminder" sub="If not logged for 2+ days" value={notifications.canteen} onChange={v=>setNotifications(p=>({...p,canteen:v}))}/>
       </Card>
 
+      <Card className="p-5">
+        <button
+          onClick={() => navigate('budget-settings')}
+          className="w-full flex items-center gap-3"
+        >
+          <span className="text-2xl">💰</span>
+          <div className="text-left flex-1">
+            <p className="font-bold text-sm text-slate-700">Monthly Budget</p>
+            <p className="text-xs text-slate-400">
+              {user?.budgets?.total ? `৳${user.budgets.total.toLocaleString('en-BD')}/month` : 'Set spending limits'}
+            </p>
+          </div>
+          <span className="text-slate-400">›</span>
+        </button>
+      </Card>
+
       {user?.accountType === 'student' && (
         <Card className="p-5">
           <h3 className="text-sm font-bold text-slate-700 mb-1">👨‍👩‍👧 Share with Parent</h3>
