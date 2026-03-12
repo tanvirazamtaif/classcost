@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, CURRENCIES, PROMOTION_CONFIG } from '../constants';
 import { makeFmt, todayStr } from '../utils';
-import { usePrivacy } from '../hooks';
 import { Btn, Card, Input, Badge, Toggle } from '../components/ui';
-import { PINPad } from '../components/feature';
 import { redeemPromoCode } from '../api';
 
 const SettingsView = () => {
@@ -15,8 +13,6 @@ const SettingsView = () => {
   const trialDays=user?.trialStart?Math.max(0,90-Math.floor((Date.now()-user.trialStart)/86400000)):90;
   const cfg = PROMOTION_CONFIG[profile?.educationLevel] || {};
   const [showLevelPicker, setShowLevelPicker] = useState(false);
-  const [privModal, setPrivModal] = useState(null);
-  const { priv, setPIN, clearPIN, unlock } = usePrivacy();
 
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
@@ -147,72 +143,6 @@ const SettingsView = () => {
         <Toggle label="Transport Reminder" sub="If not logged for 2+ days" value={notifications.transport} onChange={v=>setNotifications(p=>({...p,transport:v}))}/>
         <Toggle label="Canteen Reminder" sub="If not logged for 2+ days" value={notifications.canteen} onChange={v=>setNotifications(p=>({...p,canteen:v}))}/>
       </Card>
-
-      <Card className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-700">🔒 Cost Privacy</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Set a PIN to hide cost totals from others</p>
-          </div>
-          <span className={`text-xs px-2.5 py-1 rounded-xl font-bold ${priv.studentPIN?"bg-emerald-100 text-emerald-700":"bg-slate-100 text-slate-500"}`}>
-            {priv.studentPIN ? "PIN Set ✓" : "Not Set"}
-          </span>
-        </div>
-
-        <div className="bg-slate-50 rounded-2xl p-3.5 mb-4">
-          <p className="text-xs font-bold text-slate-500 mb-2">WHAT THE PIN HIDES</p>
-          <div className="flex flex-col gap-1.5">
-            {[["Always visible (never hidden)", "Current month / semester / class cost", "✅"],
-              ["Hidden with your PIN", "Stage total, Student Life Cost, category amounts","🔒"],
-              ["Hidden if parent set restriction", "Marked with 🔒 separately — needs parent PIN","👨‍👩‍👦"]].map(([title,desc,icon])=>(
-              <div key={title} className="flex gap-2.5">
-                <span className="text-sm mt-0.5 flex-shrink-0">{icon}</span>
-                <div><p className="text-xs font-semibold text-slate-600">{title}</p><p className="text-xs text-slate-400">{desc}</p></div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {!priv.studentPIN ? (
-          <Btn onClick={()=>setPrivModal("set")} className="w-full" size="md">Set Privacy PIN</Btn>
-        ) : (
-          <div className="flex gap-3">
-            <Btn onClick={()=>setPrivModal("change")} variant="secondary" className="flex-1" size="sm">Change PIN</Btn>
-            <Btn onClick={()=>setPrivModal("verify-clear")} variant="danger" className="flex-1" size="sm">Remove PIN</Btn>
-          </div>
-        )}
-
-        {profile?.parentRestrictions?.hideLockable && (
-          <div className="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-3 text-xs text-amber-700">
-            🔒 Your parent has restricted some cost totals. Contact them to change this.
-          </div>
-        )}
-      </Card>
-
-      {privModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={()=>setPrivModal(null)}/>
-          <div style={{animation:"slideup .35s cubic-bezier(.22,.61,.36,1)"}}
-            className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl p-6">
-            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"/>
-            {privModal==="set"&&<PINPad mode="set" accentColor="indigo"
-              onSuccess={pin=>{setPIN(pin);setPrivModal(null);addToast("Privacy PIN set ✓","success");}}
-              onCancel={()=>setPrivModal(null)}/>}
-            {privModal==="change"&&<PINPad mode="verify" storedPIN={priv.studentPIN} accentColor="indigo"
-              label="Enter current PIN to change it"
-              onSuccess={()=>{setPrivModal("set-new");}}
-              onCancel={()=>setPrivModal(null)}/>}
-            {privModal==="set-new"&&<PINPad mode="set" accentColor="indigo"
-              label="Set new PIN"
-              onSuccess={pin=>{setPIN(pin);setPrivModal(null);addToast("PIN updated ✓","success");}}
-              onCancel={()=>setPrivModal(null)}/>}
-            {privModal==="verify-clear"&&<PINPad mode="verify" storedPIN={priv.studentPIN} accentColor="indigo"
-              label="Enter PIN to remove it"
-              onSuccess={()=>{clearPIN();setPrivModal(null);addToast("Privacy PIN removed","info");}}
-              onCancel={()=>setPrivModal(null)}/>}
-          </div>
-        </div>
-      )}
 
       <Card className="p-5">
         <h3 className="text-sm font-bold text-slate-700 mb-3">🎫 Promo Code</h3>

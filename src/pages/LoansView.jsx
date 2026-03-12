@@ -1,10 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, CURRENCIES, LOAN_TYPES, LOAN_PURPOSES } from '../constants';
 import { makeFmt, todayStr, uid, calcLoanSummary, calcPaidVsSchedule, buildAmortization } from '../utils';
-import { usePrivacy } from '../hooks';
 import { Btn, Card, Input } from '../components/ui';
-import { PINPad } from '../components/feature';
 
 const LoansView = () => {
   useEffect(() => { document.title = "Loans — ClassCost"; }, []);
@@ -12,26 +10,6 @@ const LoansView = () => {
   const profile      = user?.profile;
   const fmt          = makeFmt(profile?.currency || "BDT");
   const sym          = (CURRENCIES.find(c => c.id === (profile?.currency || "BDT")) || CURRENCIES[0]).symbol;
-  const restrictions = profile?.parentRestrictions || {};
-
-  const { priv: loansPriv } = usePrivacy();
-  const loansLocked       = loansPriv.loansLocked || restrictions.loansLocked;
-  const [unlockModal,     setUnlockModal]     = useState(false);
-  const [loanTempRevealed,setLoanTempRevealed]= useState(false);
-  const revealRef = useRef(null);
-
-  const handleLoanReveal = () => {
-    setLoanTempRevealed(true);
-    setUnlockModal(false);
-    clearTimeout(revealRef.current);
-    revealRef.current = setTimeout(() => setLoanTempRevealed(false), 60000);
-  };
-
-  const selVis = restrictions.loanSelectiveVisibility || {};
-  const canSee = (field) => {
-    if (!loansLocked || loanTempRevealed) return true;
-    return selVis[field] === true;
-  };
 
   const [screen,    setScreen]    = useState("list");
   const [selected,  setSelected]  = useState(null);
@@ -70,85 +48,6 @@ const LoansView = () => {
   };
 
   const deleteLoan = (id) => { setLoans(p => p.filter(l => l.id !== id)); setScreen("list"); addToast("Loan removed","info"); };
-
-  // LOCKED STATE
-  if (loansLocked && !loanTempRevealed && screen === "list") {
-    const hasSelectiveAccess = Object.values(selVis).some(v => v === true);
-    return (
-      <div className="flex flex-col gap-5">
-        {hasSelectiveAccess && canSee("names") && loans.length > 0 && (
-          <Card className="p-5">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Your Education Loans</p>
-            {loans.map(loan => {
-              const ltype = LOAN_TYPES.find(t => t.id === loan.loanType) || LOAN_TYPES[0];
-              const { remaining } = calcPaidVsSchedule(loan);
-              return (
-                <div key={loan.id} className="flex items-center gap-3 py-3 border-b border-slate-50 last:border-0">
-                  <div className="w-9 h-9 bg-rose-100 rounded-xl flex items-center justify-center">{ltype.icon}</div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-700">{loan.name}</p>
-                    <p className="text-slate-400 text-xs">{loan.lender || ltype.label}</p>
-                  </div>
-                  {canSee("outstanding") ? (
-                    <p className="text-sm font-bold text-rose-600 tabular-nums">{fmt(remaining)}</p>
-                  ) : (
-                    <span className="text-slate-300 text-xs">🔒</span>
-                  )}
-                </div>
-              );
-            })}
-          </Card>
-        )}
-
-        <div className="bg-gradient-to-br from-slate-700 to-slate-900 rounded-3xl p-8 text-white text-center shadow-xl">
-          <div className="text-5xl mb-4">🔒</div>
-          <h2 className="text-xl font-bold mb-2" style={{fontFamily:"'Fraunces',serif"}}>Loan Details Locked</h2>
-          <p className="text-white/60 text-sm mb-6">
-            Your parent has restricted access to loan details.
-            {restrictions.sharePassword ? " Ask them for the share password to see everything." : ""}
-          </p>
-
-          {restrictions.sharePassword && (
-            <button onClick={()=>setUnlockModal(true)}
-              className="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-4 rounded-2xl transition active:scale-95 mb-3">
-              🔑 Enter Share Password
-            </button>
-          )}
-
-          {hasSelectiveAccess && (
-            <div className="bg-white/10 rounded-2xl p-3 text-left">
-              <p className="text-white/60 text-xs font-bold mb-2">WHAT YOU CAN SEE:</p>
-              {[
-                ["names",       "Loan names & lenders"],
-                ["outstanding", "Outstanding balances"],
-                ["emi",         "Monthly EMI amounts"],
-                ["progress",    "Repayment progress"],
-              ].map(([key,label]) => selVis[key] && (
-                <p key={key} className="text-white/70 text-xs py-0.5">✅ {label}</p>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {unlockModal && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={()=>setUnlockModal(false)}/>
-            <div style={{animation:"slideup .35s cubic-bezier(.22,.61,.36,1)"}}
-              className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl p-6">
-              <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"/>
-              <div className="text-center mb-4">
-                <div className="text-3xl mb-2">🔑</div>
-                <p className="font-bold text-slate-800">Enter Share Password</p>
-                <p className="text-xs text-slate-400 mt-1">Your parent gave you this code to unlock loans for 60 seconds</p>
-              </div>
-              <PINPad mode="verify" storedPIN={restrictions.sharePassword} accentColor="teal"
-                label="Share password" onSuccess={handleLoanReveal} onCancel={()=>setUnlockModal(false)}/>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   // SCREEN: LIST
   if (screen === "list") return (
