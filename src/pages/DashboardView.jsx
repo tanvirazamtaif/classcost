@@ -131,6 +131,54 @@ export const DashboardView = () => {
 
   const inputClass = `w-full rounded-xl py-2.5 px-3 text-sm outline-none transition ${d ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500"} border`;
 
+  const getThisMonthSpending = () => {
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const byCategory = { education: 0, transport: 0, canteen: 0, hostel: 0, total: 0 };
+    expenses.forEach(exp => {
+      if (!exp.date || !exp.date.startsWith(thisMonth)) return;
+      const amount = Number(exp.amount) || 0;
+      const cat = exp.type;
+      if (cat in byCategory) byCategory[cat] += amount;
+      byCategory.total += amount;
+    });
+    return byCategory;
+  };
+
+  const BudgetProgress = ({ category, spent, budget, icon }) => {
+    if (!budget || budget <= 0) return null;
+    const percentage = Math.min((spent / budget) * 100, 100);
+    const isOver = spent > budget;
+    const isWarning = percentage >= 80 && percentage < 100;
+    const colors = isOver
+      ? { bar: 'bg-red-500', text: 'text-red-400' }
+      : isWarning
+        ? { bar: 'bg-orange-500', text: 'text-orange-400' }
+        : { bar: 'bg-green-500', text: 'text-green-400' };
+
+    return (
+      <div className="flex items-center gap-3">
+        <span className="text-lg">{icon}</span>
+        <div className="flex-1">
+          <div className="flex justify-between items-center mb-1">
+            <span className={`text-xs font-medium ${d ? 'text-slate-400' : 'text-slate-600'}`}>{category}</span>
+            <span className={`text-xs font-semibold ${colors.text}`}>
+              {isOver ? 'Over!' : `${percentage.toFixed(0)}%`}
+            </span>
+          </div>
+          <div className={`h-2 rounded-full ${d ? 'bg-slate-700' : 'bg-slate-200'} overflow-hidden`}>
+            <div className={`h-full rounded-full transition-all duration-500 ${colors.bar}`}
+              style={{ width: `${percentage}%` }} />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>{fmt(spent)}</span>
+            <span className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>{fmt(budget)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const quickAdd = async (type, subType, amount, label) => {
     try {
       await addExpense({
@@ -344,6 +392,32 @@ export const DashboardView = () => {
             {!isPro && expenses.length > 0 && <span className="ml-2 text-indigo-300/60">· Last 3 months</span>}
           </p>
         </div>
+
+        {/* Budget Progress Section */}
+        {user?.budgets?.total > 0 && (
+          <div className={`mb-4 p-4 rounded-2xl ${d ? 'bg-slate-800/50' : 'bg-white'} border ${d ? 'border-slate-700' : 'border-slate-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`font-semibold ${d ? 'text-white' : 'text-slate-900'}`}>This Month's Budget</h3>
+              <button onClick={() => navigate('budget-settings')}
+                className={`text-xs ${d ? 'text-indigo-400' : 'text-indigo-600'}`}>Edit →</button>
+            </div>
+            <div className="mb-4">
+              <BudgetProgress category="Total Budget" spent={getThisMonthSpending().total} budget={user.budgets.total} icon="💵" />
+            </div>
+            <details className="group">
+              <summary className={`text-xs cursor-pointer ${d ? 'text-slate-500' : 'text-slate-400'} list-none flex items-center gap-1`}>
+                <span className="group-open:rotate-90 transition-transform">▶</span>
+                View by category
+              </summary>
+              <div className="mt-3 space-y-3">
+                {user.budgets.education > 0 && <BudgetProgress category="Education" spent={getThisMonthSpending().education} budget={user.budgets.education} icon="🎓" />}
+                {user.budgets.transport > 0 && <BudgetProgress category="Transport" spent={getThisMonthSpending().transport} budget={user.budgets.transport} icon="🚌" />}
+                {user.budgets.canteen > 0 && <BudgetProgress category="Food" spent={getThisMonthSpending().canteen} budget={user.budgets.canteen} icon="🍽️" />}
+                {user.budgets.hostel > 0 && <BudgetProgress category="Residence" spent={getThisMonthSpending().hostel} budget={user.budgets.hostel} icon="🏠" />}
+              </div>
+            </details>
+          </div>
+        )}
 
         {/* 4 Category Cards — clickable */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
