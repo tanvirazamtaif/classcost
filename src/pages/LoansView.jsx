@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useSubscription } from '../hooks';
+import { PaywallModal } from '../components/feature';
 import { EDU, CURRENCIES, LOAN_TYPES, LOAN_PURPOSES } from '../constants';
 import { makeFmt, todayStr, uid, calcLoanSummary, calcPaidVsSchedule, buildAmortization } from '../utils';
 import { Btn, Card, Input } from '../components/ui';
@@ -7,6 +9,8 @@ import { Btn, Card, Input } from '../components/ui';
 const LoansView = () => {
   useEffect(() => { document.title = "Loans — ClassCost"; }, []);
   const { user, loans, setLoans, navigate, addToast } = useApp();
+  const { canAccess } = useSubscription();
+  const [showPaywall, setShowPaywall] = useState(false);
   const profile      = user?.profile;
   const fmt          = makeFmt(profile?.currency || "BDT");
   const sym          = (CURRENCIES.find(c => c.id === (profile?.currency || "BDT")) || CURRENCIES[0]).symbol;
@@ -410,15 +414,22 @@ const LoansView = () => {
 
         {loan.loanType !== "deferred" && amortRows.length > 0 && (
           <Card className="overflow-hidden">
-            <button onClick={()=>setShowAmort(v=>!v)}
+            <button onClick={()=>{
+              if (!canAccess('projection')) { setShowPaywall(true); return; }
+              setShowAmort(v=>!v);
+            }}
               className="w-full flex items-center justify-between p-5 text-left">
               <div>
                 <p className="text-sm font-bold text-slate-700">Amortization Schedule</p>
-                <p className="text-xs text-slate-400">{amortRows.length} payment rows</p>
+                <p className="text-xs text-slate-400">
+                  {canAccess('projection') ? `${amortRows.length} payment rows` : 'Pro feature'}
+                </p>
               </div>
-              <span className={`text-slate-400 transition-transform ${showAmort?"rotate-180":""}`}>▾</span>
+              <span className={`text-slate-400 transition-transform ${showAmort?"rotate-180":""}`}>
+                {canAccess('projection') ? '▾' : '✨'}
+              </span>
             </button>
-            {showAmort && (
+            {showAmort && canAccess('projection') && (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
@@ -446,6 +457,13 @@ const LoansView = () => {
             )}
           </Card>
         )}
+
+        <PaywallModal
+          isOpen={showPaywall}
+          onClose={() => setShowPaywall(false)}
+          feature="projection"
+          title="Amortization Schedule"
+        />
       </div>
     );
   }

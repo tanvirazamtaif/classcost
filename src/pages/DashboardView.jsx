@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useSubscription } from '../hooks';
 import { makeFmt } from '../utils/format';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -7,6 +8,7 @@ const currentMonth = () => new Date().toISOString().slice(0, 7);
 
 export const DashboardView = () => {
   const { user, expenses, addExpense, navigate, theme, toggleTheme } = useApp();
+  const { canAccessHistory, isPro } = useSubscription();
   const profile = user?.profile;
 
   useEffect(() => { document.title = "Dashboard — ClassCost"; }, []);
@@ -168,7 +170,10 @@ export const DashboardView = () => {
         <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-8 mb-6 shadow-xl shadow-indigo-600/20">
           <p className="text-white/60 text-xs sm:text-sm font-medium mb-2">Total Cost</p>
           <p className="text-white text-4xl sm:text-5xl font-bold tracking-tight">{fmt(total)}</p>
-          <p className="text-white/40 text-xs mt-3">{expenses.length} transaction{expenses.length !== 1 ? "s" : ""}</p>
+          <p className="text-white/40 text-xs mt-3">
+            {expenses.length} transaction{expenses.length !== 1 ? "s" : ""}
+            {!isPro && expenses.length > 0 && <span className="ml-2 text-indigo-300/60">· Last 3 months</span>}
+          </p>
         </div>
 
         {/* 4 Category Cards — clickable */}

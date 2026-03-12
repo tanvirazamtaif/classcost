@@ -1,14 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, XAxis, YAxis } from 'recharts';
 import { useApp } from '../contexts/AppContext';
+import { useSubscription } from '../hooks';
+import { PaywallModal } from '../components/feature';
 import { COLORS } from '../constants';
 import { makeFmt } from '../utils/format';
 
 export const ReportsView = () => {
   const { expenses, user, theme } = useApp();
+  const { canAccess } = useSubscription();
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || "BDT");
   const d = theme === "dark";
+
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallFeature, setPaywallFeature] = useState('');
 
   useEffect(() => { document.title = "Reports — ClassCost"; }, []);
 
@@ -96,12 +102,58 @@ export const ReportsView = () => {
         </div>
       )}
 
+      {/* Export buttons */}
+      {grand > 0 && (
+        <div className={cardClass}>
+          <h3 className={headingClass}>Export Data</h3>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                if (!canAccess('exportPdf')) {
+                  setPaywallFeature('exportPdf');
+                  setShowPaywall(true);
+                  return;
+                }
+                // TODO: implement PDF export
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition active:scale-[0.98] ${
+                d ? "border-slate-700 text-slate-300 hover:border-indigo-500 hover:text-indigo-400" : "border-slate-200 text-slate-700 hover:border-indigo-400 hover:text-indigo-600"
+              }`}
+            >
+              📄 Export PDF
+            </button>
+            <button
+              onClick={() => {
+                if (!canAccess('exportExcel')) {
+                  setPaywallFeature('exportExcel');
+                  setShowPaywall(true);
+                  return;
+                }
+                // TODO: implement Excel export
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition active:scale-[0.98] ${
+                d ? "border-slate-700 text-slate-300 hover:border-emerald-500 hover:text-emerald-400" : "border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-600"
+              }`}
+            >
+              📊 Export Excel
+            </button>
+          </div>
+        </div>
+      )}
+
       {grand === 0 && (
         <div className={`text-center py-12 ${d ? "text-slate-500" : "text-slate-400"}`}>
           <div className="text-4xl mb-2">📊</div>
           <p className="text-sm">No expenses logged yet</p>
         </div>
       )}
+
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        feature={paywallFeature}
+        title={paywallFeature === 'exportPdf' ? 'Export to PDF' : 'Export to Excel'}
+      />
     </div>
   );
 };
