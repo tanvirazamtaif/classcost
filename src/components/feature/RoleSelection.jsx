@@ -31,7 +31,7 @@ export const RoleSelection = () => {
   const handleSelect = (role) => {
     setPendingAccountType(role);
     setAccountType(role);
-    navigate('onboarding');
+    navigate(role === 'parent' ? 'parent-onboarding' : 'onboarding');
   };
 
   return (

@@ -5,6 +5,7 @@ import {
   LandingPage,
   OTPVerification,
   OnboardingWizard,
+  ParentOnboardingView,
   DashboardView,
   AddExpenseView,
   SemesterView,
@@ -47,6 +48,7 @@ const ViewRouter = () => {
       {view === "otp" && <OTPVerification />}
       {view === "role-selection" && <RoleSelection />}
       {view === "onboarding" && <OnboardingWizard />}
+      {view === "parent-onboarding" && <ParentOnboardingView />}
       {view === "dashboard" && <DashboardView />}
       {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
         <InnerPage />
