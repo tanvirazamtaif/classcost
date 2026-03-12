@@ -15,10 +15,14 @@ export const ReportsView = () => {
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallFeature, setPaywallFeature] = useState('');
+  const [includeHistorical, setIncludeHistorical] = useState(true);
 
   useEffect(() => { document.title = "Reports — ClassCost"; }, []);
 
-  const byType = (t) => expenses.filter((e) => e.type === t).reduce((s, e) => s + Number(e.amount), 0);
+  const hasHistorical = expenses.some(e => e.isHistorical);
+  const filteredExpenses = includeHistorical ? expenses : expenses.filter(e => !e.isHistorical);
+
+  const byType = (t) => filteredExpenses.filter((e) => e.type === t).reduce((s, e) => s + Number(e.amount), 0);
   const transport = byType("transport"), canteen = byType("canteen"), hostel = byType("hostel"),
     coaching = byType("coaching"), batch = byType("batch"), other = byType("other"),
     education = byType("education");
@@ -33,8 +37,35 @@ export const ReportsView = () => {
 
   const monthly = () => {
     const m = {};
-    expenses.forEach((e) => { const k = (e.date || "").slice(0, 7); if (k) m[k] = (m[k] || 0) + Number(e.amount); });
+    filteredExpenses.forEach((e) => { const k = (e.date || "").slice(0, 7); if (k) m[k] = (m[k] || 0) + Number(e.amount); });
     return Object.entries(m).sort().slice(-6).map(([mo, amt]) => ({ month: mo.slice(5) + "/" + mo.slice(2, 4), amt }));
+  };
+
+  const getSubCategoryTotals = () => {
+    const totals = {};
+    filteredExpenses.forEach(exp => {
+      const cat = exp.type || 'other';
+      const sub = exp.subType || 'other';
+      if (!totals[cat]) totals[cat] = {};
+      if (!totals[cat][sub]) totals[cat][sub] = 0;
+      totals[cat][sub] += Number(exp.amount) || 0;
+    });
+    return totals;
+  };
+
+  const getCategoryLabel = (category) => {
+    const labels = { education: '🎓 Education', transport: '🚌 Transport', canteen: '🍽️ Food', hostel: '🏠 Residence' };
+    return labels[category] || category;
+  };
+
+  const getSubTypeLabel = (category, subType) => {
+    const labels = {
+      education: { tuition: 'Tuition Fee', admission: 'Admission Fee', exam: 'Exam Fee', books: 'Books/Supplies', coaching: 'Coaching/Tutor', lab: 'Lab Fee', library: 'Library Fee', other_edu: 'Other', historical: 'Previous (Est.)' },
+      transport: { bus: 'Bus', rickshaw: 'Rickshaw/CNG', ride_share: 'Uber/Pathao', train: 'Train', fuel: 'Fuel/Petrol', other_transport: 'Other', historical: 'Previous (Est.)' },
+      canteen: { lunch: 'Lunch', snacks: 'Snacks', tea_coffee: 'Tea/Coffee', breakfast: 'Breakfast', dinner: 'Dinner', other_food: 'Other', historical: 'Previous (Est.)' },
+      hostel: { rent: 'Rent', electricity: 'Electricity', internet: 'Internet/WiFi', water: 'Water Bill', laundry: 'Laundry', other_hostel: 'Other', historical: 'Previous (Est.)' },
+    };
+    return labels[category]?.[subType] || subType || 'Other';
   };
 
   const cardClass = `rounded-2xl p-5 border ${d ? "bg-[#0f0f1e] border-[#1e1e3a]" : "bg-white border-slate-200"}`;
@@ -99,6 +130,80 @@ export const ReportsView = () => {
               <Line type="monotone" dataKey="amt" stroke="#7c3aed" strokeWidth={2.5} dot={{ fill: "#7c3aed", r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Historical toggle */}
+      {hasHistorical && (
+        <button onClick={() => setIncludeHistorical(!includeHistorical)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+            includeHistorical
+              ? d ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+              : d ? 'bg-slate-800 text-slate-400 border border-slate-700' : 'bg-slate-100 text-slate-600 border border-slate-200'
+          }`}>
+          <span className={`w-4 h-4 rounded flex items-center justify-center text-xs ${
+            includeHistorical ? 'bg-indigo-500 text-white' : d ? 'bg-slate-700' : 'bg-slate-300'
+          }`}>{includeHistorical ? '✓' : ''}</span>
+          Include historical estimates
+        </button>
+      )}
+
+      {/* Sub-category Breakdown */}
+      {grand > 0 && Object.keys(getSubCategoryTotals()).length > 0 && (
+        <div className={cardClass}>
+          <h3 className={headingClass}>📊 Detailed Breakdown</h3>
+          {Object.entries(getSubCategoryTotals()).map(([category, subCategories]) => (
+            <div key={category} className="mb-4 last:mb-0">
+              <p className={`text-sm font-medium mb-2 ${d ? 'text-slate-400' : 'text-slate-600'}`}>
+                {getCategoryLabel(category)}
+              </p>
+              <div className="space-y-2">
+                {Object.entries(subCategories)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([subType, amount]) => (
+                    <div key={subType} className="flex items-center justify-between">
+                      <span className={`text-sm ${d ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {getSubTypeLabel(category, subType)}
+                      </span>
+                      <span className={`text-sm font-medium ${d ? 'text-white' : 'text-slate-900'}`}>
+                        {fmt(amount)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Top Expenses */}
+      {filteredExpenses.filter(e => !e.isHistorical).length > 0 && (
+        <div className={cardClass}>
+          <h3 className={headingClass}>🔝 Top Expenses</h3>
+          <div className="space-y-3">
+            {filteredExpenses
+              .filter(e => !e.isHistorical)
+              .sort((a, b) => b.amount - a.amount)
+              .slice(0, 5)
+              .map((exp, i) => (
+                <div key={exp.id || i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      d ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
+                    }`}>{i + 1}</span>
+                    <div>
+                      <p className={`text-sm ${d ? 'text-white' : 'text-slate-900'}`}>
+                        {exp.label || getSubTypeLabel(exp.type, exp.subType)}
+                      </p>
+                      <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {exp.date ? new Date(exp.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }) : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`font-semibold ${d ? 'text-white' : 'text-slate-900'}`}>{fmt(Number(exp.amount))}</span>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 
