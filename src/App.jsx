@@ -7,6 +7,7 @@ import {
   OnboardingWizard,
   ParentOnboardingView,
   DashboardView,
+  ParentDashboardView,
   AddExpenseView,
   SemesterView,
   ReportsView,
@@ -39,7 +40,8 @@ const InnerPage = () => {
 
 // ─── View Router ──────────────────────────────────────────────────────────────
 const ViewRouter = () => {
-  const { view, toasts } = useApp();
+  const { view, toasts, user } = useApp();
+  const isParent = user?.accountType === 'parent';
 
   return (
     <>
@@ -49,7 +51,7 @@ const ViewRouter = () => {
       {view === "role-selection" && <RoleSelection />}
       {view === "onboarding" && <OnboardingWizard />}
       {view === "parent-onboarding" && <ParentOnboardingView />}
-      {view === "dashboard" && <DashboardView />}
+      {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
       {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
         <InnerPage />
       )}

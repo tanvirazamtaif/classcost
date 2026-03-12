@@ -3,6 +3,7 @@ export { OTPVerification } from './OTPVerification';
 export { OnboardingWizard } from './OnboardingWizard';
 export { ParentOnboardingView } from './ParentOnboardingView';
 export { DashboardView } from './DashboardView';
+export { ParentDashboardView } from './ParentDashboardView';
 export { default as AddExpenseView } from './AddExpenseView';
 export { default as SemesterView } from './SemesterView';
 export { ReportsView } from './ReportsView';
