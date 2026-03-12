@@ -19,7 +19,6 @@ export const OnboardingWizard = () => {
     hasCoaching: false, coachingName: "", coachingFee: "", coachingFreq: "monthly",
     hasBatch: false, batchName: "", batchFee: "", batchFreq: "monthly",
     previousTransport: "", previousCanteen: "",
-    familyCode: Math.floor(100000 + Math.random() * 900000).toString(),
   });
   const [instQuery, setInstQuery] = useState("");
   const [showInstDrop, setShowInstDrop] = useState(false);
@@ -281,7 +280,7 @@ export const OnboardingWizard = () => {
           </div>
         )}
 
-        {/* Step 4: Currency + Previous + Family Code */}
+        {/* Step 4: Currency + Previous */}
         {step === 4 && (
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
@@ -304,16 +303,6 @@ export const OnboardingWizard = () => {
               <p className="text-sm font-semibold text-slate-700">Previous Expenses</p>
               <Input label="Previous Transport Cost" type="number" value={form.previousTransport} onChange={(v) => upd("previousTransport", v)} placeholder="Total spent before today" icon="🚌" />
               <Input label="Previous Canteen Cost" type="number" value={form.previousCanteen} onChange={(v) => upd("previousCanteen", v)} placeholder="Total spent before today" icon="🍽️" />
-            </div>
-            <div className="bg-indigo-50 rounded-2xl p-4 border-2 border-indigo-100">
-              <p className="text-indigo-800 font-bold text-sm mb-1">🔗 Your Family Code</p>
-              <p className="text-indigo-600 text-xs mb-3">Share this code with your parent to let them monitor your expenses</p>
-              <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-indigo-200">
-                <span className="text-2xl font-bold text-indigo-700 font-mono tracking-widest flex-1">{form.familyCode}</span>
-                <button onClick={() => addToast("Code copied! Share with parent", "success")}
-                  className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg">Copy</button>
-              </div>
-              <p className="text-indigo-500 text-xs mt-2">You can always find this in Settings</p>
             </div>
           </div>
         )}

@@ -55,7 +55,6 @@ const StageUpgradeWizard = () => {
     const newProfile = {
       fullName:        profile.fullName,
       currency:        profile.currency,
-      familyCode:      profile.familyCode,
       educationLevel:  newEduLevel,
       institutionName: newInst,
       classYear:       newClassYear,
@@ -251,7 +250,7 @@ const StageUpgradeWizard = () => {
             </div>
 
             <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5 text-xs text-emerald-700">
-              Your name, currency preference, and Family Code carry over automatically. All previous expenses are archived and accessible in Academic Journey.
+              Your name and currency preference carry over automatically. All previous expenses are archived and accessible in Academic Journey.
             </div>
           </div>
         )}
