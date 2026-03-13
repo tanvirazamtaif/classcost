@@ -131,6 +131,15 @@ export const DashboardView = () => {
 
   const inputClass = `w-full rounded-xl py-2.5 px-3 text-sm outline-none transition ${d ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500"} border`;
 
+  const getLastMonthSpending = () => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+    return expenses
+      .filter(exp => exp.date && exp.date.startsWith(lastMonthStr))
+      .reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+  };
+
   const getThisMonthSpending = () => {
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -175,6 +184,56 @@ export const DashboardView = () => {
             <span className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>{fmt(budget)}</span>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  const MonthlySummaryCard = () => {
+    const thisMonth = getThisMonthSpending().total;
+    const lastMonth = getLastMonthSpending();
+    const difference = thisMonth - lastMonth;
+    const percentChange = lastMonth > 0 ? ((difference / lastMonth) * 100).toFixed(0) : 0;
+    const isUp = difference > 0;
+    const isDown = difference < 0;
+    const now = new Date();
+    const monthName = now.toLocaleDateString('en-US', { month: 'long' });
+    const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      .toLocaleDateString('en-US', { month: 'long' });
+
+    return (
+      <div className={`mb-4 p-4 rounded-2xl ${d ? 'bg-slate-800/50' : 'bg-white'} border ${d ? 'border-slate-700' : 'border-slate-200'}`}>
+        <h3 className={`text-sm font-medium mb-3 ${d ? 'text-slate-400' : 'text-slate-600'}`}>
+          {monthName} Summary
+        </h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className={`text-2xl font-bold ${d ? 'text-white' : 'text-slate-900'}`}>{fmt(thisMonth)}</p>
+            <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>This month</p>
+          </div>
+          <div className={`text-center px-3 py-2 rounded-xl ${
+            isUp ? 'bg-red-500/20' : isDown ? 'bg-green-500/20' : d ? 'bg-slate-700/50' : 'bg-slate-100'
+          }`}>
+            <p className={`text-lg font-bold ${
+              isUp ? 'text-red-400' : isDown ? 'text-green-400' : d ? 'text-slate-400' : 'text-slate-500'
+            }`}>
+              {isUp ? '↑' : isDown ? '↓' : '→'} {Math.abs(percentChange)}%
+            </p>
+            <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>vs {lastMonthName}</p>
+          </div>
+          <div className="text-right">
+            <p className={`text-lg font-semibold ${d ? 'text-slate-400' : 'text-slate-600'}`}>{fmt(lastMonth)}</p>
+            <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>{lastMonthName}</p>
+          </div>
+        </div>
+        {lastMonth > 0 && (
+          <p className={`mt-3 text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
+            {isUp
+              ? `📈 Spending ${fmt(Math.abs(difference))} more than last month`
+              : isDown
+                ? `📉 Saving ${fmt(Math.abs(difference))} compared to last month`
+                : '➡️ Spending is about the same as last month'}
+          </p>
+        )}
       </div>
     );
   };
@@ -469,6 +528,9 @@ export const DashboardView = () => {
             </details>
           </div>
         )}
+
+        {/* Monthly Summary */}
+        <MonthlySummaryCard />
 
         {/* 4 Category Cards — clickable */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
