@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, XAxis, YAxis } from 'recharts';
 import { useApp } from '../contexts/AppContext';
-import { useSubscription } from '../hooks';
+import { useSubscription, usePullToRefresh } from '../hooks';
+import { PullToRefreshIndicator } from '../components/ui';
 import { PaywallModal } from '../components/feature';
 import { COLORS } from '../constants';
 import { makeFmt } from '../utils/format';
 
 export const ReportsView = () => {
-  const { expenses, user, theme } = useApp();
+  const { expenses, user, theme, loadUserData, addToast } = useApp();
   const { canAccess } = useSubscription();
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || "BDT");
@@ -18,6 +19,13 @@ export const ReportsView = () => {
   const [includeHistorical, setIncludeHistorical] = useState(true);
 
   useEffect(() => { document.title = "Reports — ClassCost"; }, []);
+
+  const handleRefresh = async () => {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    if (user?.id) await loadUserData(user.id);
+    addToast('Refreshed', 'success');
+  };
+  const { pullDistance, isRefreshing, handlers: pullHandlers } = usePullToRefresh(handleRefresh);
 
   const hasHistorical = expenses.some(e => e.isHistorical);
   const filteredExpenses = includeHistorical ? expenses : expenses.filter(e => !e.isHistorical);
@@ -73,7 +81,8 @@ export const ReportsView = () => {
   const labelClass = d ? "text-[#94a3b8]" : "text-slate-600";
 
   return (
-    <div className="flex flex-col gap-5 pb-24">
+    <div className="flex flex-col gap-5 pb-24" {...pullHandlers}>
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       <div>
         <h2 className={`text-xl font-bold ${d ? "text-[#e2e0ff]" : "text-slate-900"}`} style={{ fontFamily: "'Fraunces',serif" }}>Analytics</h2>
         <p className={`text-sm ${d ? "text-[#94a3b8]" : "text-slate-400"}`}>Your expense breakdown</p>

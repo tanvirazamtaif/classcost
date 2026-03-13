@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { useSubscription } from '../hooks';
+import { useSubscription, usePullToRefresh } from '../hooks';
+import { PullToRefreshIndicator } from '../components/ui';
 import { makeFmt } from '../utils/format';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -52,7 +53,7 @@ const getExpenseLabel = (type, subType) => {
 };
 
 export const DashboardView = () => {
-  const { user, expenses, addExpense, removeExpense, addToast, navigate, theme, toggleTheme } = useApp();
+  const { user, expenses, addExpense, removeExpense, addToast, loadUserData, navigate, theme, toggleTheme } = useApp();
   const { canAccessHistory, isPro } = useSubscription();
   const profile = user?.profile;
 
@@ -66,6 +67,14 @@ export const DashboardView = () => {
   const [showRecent, setShowRecent] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // expense id pending confirm
   const [formData, setFormData] = useState({});
+
+  // Pull-to-refresh
+  const handleRefresh = async () => {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    if (user?.id) await loadUserData(user.id);
+    addToast('Refreshed', 'success');
+  };
+  const { pullDistance, isRefreshing, handlers: pullHandlers } = usePullToRefresh(handleRefresh);
 
   const profileIncomplete = !user?.profileComplete;
 
@@ -349,7 +358,8 @@ export const DashboardView = () => {
   );
 
   return (
-    <div className={`min-h-screen transition-colors ${d ? "bg-slate-950" : "bg-slate-50"}`}>
+    <div className={`min-h-screen transition-colors ${d ? "bg-slate-950" : "bg-slate-50"}`} {...pullHandlers}>
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       {/* Header */}
       <header className={`sticky top-0 z-30 backdrop-blur-xl border-b transition-colors ${d ? "bg-slate-950/90 border-slate-800" : "bg-white/90 border-slate-200"}`}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
