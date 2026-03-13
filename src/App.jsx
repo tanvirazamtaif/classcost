@@ -1,22 +1,35 @@
+import React, { Suspense, lazy } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { ErrorBoundary, BottomNav, RoleSelection } from './components/feature';
 import { ToastContainer } from './components/ui';
-import {
-  LandingPage,
-  OTPVerification,
-  OnboardingWizard,
-  ParentOnboardingView,
-  DashboardView,
-  ParentDashboardView,
-  AddExpenseView,
-  SemesterView,
-  ReportsView,
-  SettingsView,
-  LoansView,
-  EducationSetupView,
-  HistoricalDataView,
-  BudgetSettingsView,
-} from './pages';
+
+// Keep these as regular imports (needed on first load)
+import { LandingPage } from './pages/LandingPage';
+import { OTPVerification } from './pages/OTPVerification';
+
+// Lazy load all other page components
+const OnboardingWizard = lazy(() => import('./pages/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })));
+const ParentOnboardingView = lazy(() => import('./pages/ParentOnboardingView'));
+const DashboardView = lazy(() => import('./pages/DashboardView').then(m => ({ default: m.DashboardView })));
+const ParentDashboardView = lazy(() => import('./pages/ParentDashboardView'));
+const AddExpenseView = lazy(() => import('./pages/AddExpenseView'));
+const SemesterView = lazy(() => import('./pages/SemesterView'));
+const ReportsView = lazy(() => import('./pages/ReportsView').then(m => ({ default: m.ReportsView })));
+const SettingsView = lazy(() => import('./pages/SettingsView'));
+const LoansView = lazy(() => import('./pages/LoansView'));
+const EducationSetupView = lazy(() => import('./pages/EducationSetupView'));
+const HistoricalDataView = lazy(() => import('./pages/HistoricalDataView'));
+const BudgetSettingsView = lazy(() => import('./pages/BudgetSettingsView'));
+
+// ─── Loading Fallback ────────────────────────────────────────────────────────
+const PageLoader = () => (
+  <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-slate-400 text-sm">Loading...</p>
+    </div>
+  </div>
+);
 
 // ─── Inner pages with bottom nav (non-dashboard) ─────────────────────────────
 const InnerPage = () => {
@@ -52,15 +65,17 @@ const ViewRouter = () => {
       {view === "landing" && <LandingPage />}
       {view === "otp" && <OTPVerification />}
       {view === "role-selection" && <RoleSelection />}
-      {view === "onboarding" && <OnboardingWizard />}
-      {view === "parent-onboarding" && <ParentOnboardingView />}
-      {view === "education-setup" && <EducationSetupView />}
-      {view === "historical-data" && <HistoricalDataView />}
-      {view === "budget-settings" && <BudgetSettingsView />}
-      {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
-      {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
-        <InnerPage />
-      )}
+      <Suspense fallback={<PageLoader />}>
+        {view === "onboarding" && <OnboardingWizard />}
+        {view === "parent-onboarding" && <ParentOnboardingView />}
+        {view === "education-setup" && <EducationSetupView />}
+        {view === "historical-data" && <HistoricalDataView />}
+        {view === "budget-settings" && <BudgetSettingsView />}
+        {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
+        {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
+          <InnerPage />
+        )}
+      </Suspense>
     </>
   );
 };

@@ -8,6 +8,17 @@ export default defineConfig({
       '/api': 'http://localhost:3001',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-charts': ['recharts'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
   test: {
     environment: 'jsdom',
     globals: true,
