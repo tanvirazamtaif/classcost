@@ -616,6 +616,25 @@ export const DashboardView = () => {
           ))}
         </div>
 
+        {/* Empty state when no expenses */}
+        {expenses.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 px-6 text-center mt-4">
+            <span className="text-5xl mb-4">💸</span>
+            <h3 className={`text-lg font-semibold mb-2 ${d ? 'text-white' : 'text-slate-900'}`}>
+              No expenses yet
+            </h3>
+            <p className={`text-sm mb-6 max-w-xs ${d ? 'text-slate-400' : 'text-slate-500'}`}>
+              Start tracking your student expenses. Tap a category above to add your first expense!
+            </p>
+            <button
+              onClick={() => openForm('canteen')}
+              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition active:scale-95"
+            >
+              Add First Expense
+            </button>
+          </div>
+        )}
+
         {/* Recent Expenses — with delete/undo */}
         {expenses.length > 0 && (
           <div className="mt-6">

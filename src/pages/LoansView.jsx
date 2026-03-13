@@ -70,8 +70,8 @@ const LoansView = () => {
 
         {loans.length === 0 ? (
           <div className="bg-white/10 rounded-2xl p-5 text-center">
-            <p className="text-white/60 text-sm">No loans added yet</p>
-            <p className="text-white/40 text-xs mt-1">Track any education loan you've taken</p>
+            <p className="text-white/80 text-sm font-medium">No loans added yet</p>
+            <p className="text-white/40 text-xs mt-1">Track education loans, family loans, or any debt below</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
@@ -105,10 +105,12 @@ const LoansView = () => {
       </div>
 
       {loans.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-5xl mb-3">🏦</div>
-          <p className="text-slate-700 font-bold">No loans tracked yet</p>
-          <p className="text-slate-400 text-sm mt-1 mb-5">Add a bank loan, family loan, or any education debt</p>
+        <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+          <span className="text-5xl mb-4">🏦</span>
+          <h3 className="text-lg font-semibold mb-2 text-slate-700">No loans tracked</h3>
+          <p className="text-sm mb-6 max-w-xs text-slate-400">
+            Track your education loans and see payment schedules. Add a loan to get started.
+          </p>
           <Btn onClick={()=>{setScreen("add");setFormStep(0);setForm(blankForm);}}>
             + Add First Loan
           </Btn>

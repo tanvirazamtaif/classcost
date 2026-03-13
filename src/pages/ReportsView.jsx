@@ -247,9 +247,14 @@ export const ReportsView = () => {
       )}
 
       {grand === 0 && (
-        <div className={`text-center py-12 ${d ? "text-slate-500" : "text-slate-400"}`}>
-          <div className="text-4xl mb-2">📊</div>
-          <p className="text-sm">No expenses logged yet</p>
+        <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+          <span className="text-5xl mb-4">📊</span>
+          <h3 className={`text-lg font-semibold mb-2 ${d ? 'text-white' : 'text-slate-900'}`}>
+            No data for reports
+          </h3>
+          <p className={`text-sm max-w-xs ${d ? 'text-slate-400' : 'text-slate-500'}`}>
+            Add some expenses first, then come back to see charts and insights about your spending.
+          </p>
         </div>
       )}
 
