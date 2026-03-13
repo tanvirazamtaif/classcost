@@ -179,6 +179,49 @@ export const DashboardView = () => {
     );
   };
 
+  const OverspendingAlert = ({ spent, budget }) => {
+    if (!budget || budget <= 0 || spent <= budget) return null;
+    const overAmount = spent - budget;
+    const percentage = ((spent / budget) * 100).toFixed(0);
+    return (
+      <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">🚨</span>
+          <div className="flex-1">
+            <p className={`font-semibold ${d ? 'text-red-400' : 'text-red-600'}`}>Budget Exceeded!</p>
+            <p className={`text-sm ${d ? 'text-red-300/80' : 'text-red-500'}`}>
+              You've spent {fmt(overAmount)} over your monthly limit ({percentage}% of budget used)
+            </p>
+          </div>
+          <button onClick={() => navigate('budget-settings')}
+            className={`text-xs px-3 py-1.5 rounded-lg ${d ? 'bg-red-500/30 text-red-300' : 'bg-red-100 text-red-600'}`}>
+            Adjust
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const BudgetWarningAlert = ({ spent, budget }) => {
+    if (!budget || budget <= 0) return null;
+    const percentage = (spent / budget) * 100;
+    if (percentage < 80 || percentage >= 100) return null;
+    const remaining = budget - spent;
+    return (
+      <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border border-orange-500/30">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div className="flex-1">
+            <p className={`font-semibold ${d ? 'text-orange-400' : 'text-orange-600'}`}>Approaching Budget Limit</p>
+            <p className={`text-sm ${d ? 'text-orange-300/80' : 'text-orange-500'}`}>
+              Only {fmt(remaining)} left for this month ({percentage.toFixed(0)}% used)
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const quickAdd = async (type, subType, amount, label) => {
     try {
       await addExpense({
@@ -320,6 +363,14 @@ export const DashboardView = () => {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Budget Alerts */}
+        {user?.budgets?.total > 0 && (
+          <>
+            <OverspendingAlert spent={getThisMonthSpending().total} budget={user.budgets.total} />
+            <BudgetWarningAlert spent={getThisMonthSpending().total} budget={user.budgets.total} />
+          </>
+        )}
+
         {/* Subtle nudge tip */}
         {showNudge && (
           <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-xl text-xs ${d ? "bg-slate-900 text-slate-400 border border-slate-800" : "bg-slate-100 text-slate-500"}`}>
