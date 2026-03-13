@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { ErrorBoundary, BottomNav, RoleSelection } from './components/feature';
-import { ToastContainer } from './components/ui';
+import { ToastContainer, DashboardSkeleton, ReportsSkeleton } from './components/ui';
 
 // Keep these as regular imports (needed on first load)
 import { LandingPage } from './pages/LandingPage';
@@ -22,14 +22,24 @@ const HistoricalDataView = lazy(() => import('./pages/HistoricalDataView'));
 const BudgetSettingsView = lazy(() => import('./pages/BudgetSettingsView'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
-const PageLoader = () => (
-  <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-    <div className="text-center">
-      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-      <p className="text-slate-400 text-sm">Loading...</p>
+const PageLoader = ({ view, dark }) => {
+  if (view === 'dashboard') return <DashboardSkeleton dark={dark} />;
+  if (view === 'reports') return (
+    <div className={`min-h-screen ${dark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+      <div className="max-w-md mx-auto pb-24 px-4 pt-6">
+        <ReportsSkeleton dark={dark} />
+      </div>
     </div>
-  </div>
-);
+  );
+  return (
+    <div className={`min-h-screen ${dark ? 'bg-slate-950' : 'bg-slate-50'} flex items-center justify-center`}>
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className={`text-sm ${dark ? 'text-slate-400' : 'text-slate-500'}`}>Loading...</p>
+      </div>
+    </div>
+  );
+};
 
 // ─── Inner pages with bottom nav (non-dashboard) ─────────────────────────────
 const InnerPage = () => {
@@ -56,8 +66,9 @@ const InnerPage = () => {
 
 // ─── View Router ──────────────────────────────────────────────────────────────
 const ViewRouter = () => {
-  const { view, toasts, user } = useApp();
+  const { view, toasts, user, theme } = useApp();
   const isParent = user?.accountType === 'parent';
+  const dark = theme === 'dark';
 
   return (
     <>
@@ -65,7 +76,7 @@ const ViewRouter = () => {
       {view === "landing" && <LandingPage />}
       {view === "otp" && <OTPVerification />}
       {view === "role-selection" && <RoleSelection />}
-      <Suspense fallback={<PageLoader />}>
+      <Suspense fallback={<PageLoader view={view} dark={dark} />}>
         {view === "onboarding" && <OnboardingWizard />}
         {view === "parent-onboarding" && <ParentOnboardingView />}
         {view === "education-setup" && <EducationSetupView />}
@@ -98,6 +109,7 @@ export default function App() {
           @keyframes slideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
           @keyframes spin{to{transform:rotate(360deg)}}
           @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+          @keyframes shimmer{100%{transform:translateX(100%)}}
           .animate-slideup{animation:slideup .35s cubic-bezier(.22,.61,.36,1) forwards}
           .animate-spin{animation:spin 1s linear infinite}
           .animate-shake{animation:shake .5s ease}

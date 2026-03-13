@@ -58,17 +58,15 @@ export const DashboardView = () => {
 
   useEffect(() => { document.title = "Dashboard — ClassCost"; }, []);
   const fmt = makeFmt(profile?.currency || "BDT");
+  const d = theme === "dark";
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeForm, setActiveForm] = useState(null); // "education" | "transport" | "canteen" | "hostel"
   const [saving, setSaving] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showRecent, setShowRecent] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // expense id pending confirm
-
-  // Form states
   const [formData, setFormData] = useState({});
 
-  const d = theme === "dark";
   const profileIncomplete = !user?.profileComplete;
 
   // Subtle nudge: show if no transport logged today, dismissible for 24h
