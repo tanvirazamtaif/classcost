@@ -4,11 +4,94 @@ import { SetupProgress, SetupHint } from '../components/feature/SetupGuide';
 
 const TOTAL_STEPS = 4;
 
+const LANG = {
+  en: {
+    step1Title: 'Where do you study? 📚',
+    step1Sub: '',
+    step1Hint: 'This helps us show the right fee structure for you.',
+    school: 'School', schoolSub: 'Class 1 - 10',
+    college: 'College', collegeSub: 'HSC / Diploma',
+    university: 'University', universitySub: "Bachelor's / Master's / PhD",
+    coaching: 'Coaching Only', coachingSub: 'Admission prep / Skill courses',
+    step2Title: 'What type of institution? 🏛️',
+    step2Sub: '',
+    govt: 'Government', govtSub: 'Low fees, competitive admission',
+    private: 'Private', privateSub: 'Higher fees, flexible admission',
+    instLabel: 'Institution Name - Optional',
+    instPlaceholder: 'e.g., North South University',
+    step3Title: 'Are you from another district? 🚌',
+    step3Sub: '',
+    step3Hint: 'This helps us track transport & accommodation costs.',
+    localTitle: "No, I'm local", localSub: 'I live with family, no rent',
+    outsideTitle: 'Yes, another district', outsideSub: 'I came from another district',
+    districtLabel: 'Home District',
+    selectDistrict: 'Select district',
+    stayLabel: 'Where do you stay?',
+    step4Title: 'Add previous costs? 📊',
+    step4Sub: '',
+    step4Hint: 'This gives you a complete picture of your total education cost.',
+    freshTitle: 'No, start fresh', freshSub: 'Start fresh from today',
+    histTitle: 'Yes, add previous costs', histSub: 'Add estimated previous costs',
+    periodLabel: 'Which period?',
+    selectPeriod: 'Select period',
+    thisYear: 'Earlier months this year',
+    lastYear: 'Last Year',
+    allPrev: 'All Previous',
+    totalLabel: 'Estimated Total',
+    approxNote: "Doesn't need to be exact, you can edit later.",
+    back: '← Back',
+    next: 'Next →',
+    finish: '✓ Finish Setup',
+    skip: "Skip for now, I'll set up later",
+  },
+  bn: {
+    step1Title: 'আপনি কোথায় পড়েন? 📚',
+    step1Sub: 'Where do you study?',
+    step1Hint: 'এটি বেছে নিলে আমরা আপনার জন্য সঠিক ফি স্ট্রাকচার দেখাব।',
+    school: 'স্কুল (School)', schoolSub: 'Class 1 - 10',
+    college: 'কলেজ (College)', collegeSub: 'HSC / Diploma',
+    university: 'বিশ্ববিদ্যালয় (University)', universitySub: "Bachelor's / Master's / PhD",
+    coaching: 'শুধু কোচিং (Coaching Only)', coachingSub: 'Admission prep / Skill courses',
+    step2Title: 'কোন ধরনের প্রতিষ্ঠান? 🏛️',
+    step2Sub: 'What type of institution?',
+    govt: 'সরকারি (Government)', govtSub: 'Low fees, competitive admission',
+    private: 'বেসরকারি (Private)', privateSub: 'Higher fees, flexible admission',
+    instLabel: 'প্রতিষ্ঠানের নাম (Institution Name) - Optional',
+    instPlaceholder: 'e.g., North South University',
+    step3Title: 'আপনি কি অন্য জেলা থেকে এসেছেন? 🚌',
+    step3Sub: 'Are you from another district?',
+    step3Hint: 'এটি জানলে আমরা বাস ভাড়া ও থাকার খরচ ট্র্যাক করতে পারব।',
+    localTitle: "না, আমি লোকাল", localSub: 'I live with family, no rent',
+    outsideTitle: 'হ্যাঁ, অন্য জেলা থেকে', outsideSub: 'I came from another district',
+    districtLabel: 'কোন জেলা থেকে? (Home District)',
+    selectDistrict: 'Select district',
+    stayLabel: 'কোথায় থাকেন? (Where do you stay?)',
+    step4Title: 'আগের খরচ যোগ করবেন? 📊',
+    step4Sub: 'Add your previous education costs?',
+    step4Hint: 'এটি করলে আপনার সম্পূর্ণ শিক্ষা খরচের হিসাব দেখতে পাবেন।',
+    freshTitle: 'না, শূন্য থেকে শুরু', freshSub: 'Start fresh from today',
+    histTitle: 'হ্যাঁ, আগের খরচ যোগ করব', histSub: 'Add estimated previous costs',
+    periodLabel: 'কোন সময়ের খরচ? (Which period?)',
+    selectPeriod: 'Select period',
+    thisYear: 'এই বছরের আগের মাসগুলো',
+    lastYear: 'গত বছর (Last Year)',
+    allPrev: 'পুরো আগের সময় (All Previous)',
+    totalLabel: 'আনুমানিক মোট খরচ (Estimated Total)',
+    approxNote: 'সঠিক না হলেও চলবে, পরে এডিট করতে পারবেন।',
+    back: '← পিছনে',
+    next: 'পরবর্তী →',
+    finish: '✓ সেটআপ শেষ',
+    skip: 'এখন দরকার নেই, পরে করব',
+  },
+};
+
 export const EducationSetupView = () => {
   const { user, setUser, navigate, theme } = useApp();
   const d = theme === 'dark';
 
   const [step, setStep] = useState(1);
+  const [lang, setLang] = useState('bn');
+  const t = LANG[lang];
   const [data, setData] = useState({
     stage: '',
     institutionType: '',
@@ -94,7 +177,19 @@ export const EducationSetupView = () => {
       {/* Header */}
       <div className={`sticky top-0 z-10 px-4 py-4 backdrop-blur-xl ${d ? 'bg-slate-950/90' : 'bg-white/90'}`}>
         <div className="max-w-md mx-auto">
-          <SetupProgress steps={Array(TOTAL_STEPS)} currentStep={step - 1} />
+          <div className="flex items-center justify-between mb-3">
+            <SetupProgress steps={Array(TOTAL_STEPS)} currentStep={step - 1} />
+            <button
+              onClick={() => setLang(l => l === 'bn' ? 'en' : 'bn')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ml-3 ${
+                d ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm'
+              }`}
+            >
+              <span>{lang === 'bn' ? '🇬🇧' : '🇧🇩'}</span>
+              <span>{lang === 'bn' ? 'EN' : 'বাংলা'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -105,20 +200,20 @@ export const EducationSetupView = () => {
         {step === 1 && (
           <div>
             <h1 className={`text-2xl font-bold mb-2 ${d ? 'text-white' : 'text-slate-900'}`}>
-              আপনি কোথায় পড়েন? 📚
+              {t.step1Title}
             </h1>
-            <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>Where do you study?</p>
+            {t.step1Sub && <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>{t.step1Sub}</p>}
 
-            <SetupHint>এটি বেছে নিলে আমরা আপনার জন্য সঠিক ফি স্ট্রাকচার দেখাব।</SetupHint>
+            <SetupHint>{t.step1Hint}</SetupHint>
 
             <OptionButton selected={data.stage === 'school'} onClick={() => setData({ ...data, stage: 'school' })}
-              icon="🏫" title="স্কুল (School)" subtitle="Class 1 - 10" />
+              icon="🏫" title={t.school} subtitle={t.schoolSub} />
             <OptionButton selected={data.stage === 'college'} onClick={() => setData({ ...data, stage: 'college' })}
-              icon="📖" title="কলেজ (College)" subtitle="HSC / Diploma" />
+              icon="📖" title={t.college} subtitle={t.collegeSub} />
             <OptionButton selected={data.stage === 'university'} onClick={() => setData({ ...data, stage: 'university' })}
-              icon="🎓" title="বিশ্ববিদ্যালয় (University)" subtitle="Bachelor's / Master's / PhD" />
+              icon="🎓" title={t.university} subtitle={t.universitySub} />
             <OptionButton selected={data.stage === 'coaching'} onClick={() => setData({ ...data, stage: 'coaching' })}
-              icon="📝" title="শুধু কোচিং (Coaching Only)" subtitle="Admission prep / Skill courses" />
+              icon="📝" title={t.coaching} subtitle={t.coachingSub} />
           </div>
         )}
 
@@ -126,20 +221,20 @@ export const EducationSetupView = () => {
         {step === 2 && (
           <div>
             <h1 className={`text-2xl font-bold mb-2 ${d ? 'text-white' : 'text-slate-900'}`}>
-              কোন ধরনের প্রতিষ্ঠান? 🏛️
+              {t.step2Title}
             </h1>
-            <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>What type of institution?</p>
+            {t.step2Sub && <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>{t.step2Sub}</p>}
 
             <OptionButton selected={data.institutionType === 'government'} onClick={() => setData({ ...data, institutionType: 'government' })}
-              icon="🏛️" title="সরকারি (Government)" subtitle="Low fees, competitive admission" />
+              icon="🏛️" title={t.govt} subtitle={t.govtSub} />
             <OptionButton selected={data.institutionType === 'private'} onClick={() => setData({ ...data, institutionType: 'private' })}
-              icon="🏢" title="বেসরকারি (Private)" subtitle="Higher fees, flexible admission" />
+              icon="🏢" title={t.private} subtitle={t.privateSub} />
 
             <div className="mt-6">
               <label className={`block text-sm font-medium mb-2 ${d ? 'text-slate-300' : 'text-slate-700'}`}>
-                প্রতিষ্ঠানের নাম (Institution Name) - Optional
+                {t.instLabel}
               </label>
-              <input type="text" placeholder="e.g., North South University" value={data.institutionName}
+              <input type="text" placeholder={t.instPlaceholder} value={data.institutionName}
                 onChange={e => setData({ ...data, institutionName: e.target.value })} className={inputClass} />
             </div>
           </div>
@@ -149,27 +244,27 @@ export const EducationSetupView = () => {
         {step === 3 && (
           <div>
             <h1 className={`text-2xl font-bold mb-2 ${d ? 'text-white' : 'text-slate-900'}`}>
-              আপনি কি অন্য জেলা থেকে এসেছেন? 🚌
+              {t.step3Title}
             </h1>
-            <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>Are you from another district?</p>
+            {t.step3Sub && <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>{t.step3Sub}</p>}
 
-            <SetupHint>এটি জানলে আমরা বাস ভাড়া ও থাকার খরচ ট্র্যাক করতে পারব।</SetupHint>
+            <SetupHint>{t.step3Hint}</SetupHint>
 
             <OptionButton selected={data.isFromOutside === false}
               onClick={() => setData({ ...data, isFromOutside: false, accommodation: 'family' })}
-              icon="🏠" title="না, আমি লোকাল" subtitle="I live with family, no rent" />
+              icon="🏠" title={t.localTitle} subtitle={t.localSub} />
             <OptionButton selected={data.isFromOutside === true}
               onClick={() => setData({ ...data, isFromOutside: true })}
-              icon="🚌" title="হ্যাঁ, অন্য জেলা থেকে" subtitle="I came from another district" />
+              icon="🚌" title={t.outsideTitle} subtitle={t.outsideSub} />
 
             {data.isFromOutside === true && (
               <div className={subPanelClass}>
                 <label className={`block text-sm font-medium mb-2 ${d ? 'text-slate-300' : 'text-slate-700'}`}>
-                  কোন জেলা থেকে? (Home District)
+                  {t.districtLabel}
                 </label>
                 <select value={data.homeDistrict} onChange={e => setData({ ...data, homeDistrict: e.target.value })}
                   className={`${inputClass} mb-4`}>
-                  <option value="">Select district</option>
+                  <option value="">{t.selectDistrict}</option>
                   <option value="chittagong">চট্টগ্রাম (Chittagong)</option>
                   <option value="sylhet">সিলেট (Sylhet)</option>
                   <option value="rajshahi">রাজশাহী (Rajshahi)</option>
@@ -182,7 +277,7 @@ export const EducationSetupView = () => {
                 </select>
 
                 <label className={`block text-sm font-medium mb-2 ${d ? 'text-slate-300' : 'text-slate-700'}`}>
-                  কোথায় থাকেন? (Where do you stay?)
+                  {t.stayLabel}
                 </label>
                 <div className="space-y-2">
                   <OptionButton selected={data.accommodation === 'univ_hostel'}
@@ -207,34 +302,34 @@ export const EducationSetupView = () => {
         {step === 4 && (
           <div>
             <h1 className={`text-2xl font-bold mb-2 ${d ? 'text-white' : 'text-slate-900'}`}>
-              আগের খরচ যোগ করবেন? 📊
+              {t.step4Title}
             </h1>
-            <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>Add your previous education costs?</p>
+            {t.step4Sub && <p className={`mb-6 ${d ? 'text-slate-400' : 'text-slate-600'}`}>{t.step4Sub}</p>}
 
-            <SetupHint>এটি করলে আপনার সম্পূর্ণ শিক্ষা খরচের হিসাব দেখতে পাবেন।</SetupHint>
+            <SetupHint>{t.step4Hint}</SetupHint>
 
             <OptionButton selected={data.hasHistoricalData === false}
               onClick={() => setData({ ...data, hasHistoricalData: false })}
-              icon="🆕" title="না, শূন্য থেকে শুরু" subtitle="Start fresh from today" />
+              icon="🆕" title={t.freshTitle} subtitle={t.freshSub} />
             <OptionButton selected={data.hasHistoricalData === true}
               onClick={() => setData({ ...data, hasHistoricalData: true })}
-              icon="📈" title="হ্যাঁ, আগের খরচ যোগ করব" subtitle="Add estimated previous costs" />
+              icon="📈" title={t.histTitle} subtitle={t.histSub} />
 
             {data.hasHistoricalData === true && (
               <div className={subPanelClass}>
                 <label className={`block text-sm font-medium mb-2 ${d ? 'text-slate-300' : 'text-slate-700'}`}>
-                  কোন সময়ের খরচ? (Which period?)
+                  {t.periodLabel}
                 </label>
                 <select value={data.historicalPeriod} onChange={e => setData({ ...data, historicalPeriod: e.target.value })}
                   className={`${inputClass} mb-4`}>
-                  <option value="">Select period</option>
-                  <option value="this_year">এই বছরের আগের মাসগুলো</option>
-                  <option value="last_year">গত বছর (Last Year)</option>
-                  <option value="all_previous">পুরো আগের সময় (All Previous)</option>
+                  <option value="">{t.selectPeriod}</option>
+                  <option value="this_year">{t.thisYear}</option>
+                  <option value="last_year">{t.lastYear}</option>
+                  <option value="all_previous">{t.allPrev}</option>
                 </select>
 
                 <label className={`block text-sm font-medium mb-2 ${d ? 'text-slate-300' : 'text-slate-700'}`}>
-                  আনুমানিক মোট খরচ (Estimated Total)
+                  {t.totalLabel}
                 </label>
                 <div className="relative">
                   <span className={`absolute left-4 top-1/2 -translate-y-1/2 ${d ? 'text-slate-400' : 'text-slate-500'}`}>৳</span>
@@ -243,7 +338,7 @@ export const EducationSetupView = () => {
                     className={`${inputClass} pl-10`} inputMode="numeric" />
                 </div>
                 <p className={`text-xs mt-2 ${d ? 'text-slate-500' : 'text-slate-400'}`}>
-                  সঠিক না হলেও চলবে, পরে এডিট করতে পারবেন।
+                  {t.approxNote}
                 </p>
               </div>
             )}
@@ -257,7 +352,7 @@ export const EducationSetupView = () => {
               className={`flex-1 py-3 rounded-xl font-semibold transition ${
                 d ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
               }`}>
-              ← Back
+              {t.back}
             </button>
           )}
           <button onClick={handleNext} disabled={!canProceed()}
@@ -266,13 +361,13 @@ export const EducationSetupView = () => {
                 ? 'bg-indigo-600 text-white hover:bg-indigo-500 active:scale-[0.98]'
                 : d ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
             }`}>
-            {step === TOTAL_STEPS ? '✓ Finish Setup' : 'Next →'}
+            {step === TOTAL_STEPS ? t.finish : t.next}
           </button>
         </div>
 
         <button onClick={() => navigate('dashboard')}
           className={`w-full mt-4 py-2 text-sm ${d ? 'text-slate-500 hover:text-slate-400' : 'text-slate-400 hover:text-slate-500'}`}>
-          Skip for now, I'll set up later
+          {t.skip}
         </button>
       </div>
     </div>

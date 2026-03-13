@@ -52,7 +52,7 @@ const getExpenseLabel = (type, subType) => {
 };
 
 export const DashboardView = () => {
-  const { user, expenses, addExpense, navigate, theme, toggleTheme } = useApp();
+  const { user, expenses, addExpense, removeExpense, addToast, navigate, theme, toggleTheme } = useApp();
   const { canAccessHistory, isPro } = useSubscription();
   const profile = user?.profile;
 
@@ -62,6 +62,8 @@ export const DashboardView = () => {
   const [activeForm, setActiveForm] = useState(null); // "education" | "transport" | "canteen" | "hostel"
   const [saving, setSaving] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showRecent, setShowRecent] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // expense id pending confirm
 
   // Form states
   const [formData, setFormData] = useState({});
@@ -615,6 +617,106 @@ export const DashboardView = () => {
             </div>
           ))}
         </div>
+
+        {/* Recent Expenses — with delete/undo */}
+        {expenses.length > 0 && (
+          <div className="mt-6">
+            <button
+              onClick={() => setShowRecent(!showRecent)}
+              className={`w-full p-3 rounded-xl flex items-center justify-between ${
+                d ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-white hover:bg-slate-50'
+              } border ${d ? 'border-slate-700' : 'border-slate-200'} transition`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🕒</span>
+                <span className={`font-medium ${d ? 'text-white' : 'text-slate-900'}`}>Recent Expenses</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${d ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                  {expenses.length}
+                </span>
+              </div>
+              <span className={`text-sm ${d ? 'text-slate-400' : 'text-slate-500'}`}>
+                {showRecent ? '▲' : '▼'}
+              </span>
+            </button>
+
+            {showRecent && (
+              <div className={`mt-2 rounded-2xl overflow-hidden border ${d ? 'border-slate-700' : 'border-slate-200'}`}
+                style={{ animation: "slideDown .2s ease-out" }}>
+                <div className={`px-4 py-2.5 ${d ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                  <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Swipe or tap the delete button to remove a mistaken entry
+                  </p>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {[...expenses].reverse().slice(0, 20).map((exp) => {
+                    const catIcons = { education: '🎓', transport: '🚌', canteen: '🍽️', hostel: '🏠' };
+                    const isConfirming = deleteConfirm === exp.id;
+                    return (
+                      <div key={exp.id || `${exp.date}-${exp.amount}-${exp.type}`}
+                        className={`flex items-center gap-3 px-4 py-3 border-b last:border-b-0 ${
+                          d ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'
+                        }`}>
+                        <span className="text-lg">{catIcons[exp.type] || '📌'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-slate-900'}`}>
+                            {exp.label || exp.type}
+                          </p>
+                          <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {exp.date} {exp.details ? `· ${exp.details}` : ''}
+                          </p>
+                        </div>
+                        <p className={`text-sm font-bold shrink-0 ${d ? 'text-slate-300' : 'text-slate-700'}`}>
+                          {fmt(Number(exp.amount))}
+                        </p>
+                        {isConfirming ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                removeExpense(exp.id);
+                                setDeleteConfirm(null);
+                                addToast(`Removed ${exp.label || exp.type} (${fmt(Number(exp.amount))})`, 'info');
+                              }}
+                              className="text-xs px-2 py-1.5 rounded-lg bg-red-500 text-white font-semibold"
+                            >
+                              Yes
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className={`text-xs px-2 py-1.5 rounded-lg font-medium ${
+                                d ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
+                              }`}
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(exp.id)}
+                            className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                              d ? 'hover:bg-red-500/20 text-slate-600 hover:text-red-400'
+                                : 'hover:bg-red-50 text-slate-300 hover:text-red-500'
+                            }`}
+                            title="Remove this expense"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {expenses.length > 20 && (
+                  <div className={`px-4 py-2.5 text-center ${d ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                    <button onClick={() => navigate('reports')}
+                      className={`text-xs font-medium ${d ? 'text-indigo-400' : 'text-indigo-600'}`}>
+                      View all {expenses.length} expenses in Reports →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
