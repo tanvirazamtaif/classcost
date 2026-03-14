@@ -32,14 +32,14 @@ export const ReportsView = () => {
 
   const byType = (t) => filteredExpenses.filter((e) => e.type === t).reduce((s, e) => s + Number(e.amount), 0);
   const transport = byType("transport"), canteen = byType("canteen"), hostel = byType("hostel"),
-    coaching = byType("coaching"), batch = byType("batch"), other = byType("other"),
+    books = byType("books"), uniform = byType("uniform"), other = byType("other"),
     education = byType("education");
-  const grand = transport + canteen + hostel + coaching + batch + other + education;
+  const grand = transport + canteen + hostel + books + uniform + other + education;
 
   const pieData = [
     { name: "Education", value: education }, { name: "Transport", value: transport },
-    { name: "Canteen", value: canteen }, { name: "Residence", value: hostel },
-    { name: "Coaching", value: coaching }, { name: "Batch", value: batch },
+    { name: "Food", value: canteen }, { name: "Housing", value: hostel },
+    { name: "Books", value: books }, { name: "Uniform", value: uniform },
     { name: "Others", value: other },
   ].filter((dd) => dd.value > 0);
 
@@ -62,18 +62,8 @@ export const ReportsView = () => {
   };
 
   const getCategoryLabel = (category) => {
-    const labels = { education: '🎓 Education', transport: '🚌 Transport', canteen: '🍽️ Food', hostel: '🏠 Residence' };
+    const labels = { education: '🎓 Education', transport: '🚌 Transport', canteen: '🍽️ Food', hostel: '🏠 Housing', books: '📚 Books', uniform: '👔 Uniform' };
     return labels[category] || category;
-  };
-
-  const getSubTypeLabel = (category, subType) => {
-    const labels = {
-      education: { tuition: 'Tuition Fee', admission: 'Admission Fee', exam: 'Exam Fee', books: 'Books/Supplies', coaching: 'Coaching/Tutor', lab: 'Lab Fee', library: 'Library Fee', other_edu: 'Other', historical: 'Previous (Est.)' },
-      transport: { bus: 'Bus', rickshaw: 'Rickshaw/CNG', ride_share: 'Uber/Pathao', train: 'Train', fuel: 'Fuel/Petrol', other_transport: 'Other', historical: 'Previous (Est.)' },
-      canteen: { lunch: 'Lunch', snacks: 'Snacks', tea_coffee: 'Tea/Coffee', breakfast: 'Breakfast', dinner: 'Dinner', other_food: 'Other', historical: 'Previous (Est.)' },
-      hostel: { rent: 'Rent', electricity: 'Electricity', internet: 'Internet/WiFi', water: 'Water Bill', laundry: 'Laundry', other_hostel: 'Other', historical: 'Previous (Est.)' },
-    };
-    return labels[category]?.[subType] || subType || 'Other';
   };
 
   const cardClass = `rounded-2xl p-5 border ${d ? "bg-[#0f0f1e] border-[#1e1e3a]" : "bg-white border-slate-200"}`;
@@ -92,7 +82,7 @@ export const ReportsView = () => {
         <p className="text-indigo-200 text-xs mb-1">TOTAL LIFETIME EXPENSE</p>
         <p className="text-4xl font-bold text-white">{fmt(grand)}</p>
         <div className="grid grid-cols-3 gap-2 mt-3">
-          {[["Daily", fmt(transport + canteen + other)], ["Education", fmt(education)], ["Housing", fmt(hostel + coaching + batch)]].map(([l, v]) => (
+          {[["Daily", fmt(transport + canteen + other)], ["Education", fmt(education + books + uniform)], ["Housing", fmt(hostel)]].map(([l, v]) => (
             <div key={l} className="bg-white/10 rounded-xl p-2 text-center">
               <p className="text-indigo-200 text-xs">{l}</p>
               <p className="text-white font-bold text-sm">{v}</p>
@@ -172,7 +162,7 @@ export const ReportsView = () => {
                   .map(([subType, amount]) => (
                     <div key={subType} className="flex items-center justify-between">
                       <span className={`text-sm ${d ? 'text-slate-300' : 'text-slate-700'}`}>
-                        {getSubTypeLabel(category, subType)}
+                        {subType || 'Other'}
                       </span>
                       <span className={`text-sm font-medium ${d ? 'text-white' : 'text-slate-900'}`}>
                         {fmt(amount)}
@@ -202,7 +192,7 @@ export const ReportsView = () => {
                     }`}>{i + 1}</span>
                     <div>
                       <p className={`text-sm ${d ? 'text-white' : 'text-slate-900'}`}>
-                        {exp.label || getSubTypeLabel(exp.type, exp.subType)}
+                        {exp.label || getCategoryLabel(exp.type)}
                       </p>
                       <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
                         {exp.date ? new Date(exp.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }) : ''}

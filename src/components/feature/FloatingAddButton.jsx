@@ -10,7 +10,8 @@ export const FloatingAddButton = ({ onOpenForm }) => {
     { id: 'education', icon: '🎓', label: 'Education', color: 'from-purple-500 to-indigo-500' },
     { id: 'transport', icon: '🚌', label: 'Transport', color: 'from-blue-500 to-cyan-500' },
     { id: 'canteen', icon: '🍽️', label: 'Food', color: 'from-orange-500 to-red-500' },
-    { id: 'hostel', icon: '🏠', label: 'Residence', color: 'from-green-500 to-emerald-500' },
+    { id: 'hostel', icon: '🏠', label: 'Housing', color: 'from-green-500 to-emerald-500' },
+    { id: 'books', icon: '📚', label: 'Books', color: 'from-violet-500 to-purple-500' },
   ];
 
   const handleCategoryClick = (categoryId) => {
