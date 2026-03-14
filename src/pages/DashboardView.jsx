@@ -1,508 +1,159 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
-import { useSubscription, usePullToRefresh } from '../hooks';
-import { PullToRefreshIndicator } from '../components/ui';
-import { HamburgerMenu, FloatingAddButton, BottomNav } from '../components/feature';
+import { Header, LayoutBottomNav, Sidebar } from '../components/layout';
+import { FAB, GCard, GCardContent } from '../components/ui';
+import { AddPaymentSheet, PaymentCard } from '../components/feature';
+import { stagger, fadeInUp } from '../lib/animations';
 import { makeFmt } from '../utils/format';
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-const CAT_LABELS = { education: 'Education', transport: 'Transport', canteen: 'Food', hostel: 'Housing', books: 'Books', uniform: 'Uniform' };
-
 export const DashboardView = () => {
-  const { user, expenses, addExpense, removeExpense, addToast, loadUserData, navigate, theme } = useApp();
-  const { canAccessHistory, isPro } = useSubscription();
+  const { user, expenses, theme } = useApp();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [preselectedCategory, setPreselectedCategory] = useState('');
+  const d = theme === 'dark';
+
   const profile = user?.profile;
+  const fmt = makeFmt(profile?.currency || 'BDT');
+  const currencySymbol = profile?.currency === 'USD' ? '$' : profile?.currency === 'INR' ? '₹' : '৳';
 
   useEffect(() => { document.title = "Dashboard — ClassCost"; }, []);
-  const fmt = makeFmt(profile?.currency || "BDT");
-  const d = theme === "dark";
-  const [activeForm, setActiveForm] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [showRecent, setShowRecent] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // expense id pending confirm
-  const [formData, setFormData] = useState({});
 
-  // Pull-to-refresh
-  const handleRefresh = async () => {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    if (user?.id) await loadUserData(user.id);
-    addToast('Refreshed', 'success');
-  };
-  const { pullDistance, isRefreshing, handlers: pullHandlers } = usePullToRefresh(handleRefresh);
-
-  const profileIncomplete = !user?.profileComplete;
-
-  // Subtle nudge: show if no transport logged today, dismissible for 24h
-  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
-    try {
-      const ts = localStorage.getItem("ut_v3_nudge_dismissed");
-      return ts && (Date.now() - Number(ts)) < 86400000;
-    } catch { return false; }
-  });
-  const hasTransportToday = expenses.some((e) => e.type === "transport" && e.date === today());
-  const showNudge = !nudgeDismissed && !hasTransportToday && expenses.length > 0;
-  const dismissNudge = () => {
-    localStorage.setItem("ut_v3_nudge_dismissed", String(Date.now()));
-    setNudgeDismissed(true);
-  };
-
-  const byType = (t) => expenses.filter((e) => e.type === t).reduce((s, e) => s + Number(e.amount), 0);
-  const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
-
-  const openForm = (type) => {
-    if (activeForm === type) { setActiveForm(null); return; }
-    setFormData({ amount: "", note: "", date: today() });
-    setActiveForm(type);
-  };
-
-  const handleSave = async () => {
-    if (!formData.amount || isNaN(formData.amount) || Number(formData.amount) <= 0) return;
-    setSaving(true);
-    try {
-      await addExpense({
-        userId: user?.id,
-        type: activeForm,
-        amount: Number(formData.amount),
-        date: formData.date || today(),
-        label: CAT_LABELS[activeForm] || activeForm,
-        details: formData.note || "",
-      });
-      setActiveForm(null);
-      setFormData({});
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const eduType = user?.eduType || user?.profile?.eduType;
-  const showUniform = eduType === 'school' || eduType === 'college';
-
-  const categories = [
-    { id: "education", label: "Education", icon: "🎓", gradient: d ? "from-indigo-900/60 to-indigo-800/40" : "from-indigo-50 to-indigo-100", text: d ? "text-indigo-300" : "text-indigo-700", border: d ? "border-indigo-700/30" : "border-indigo-200" },
-    { id: "transport", label: "Transport", icon: "🚌", gradient: d ? "from-sky-900/60 to-sky-800/40" : "from-sky-50 to-sky-100", text: d ? "text-sky-300" : "text-sky-700", border: d ? "border-sky-700/30" : "border-sky-200" },
-    { id: "canteen", label: "Food", icon: "🍽️", gradient: d ? "from-amber-900/60 to-amber-800/40" : "from-amber-50 to-amber-100", text: d ? "text-amber-300" : "text-amber-700", border: d ? "border-amber-700/30" : "border-amber-200" },
-    { id: "hostel", label: "Housing", icon: "🏠", gradient: d ? "from-emerald-900/60 to-emerald-800/40" : "from-emerald-50 to-emerald-100", text: d ? "text-emerald-300" : "text-emerald-700", border: d ? "border-emerald-700/30" : "border-emerald-200" },
-    { id: "books", label: "Books", icon: "📚", gradient: d ? "from-purple-900/60 to-purple-800/40" : "from-purple-50 to-purple-100", text: d ? "text-purple-300" : "text-purple-700", border: d ? "border-purple-700/30" : "border-purple-200" },
-    ...(showUniform ? [{ id: "uniform", label: "Uniform", icon: "👔", gradient: d ? "from-rose-900/60 to-rose-800/40" : "from-rose-50 to-rose-100", text: d ? "text-rose-300" : "text-rose-700", border: d ? "border-rose-700/30" : "border-rose-200" }] : []),
-  ].map(c => ({ ...c, amount: byType(c.id) }));
-
-  const inputClass = `w-full rounded-xl py-2.5 px-3 text-sm outline-none transition ${d ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500"} border`;
-
-  const getLastMonthSpending = () => {
-    const now = new Date();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
-    return expenses
-      .filter(exp => exp.date && exp.date.startsWith(lastMonthStr))
-      .reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
-  };
-
-  const getThisMonthSpending = () => {
+  const totals = useMemo(() => {
+    const all = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const byCategory = { education: 0, transport: 0, canteen: 0, hostel: 0, books: 0, uniform: 0, total: 0 };
-    expenses.forEach(exp => {
-      if (!exp.date || !exp.date.startsWith(thisMonth)) return;
-      const amount = Number(exp.amount) || 0;
-      const cat = exp.type;
-      if (cat in byCategory) byCategory[cat] += amount;
-      byCategory.total += amount;
+    const thisYear = String(now.getFullYear());
+    const monthly = expenses
+      .filter(e => e.date?.startsWith(thisMonth))
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const yearly = expenses
+      .filter(e => e.date?.startsWith(thisYear))
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    return { all, monthly, yearly };
+  }, [expenses]);
+
+  const groupedByDay = useMemo(() => {
+    const sorted = [...expenses]
+      .filter(e => !e.isHistorical)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const groups = {};
+    sorted.forEach(exp => {
+      const day = exp.date || 'Unknown';
+      if (!groups[day]) groups[day] = [];
+      groups[day].push(exp);
     });
-    return byCategory;
+    return groups;
+  }, [expenses]);
+
+  const days = Object.keys(groupedByDay).slice(0, 5);
+
+  const formatDayLabel = (dateStr) => {
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    if (dateStr === today) return 'Today';
+    if (dateStr === yesterday) return 'Yesterday';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const BudgetProgress = ({ category, spent, budget, icon }) => {
-    if (!budget || budget <= 0) return null;
-    const percentage = Math.min((spent / budget) * 100, 100);
-    const isOver = spent > budget;
-    const isWarning = percentage >= 80 && percentage < 100;
-    const colors = isOver
-      ? { bar: 'bg-red-500', text: 'text-red-400' }
-      : isWarning
-        ? { bar: 'bg-orange-500', text: 'text-orange-400' }
-        : { bar: 'bg-green-500', text: 'text-green-400' };
-
-    return (
-      <div className="flex items-center gap-3">
-        <span className="text-lg">{icon}</span>
-        <div className="flex-1">
-          <div className="flex justify-between items-center mb-1">
-            <span className={`text-xs font-medium ${d ? 'text-slate-400' : 'text-slate-600'}`}>{category}</span>
-            <span className={`text-xs font-semibold ${colors.text}`}>
-              {isOver ? 'Over!' : `${percentage.toFixed(0)}%`}
-            </span>
-          </div>
-          <div className={`h-2 rounded-full ${d ? 'bg-slate-700' : 'bg-slate-200'} overflow-hidden`}>
-            <div className={`h-full rounded-full transition-all duration-500 ${colors.bar}`}
-              style={{ width: `${percentage}%` }} />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>{fmt(spent)}</span>
-            <span className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>{fmt(budget)}</span>
-          </div>
-        </div>
-      </div>
-    );
+  const handleOpenForm = (categoryId) => {
+    setPreselectedCategory(categoryId || '');
+    setSheetOpen(true);
   };
 
-  const MonthlySummaryCard = () => {
-    const thisMonth = getThisMonthSpending().total;
-    const lastMonth = getLastMonthSpending();
-    const difference = thisMonth - lastMonth;
-    const percentChange = lastMonth > 0 ? ((difference / lastMonth) * 100).toFixed(0) : 0;
-    const isUp = difference > 0;
-    const isDown = difference < 0;
-    const now = new Date();
-    const monthName = now.toLocaleDateString('en-US', { month: 'long' });
-    const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      .toLocaleDateString('en-US', { month: 'long' });
-
-    return (
-      <div className={`mb-4 p-4 rounded-2xl ${d ? 'bg-slate-800/50' : 'bg-white'} border ${d ? 'border-slate-700' : 'border-slate-200'}`}>
-        <h3 className={`text-sm font-medium mb-3 ${d ? 'text-slate-400' : 'text-slate-600'}`}>
-          {monthName} Summary
-        </h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className={`text-2xl font-bold ${d ? 'text-white' : 'text-slate-900'}`}>{fmt(thisMonth)}</p>
-            <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>This month</p>
-          </div>
-          <div className={`text-center px-3 py-2 rounded-xl ${
-            isUp ? 'bg-red-500/20' : isDown ? 'bg-green-500/20' : d ? 'bg-slate-700/50' : 'bg-slate-100'
-          }`}>
-            <p className={`text-lg font-bold ${
-              isUp ? 'text-red-400' : isDown ? 'text-green-400' : d ? 'text-slate-400' : 'text-slate-500'
-            }`}>
-              {isUp ? '↑' : isDown ? '↓' : '→'} {Math.abs(percentChange)}%
-            </p>
-            <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>vs {lastMonthName}</p>
-          </div>
-          <div className="text-right">
-            <p className={`text-lg font-semibold ${d ? 'text-slate-400' : 'text-slate-600'}`}>{fmt(lastMonth)}</p>
-            <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>{lastMonthName}</p>
-          </div>
-        </div>
-        {lastMonth > 0 && (
-          <p className={`mt-3 text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
-            {isUp
-              ? `📈 Spending ${fmt(Math.abs(difference))} more than last month`
-              : isDown
-                ? `📉 Saving ${fmt(Math.abs(difference))} compared to last month`
-                : '➡️ Spending is about the same as last month'}
-          </p>
-        )}
-      </div>
-    );
-  };
-
-  const OverspendingAlert = ({ spent, budget }) => {
-    if (!budget || budget <= 0 || spent <= budget) return null;
-    const overAmount = spent - budget;
-    const percentage = ((spent / budget) * 100).toFixed(0);
-    return (
-      <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">🚨</span>
-          <div className="flex-1">
-            <p className={`font-semibold ${d ? 'text-red-400' : 'text-red-600'}`}>Budget Exceeded!</p>
-            <p className={`text-sm ${d ? 'text-red-300/80' : 'text-red-500'}`}>
-              You've spent {fmt(overAmount)} over your monthly limit ({percentage}% of budget used)
-            </p>
-          </div>
-          <button onClick={() => navigate('budget-settings')}
-            className={`text-xs px-3 py-1.5 rounded-lg ${d ? 'bg-red-500/30 text-red-300' : 'bg-red-100 text-red-600'}`}>
-            Adjust
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const BudgetWarningAlert = ({ spent, budget }) => {
-    if (!budget || budget <= 0) return null;
-    const percentage = (spent / budget) * 100;
-    if (percentage < 80 || percentage >= 100) return null;
-    const remaining = budget - spent;
-    return (
-      <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border border-orange-500/30">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">⚠️</span>
-          <div className="flex-1">
-            <p className={`font-semibold ${d ? 'text-orange-400' : 'text-orange-600'}`}>Approaching Budget Limit</p>
-            <p className={`text-sm ${d ? 'text-orange-300/80' : 'text-orange-500'}`}>
-              Only {fmt(remaining)} left for this month ({percentage.toFixed(0)}% used)
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
+  // Category quick-access buttons
+  const quickCategories = [
+    { id: 'education', icon: '🎓', label: 'Education', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+    { id: 'transport', icon: '🚌', label: 'Transport', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+    { id: 'canteen', icon: '🍽️', label: 'Food', bg: 'bg-orange-100 dark:bg-orange-900/30' },
+    { id: 'hostel', icon: '🏠', label: 'Housing', bg: 'bg-green-100 dark:bg-green-900/30' },
+    { id: 'books', icon: '📚', label: 'Books', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  ];
 
   return (
-    <div className={`min-h-screen transition-colors ${d ? "bg-slate-950" : "bg-slate-50"}`} {...pullHandlers}>
-      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
-      {/* Header */}
-      <header className={`sticky top-0 z-30 backdrop-blur-xl border-b transition-colors ${d ? "bg-slate-950/90 border-slate-800" : "bg-white/90 border-slate-200"}`}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <HamburgerMenu />
-            <h1 className={`text-lg font-bold ${d ? "text-white" : "text-slate-900"}`}>ClassCost</h1>
-          </div>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${d ? "bg-indigo-500/20 text-indigo-400" : "bg-indigo-100 text-indigo-600"}`}>
-            {(profile?.fullName || user?.email)?.[0]?.toUpperCase() || "👤"}
-          </div>
-        </div>
-      </header>
+    <div className={`min-h-screen ${d ? 'bg-surface-950' : 'bg-surface-50'} pb-20`}>
+      <Header onMenuClick={() => setSidebarOpen(true)} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
-        {/* Budget Alerts */}
-        {user?.budgets?.total > 0 && (
-          <>
-            <OverspendingAlert spent={getThisMonthSpending().total} budget={user.budgets.total} />
-            <BudgetWarningAlert spent={getThisMonthSpending().total} budget={user.budgets.total} />
-          </>
-        )}
-
-        {/* Subtle nudge tip */}
-        {showNudge && (
-          <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-xl text-xs ${d ? "bg-slate-900 text-slate-400 border border-slate-800" : "bg-slate-100 text-slate-500"}`}>
-            <span>🚌</span>
-            <span className="flex-1">No transport logged today</span>
-            <button onClick={dismissNudge} className={`${d ? "text-slate-600 hover:text-slate-400" : "text-slate-400 hover:text-slate-600"}`}>✕</button>
-          </div>
-        )}
-
-        {/* Education setup reminder */}
-        {!user?.educationProfile?.setupComplete && (
-          <button onClick={() => navigate('education-setup')}
-            className={`w-full mb-4 p-4 rounded-2xl flex items-center gap-3 transition active:scale-[0.98] ${
-              d ? 'bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border border-orange-500/30'
-                : 'bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200'
-            }`}>
-            <span className="relative flex">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75" />
-              <span className="relative inline-flex rounded-full w-3 h-3 bg-orange-500" />
-            </span>
-            <div className="flex-1 text-left">
-              <p className={`font-semibold text-sm ${d ? 'text-orange-400' : 'text-orange-700'}`}>Setup Your Education Profile</p>
-              <p className={`text-xs ${d ? 'text-orange-300/70' : 'text-orange-500/80'}`}>Tap to complete setup for better tracking</p>
-            </div>
-            <span className={d ? 'text-orange-400' : 'text-orange-600'}>→</span>
-          </button>
-        )}
-
-        {/* Total Cost — Display only */}
-        <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-8 mb-6 shadow-xl shadow-indigo-600/20">
-          <p className="text-white/60 text-xs sm:text-sm font-medium mb-2">Total Cost</p>
-          <p className="text-white text-4xl sm:text-5xl font-bold tracking-tight">{fmt(total)}</p>
-          <p className="text-white/40 text-xs mt-3">
-            {expenses.length} transaction{expenses.length !== 1 ? "s" : ""}
-            {!isPro && expenses.length > 0 && <span className="ml-2 text-indigo-300/60">· Last 3 months</span>}
-          </p>
-        </div>
-
-        {/* Budget Progress Section */}
-        {user?.budgets?.total > 0 && (
-          <div className={`mb-4 p-4 rounded-2xl ${d ? 'bg-slate-800/50' : 'bg-white'} border ${d ? 'border-slate-700' : 'border-slate-200'}`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`font-semibold ${d ? 'text-white' : 'text-slate-900'}`}>This Month's Budget</h3>
-              <button onClick={() => navigate('budget-settings')}
-                className={`text-xs ${d ? 'text-indigo-400' : 'text-indigo-600'}`}>Edit →</button>
-            </div>
-            <div className="mb-4">
-              <BudgetProgress category="Total Budget" spent={getThisMonthSpending().total} budget={user.budgets.total} icon="💵" />
-            </div>
-            <details className="group">
-              <summary className={`text-xs cursor-pointer ${d ? 'text-slate-500' : 'text-slate-400'} list-none flex items-center gap-1`}>
-                <span className="group-open:rotate-90 transition-transform">▶</span>
-                View by category
-              </summary>
-              <div className="mt-3 space-y-3">
-                {user.budgets.education > 0 && <BudgetProgress category="Education" spent={getThisMonthSpending().education} budget={user.budgets.education} icon="🎓" />}
-                {user.budgets.transport > 0 && <BudgetProgress category="Transport" spent={getThisMonthSpending().transport} budget={user.budgets.transport} icon="🚌" />}
-                {user.budgets.canteen > 0 && <BudgetProgress category="Food" spent={getThisMonthSpending().canteen} budget={user.budgets.canteen} icon="🍽️" />}
-                {user.budgets.hostel > 0 && <BudgetProgress category="Residence" spent={getThisMonthSpending().hostel} budget={user.budgets.hostel} icon="🏠" />}
-              </div>
-            </details>
-          </div>
-        )}
-
-        {/* Monthly Summary */}
-        <MonthlySummaryCard />
-
-        {/* Category Cards — 3 columns */}
-        <div className="grid grid-cols-3 gap-3">
-          {categories.map((cat) => (
-            <div key={cat.id}>
-              <button onClick={() => openForm(cat.id)}
-                className={`w-full text-left bg-gradient-to-br ${cat.gradient} border ${cat.border} rounded-2xl p-4 transition-all hover:scale-[1.02] active:scale-[0.98] ${activeForm === cat.id ? "ring-2 ring-indigo-500" : ""}`}>
-                <div className="text-2xl mb-2">{cat.icon}</div>
-                <p className={`text-xs font-medium mb-1 ${d ? "text-slate-400" : "text-slate-500"}`}>{cat.label}</p>
-                <p className={`text-lg font-bold ${cat.text}`}>{fmt(cat.amount)}</p>
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Unified expense form */}
-        {activeForm && (
-          <div className={`mt-3 rounded-2xl p-4 border transition-all ${d ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-lg"}`}
-            style={{ animation: "slideDown .2s ease-out" }}>
-            <p className={`text-sm font-medium mb-3 ${d ? "text-white" : "text-slate-900"}`}>
-              {categories.find(c => c.id === activeForm)?.icon} Add {categories.find(c => c.id === activeForm)?.label} Expense
-            </p>
-            <div className="flex flex-col gap-2.5">
-              <input type="number" placeholder="Amount" value={formData.amount || ""}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                className={inputClass} inputMode="numeric" autoFocus />
-              <input type="text" placeholder="Note (optional)" value={formData.note || ""}
-                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                className={inputClass} />
-              <input type="date" value={formData.date || today()}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className={inputClass} />
-            </div>
-            <div className="flex gap-2 mt-3">
-              <button onClick={handleSave} disabled={saving || !formData.amount}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm font-semibold py-2.5 rounded-xl transition active:scale-95">
-                {saving ? "Saving..." : "Save"}
-              </button>
-              <button onClick={() => setActiveForm(null)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition ${d ? "bg-slate-800 text-slate-300 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-                Cancel
-              </button>
+      <motion.main className="p-4 max-w-md mx-auto" variants={stagger} initial="initial" animate="animate">
+        {/* Total Card */}
+        <motion.div variants={fadeInUp}>
+          <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl p-5 mb-6 text-white shadow-lg">
+            <p className="text-sm opacity-90 mb-1">Total education cost</p>
+            <p className="text-3xl font-bold mb-3">{fmt(totals.all)}</p>
+            <div className="flex gap-4 text-sm opacity-85">
+              <span>This month {fmt(totals.monthly)}</span>
+              <span>·</span>
+              <span>This year {fmt(totals.yearly)}</span>
             </div>
           </div>
-        )}
+        </motion.div>
 
-        {/* Empty state when no expenses */}
-        {expenses.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 px-6 text-center mt-4">
-            <span className="text-5xl mb-4">💸</span>
-            <h3 className={`text-lg font-semibold mb-2 ${d ? 'text-white' : 'text-slate-900'}`}>
-              No expenses yet
-            </h3>
-            <p className={`text-sm mb-6 max-w-xs ${d ? 'text-slate-400' : 'text-slate-500'}`}>
-              Start tracking your student expenses. Tap a category above to add your first expense!
-            </p>
-            <button
-              onClick={() => openForm('canteen')} // Food category
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition active:scale-95"
-            >
-              Add First Expense
-            </button>
+        {/* Quick Category Access */}
+        <motion.div variants={fadeInUp} className="mb-6">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {quickCategories.map((cat) => (
+              <motion.button
+                key={cat.id}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleOpenForm(cat.id)}
+                className={`flex flex-col items-center gap-1.5 min-w-[64px] p-3 rounded-2xl ${cat.bg} transition-all`}
+              >
+                <span className="text-xl">{cat.icon}</span>
+                <span className={`text-xs font-medium ${d ? 'text-surface-300' : 'text-surface-600'}`}>{cat.label}</span>
+              </motion.button>
+            ))}
           </div>
-        )}
+        </motion.div>
 
-        {/* Recent Expenses — with delete/undo */}
-        {expenses.length > 0 && (
-          <div className="mt-6">
-            <button
-              onClick={() => setShowRecent(!showRecent)}
-              className={`w-full p-3 rounded-xl flex items-center justify-between ${
-                d ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-white hover:bg-slate-50'
-              } border ${d ? 'border-slate-700' : 'border-slate-200'} transition`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🕒</span>
-                <span className={`font-medium ${d ? 'text-white' : 'text-slate-900'}`}>Recent Expenses</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${d ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
-                  {expenses.length}
-                </span>
-              </div>
-              <span className={`text-sm ${d ? 'text-slate-400' : 'text-slate-500'}`}>
-                {showRecent ? '▲' : '▼'}
-              </span>
-            </button>
+        {/* Recent Expenses */}
+        <motion.section variants={fadeInUp}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className={`text-sm font-medium ${d ? 'text-surface-400' : 'text-surface-500'}`}>Recent</h2>
+          </div>
 
-            {showRecent && (
-              <div className={`mt-2 rounded-2xl overflow-hidden border ${d ? 'border-slate-700' : 'border-slate-200'}`}
-                style={{ animation: "slideDown .2s ease-out" }}>
-                <div className={`px-4 py-2.5 ${d ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Swipe or tap the delete button to remove a mistaken entry
-                  </p>
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {[...expenses].reverse().slice(0, 20).map((exp) => {
-                    const catIcons = { education: '🎓', transport: '🚌', canteen: '🍽️', hostel: '🏠', books: '📚', uniform: '👔' };
-                    const isConfirming = deleteConfirm === exp.id;
-                    return (
-                      <div key={exp.id || `${exp.date}-${exp.amount}-${exp.type}`}
-                        className={`flex items-center gap-3 px-4 py-3 border-b last:border-b-0 ${
-                          d ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'
-                        }`}>
-                        <span className="text-lg">{catIcons[exp.type] || '📌'}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-slate-900'}`}>
-                            {exp.label || exp.type}
-                          </p>
-                          <p className={`text-xs ${d ? 'text-slate-500' : 'text-slate-400'}`}>
-                            {exp.date} {exp.details ? `· ${exp.details}` : ''}
-                          </p>
-                        </div>
-                        <p className={`text-sm font-bold shrink-0 ${d ? 'text-slate-300' : 'text-slate-700'}`}>
-                          {fmt(Number(exp.amount))}
-                        </p>
-                        {isConfirming ? (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => {
-                                removeExpense(exp.id);
-                                setDeleteConfirm(null);
-                                addToast(`Removed ${exp.label || exp.type} (${fmt(Number(exp.amount))})`, 'info');
-                              }}
-                              className="text-xs px-2 py-1.5 rounded-lg bg-red-500 text-white font-semibold"
-                            >
-                              Yes
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(null)}
-                              className={`text-xs px-2 py-1.5 rounded-lg font-medium ${
-                                d ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
-                              }`}
-                            >
-                              No
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirm(exp.id)}
-                            className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition ${
-                              d ? 'hover:bg-red-500/20 text-slate-600 hover:text-red-400'
-                                : 'hover:bg-red-50 text-slate-300 hover:text-red-500'
-                            }`}
-                            title="Remove this expense"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {expenses.length > 20 && (
-                  <div className={`px-4 py-2.5 text-center ${d ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                    <button onClick={() => navigate('reports')}
-                      className={`text-xs font-medium ${d ? 'text-indigo-400' : 'text-indigo-600'}`}>
-                      View all {expenses.length} expenses in Reports →
-                    </button>
+          {expenses.filter(e => !e.isHistorical).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <span className="text-5xl mb-4">💰</span>
+              <h3 className={`text-lg font-medium mb-2 ${d ? 'text-white' : 'text-surface-900'}`}>No payments yet</h3>
+              <p className={`text-sm mb-6 max-w-xs ${d ? 'text-surface-400' : 'text-surface-600'}`}>
+                Tap the + button to record your first education payment
+              </p>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setSheetOpen(true)}
+                className="bg-primary-600 text-white px-6 py-2.5 rounded-xl font-medium text-sm"
+              >
+                Add payment
+              </motion.button>
+            </div>
+          ) : (
+            <GCard>
+              <GCardContent>
+                {days.map((day, i) => (
+                  <div key={day} className={i > 0 ? `mt-4 pt-4 border-t ${d ? 'border-surface-800' : 'border-surface-100'}` : ''}>
+                    <p className={`text-xs mb-2 ${d ? 'text-surface-400' : 'text-surface-500'}`}>{formatDayLabel(day)}</p>
+                    {groupedByDay[day].map((payment) => (
+                      <PaymentCard key={payment.id || `${payment.date}-${payment.amount}`} payment={payment} currencySymbol={currencySymbol} />
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+                ))}
+              </GCardContent>
+            </GCard>
+          )}
+        </motion.section>
+      </motion.main>
 
-      {/* Floating Add Button + Bottom Nav */}
-      <FloatingAddButton onOpenForm={(type) => openForm(type)} />
-      <BottomNav active="dashboard" navigate={navigate} />
+      <FAB onClick={() => setSheetOpen(true)} />
+      <LayoutBottomNav />
+      <AddPaymentSheet
+        isOpen={sheetOpen}
+        onClose={() => { setSheetOpen(false); setPreselectedCategory(''); }}
+        preselectedCategory={preselectedCategory}
+      />
     </div>
   );
 };
+
+export default DashboardView;

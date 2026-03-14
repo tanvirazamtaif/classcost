@@ -1,7 +1,8 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
-import { ErrorBoundary, BottomNav, RoleSelection } from './components/feature';
+import { ErrorBoundary, RoleSelection } from './components/feature';
 import { ToastContainer, DashboardSkeleton, ReportsSkeleton } from './components/ui';
+import { Header, LayoutBottomNav, Sidebar } from './components/layout';
 
 // Keep these as regular imports (needed on first load)
 import { LandingPage } from './pages/LandingPage';
@@ -42,8 +43,9 @@ const PageLoader = ({ view, dark }) => {
 
 // ─── Inner pages with bottom nav (non-dashboard) ─────────────────────────────
 const InnerPage = () => {
-  const { view, navigate, theme } = useApp();
+  const { view, theme } = useApp();
   const d = theme === "dark";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const pages = {
     loans: <LoansView />,
@@ -54,11 +56,13 @@ const InnerPage = () => {
   };
 
   return (
-    <div className={`min-h-screen ${d ? "bg-slate-950" : "bg-slate-50"}`}>
+    <div className={`min-h-screen ${d ? "bg-surface-950" : "bg-surface-50"}`}>
+      <Header onMenuClick={() => setSidebarOpen(true)} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="max-w-md mx-auto pb-24 px-4 pt-6">
         {pages[view] || pages["loans"]}
       </div>
-      <BottomNav active={view} navigate={navigate} />
+      <LayoutBottomNav />
     </div>
   );
 };

@@ -7,3 +7,6 @@ export { RoleSelection } from './RoleSelection';
 export { SetupDot, SetupProgress, SetupHint } from './SetupGuide';
 export { HamburgerMenu } from './HamburgerMenu';
 export { FloatingAddButton } from './FloatingAddButton';
+export { AddPaymentSheet } from './AddPaymentSheet';
+export { PaymentCard } from './PaymentCard';
+export { ExpenseChart } from './ExpenseChart';
