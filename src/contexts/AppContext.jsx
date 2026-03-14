@@ -37,8 +37,23 @@ export const useApp = () => {
   return ctx;
 };
 
+// Valid views for deep linking — prevents navigating to invalid routes via hash
+const VALID_VIEWS = new Set([
+  'landing', 'otp', 'role-selection', 'onboarding', 'parent-onboarding',
+  'education-setup', 'historical-data', 'budget-settings',
+  'dashboard', 'add-daily', 'semester', 'reports', 'settings', 'loans',
+]);
+
+/** Read hash on initial page load so direct links like /#reports work */
+const getInitialView = () => {
+  const hash = window.location.hash.slice(1);
+  if (hash && VALID_VIEWS.has(hash)) return hash;
+  return null; // fall through to localStorage default
+};
+
 export const AppProvider = ({ children }) => {
-  const [view, setView] = useLocalStorage("ut_v3_view", "landing");
+  const initialHash = getInitialView();
+  const [view, setView] = useLocalStorage("ut_v3_view", "landing", initialHash);
   const [rawUser, setUserLocal] = useLocalStorage("ut_v3_user", null);
   const user = rawUser ? mergeUserDefaults(rawUser) : null;
   const [expenses, setExpensesLocal] = useLocalStorage("ut_v3_expenses", []);

@@ -1,7 +1,12 @@
 import { useState, useCallback } from 'react';
 
-export const useLocalStorage = (key, initialValue) => {
+export const useLocalStorage = (key, initialValue, override) => {
   const [storedValue, setStoredValue] = useState(() => {
+    // If an override is provided (e.g. from URL hash), use it and persist immediately
+    if (override !== undefined && override !== null) {
+      try { localStorage.setItem(key, JSON.stringify(override)); } catch {}
+      return override;
+    }
     try {
       const item = localStorage.getItem(key);
       if (item === null || item === undefined) return initialValue;
