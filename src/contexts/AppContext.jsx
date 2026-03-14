@@ -75,6 +75,16 @@ export const AppProvider = ({ children }) => {
     setThemeLocal((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
+  // Sync dark class on <html> for Tailwind dark: utilities
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
   // ─── Clean URL browser history navigation ──────────────────────────────
   const getViewFromPath = () => {
     const path = window.location.pathname.slice(1);
