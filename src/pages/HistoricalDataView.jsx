@@ -17,7 +17,7 @@ const CATEGORIES = [
 ];
 
 export const HistoricalDataView = () => {
-  const { user, setUser, addExpense, navigate, theme, addToast } = useApp();
+  const { user, setUser, addExpense, navigate, goBack, theme, addToast } = useApp();
   const d = theme === 'dark';
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || 'BDT');
@@ -111,7 +111,7 @@ export const HistoricalDataView = () => {
       {/* Header */}
       <header className={`sticky top-0 z-10 px-4 py-4 backdrop-blur-xl border-b ${d ? 'bg-slate-950/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
         <div className="max-w-md mx-auto flex items-center gap-3">
-          <button onClick={() => step > 1 ? setStep(step - 1) : navigate('dashboard')}
+          <button onClick={() => step > 1 ? setStep(step - 1) : goBack()}
             className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${d ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}>
             ←
           </button>

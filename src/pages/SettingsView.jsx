@@ -250,7 +250,7 @@ const SettingsView = () => {
           {trialDays<30&&<Btn size="sm" className="ml-auto">Upgrade</Btn>}
         </div>
         <button onClick={()=>navigate("onboarding")} className="flex justify-between w-full py-3 border-b border-slate-50 text-sm font-medium text-slate-700 hover:text-indigo-600">Edit Profile <span>›</span></button>
-        <button onClick={()=>{setUser(null);navigate("landing");addToast("Signed out","info");}} className="flex justify-between w-full py-3 text-sm font-semibold text-red-500">Sign Out <span>›</span></button>
+        <button onClick={()=>{setUser(null);navigate("landing",{replace:true});addToast("Signed out","info");}} className="flex justify-between w-full py-3 text-sm font-semibold text-red-500">Sign Out <span>›</span></button>
       </Card>
 
       <div className="text-center text-slate-300 text-xs py-2">ClassCost v1.0</div>

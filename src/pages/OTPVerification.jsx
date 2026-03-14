@@ -4,7 +4,7 @@ import { Btn } from '../components/ui';
 import { verifyOTP, sendOTP } from '../api';
 
 export const OTPVerification = () => {
-  const { navigate, user, setUser, addToast, loadUserData, setSignupMethod } = useApp();
+  const { navigate, goBack, user, setUser, addToast, loadUserData, setSignupMethod } = useApp();
   useEffect(() => { document.title = "Verify OTP — ClassCost"; }, []);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputs = useRef([]);
@@ -39,12 +39,12 @@ export const OTPVerification = () => {
       setUser((p) => ({ ...p, ...result, isLoggedIn: true, trialStart: p?.trialStart || Date.now() }));
       addToast("Logged in!", "success");
       if (result.id) await loadUserData(result.id);
-      // New user → role selection; returning user → dashboard
+      // New user → role selection; returning user → dashboard (replace to prevent going back to OTP)
       if (result.profileComplete) {
-        navigate("dashboard");
+        navigate("dashboard", { replace: true });
       } else {
         setSignupMethod('email');
-        navigate("role-selection");
+        navigate("role-selection", { replace: true });
       }
     } catch (e) {
       addToast(e.message || "Invalid code", "error");
@@ -71,7 +71,7 @@ export const OTPVerification = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-950 to-purple-900">
       <div className="w-full max-w-sm">
-        <button onClick={() => navigate("landing")} className="text-white/60 hover:text-white mb-8 flex items-center gap-2 text-sm">&larr; Back</button>
+        <button onClick={goBack} className="text-white/60 hover:text-white mb-8 flex items-center gap-2 text-sm">&larr; Back</button>
         <div className="bg-white rounded-3xl p-8 shadow-2xl">
           <div className="text-center mb-6">
             <div className="text-5xl mb-3">📨</div>

@@ -40,7 +40,7 @@ export const OnboardingWizard = () => {
     if (!form.fullName || !form.educationLevel) { addToast("Fill required fields", "error"); return; }
     setUser((p) => ({ ...p, profile: form, profileComplete: true }));
     addToast("🎉 Profile ready!", "success");
-    navigate("education-setup");
+    navigate("education-setup", { replace: true });
   };
 
   const ProgBar = () => (
@@ -59,7 +59,7 @@ export const OnboardingWizard = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="flex items-center justify-between px-6 pt-6 pb-2">
         <div className="text-sm font-bold text-indigo-600">ClassCost 🎓</div>
-        <button onClick={() => { setUser((p) => ({ ...p, onboardingSkipped: true })); navigate("dashboard"); }} className="text-slate-400 text-sm">Skip</button>
+        <button onClick={() => { setUser((p) => ({ ...p, onboardingSkipped: true })); navigate("dashboard", { replace: true }); }} className="text-slate-400 text-sm">Skip</button>
       </div>
 
       <div className="flex-1 px-6 py-4 overflow-y-auto pb-36">

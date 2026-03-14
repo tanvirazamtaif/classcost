@@ -44,12 +44,12 @@ export const LandingPage = () => {
       }));
       addToast("Signed in with Google!", "success");
       if (result.id) await loadUserData(result.id);
-      // New user → role selection; returning user → dashboard
+      // New user → role selection; returning user → dashboard (replace to prevent back to landing)
       if (result.profileComplete) {
-        navigate("dashboard");
+        navigate("dashboard", { replace: true });
       } else {
         setSignupMethod('google');
-        navigate("role-selection");
+        navigate("role-selection", { replace: true });
       }
     } catch (e) {
       addToast(e.message || "Google sign-in failed", "error");

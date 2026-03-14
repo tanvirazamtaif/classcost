@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 
 export const BudgetSettingsView = () => {
-  const { user, setUser, navigate, theme } = useApp();
+  const { user, setUser, navigate, goBack, theme } = useApp();
   const d = theme === 'dark';
 
   const [budgets, setBudgets] = useState({
@@ -73,7 +73,7 @@ export const BudgetSettingsView = () => {
       {/* Header */}
       <header className={`sticky top-0 z-10 px-4 py-4 ${d ? 'bg-slate-950/90' : 'bg-white/90'} backdrop-blur-xl border-b ${d ? 'border-slate-800' : 'border-slate-200'}`}>
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <button onClick={() => navigate('settings')}
+          <button onClick={goBack}
             className={`w-10 h-10 rounded-xl flex items-center justify-center ${d ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}>
             <span className={d ? 'text-slate-400' : 'text-slate-500'}>←</span>
           </button>

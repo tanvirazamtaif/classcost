@@ -55,7 +55,7 @@ export const ParentOnboardingView = () => {
       profileComplete: true,
     }));
     addToast('Profile ready!', 'success');
-    navigate('dashboard');
+    navigate('dashboard', { replace: true });
   };
 
   const ProgBar = () => (
@@ -91,7 +91,7 @@ export const ParentOnboardingView = () => {
         <button
           onClick={() => {
             setUser(p => ({ ...p, onboardingSkipped: true, profileComplete: true }));
-            navigate('dashboard');
+            navigate('dashboard', { replace: true });
           }}
           className={`text-sm ${d ? 'text-slate-500' : 'text-slate-400'}`}
         >

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
 import * as api from '../api';
@@ -57,7 +57,40 @@ export const AppProvider = ({ children }) => {
     setThemeLocal((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
-  const navigate = (v) => setView(v);
+  // ─── Hash-based browser history navigation ──────────────────────────────
+  const getViewFromHash = () => {
+    const hash = window.location.hash.slice(1); // remove '#'
+    return hash || null;
+  };
+
+  const navigate = useCallback((v, { replace = false } = {}) => {
+    setView(v);
+    if (replace) {
+      window.history.replaceState({ view: v }, '', `#${v}`);
+    } else {
+      window.history.pushState({ view: v }, '', `#${v}`);
+    }
+  }, []);
+
+  const goBack = useCallback(() => {
+    window.history.back();
+  }, []);
+
+  // Listen for browser back/forward
+  useEffect(() => {
+    const handlePopState = (e) => {
+      const v = e.state?.view || getViewFromHash();
+      if (v) setView(v);
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    // Set initial hash if none exists
+    if (!window.location.hash && view) {
+      window.history.replaceState({ view }, '', `#${view}`);
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Sync user data from server on login
   const loadUserData = useCallback(async (userId) => {
@@ -206,14 +239,16 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (user?.isLoggedIn) {
-      if (["landing", "otp", "role-selection"].includes(view)) setView("dashboard");
+      if (["landing", "otp", "role-selection"].includes(view)) {
+        navigate("dashboard", { replace: true });
+      }
     }
   }, []);
 
   // Nudge reminders moved to DashboardView as subtle dismissible tips
 
   const value = {
-    view, navigate,
+    view, navigate, goBack,
     user, setUser,
     expenses, setExpenses,
     semesters, setSemesters,
