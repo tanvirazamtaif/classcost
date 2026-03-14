@@ -41,7 +41,7 @@ export const useApp = () => {
 const VALID_VIEWS = new Set([
   'landing', 'otp', 'role-selection', 'onboarding', 'parent-onboarding',
   'education-setup', 'historical-data', 'budget-settings',
-  'dashboard', 'add-daily', 'semester', 'reports', 'settings', 'loans',
+  'dashboard', 'semester', 'reports', 'settings', 'loans',
 ]);
 
 /** Read pathname on initial page load so direct links like /reports work */

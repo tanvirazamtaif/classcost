@@ -3,10 +3,9 @@ import { useApp } from '../../contexts/AppContext';
 
 const TABS = [
   { id: "dashboard", icon: "🏠", label: "Home" },
-  { id: "add-daily", icon: "➕", label: "Add" },
   { id: "loans", icon: "💳", label: "Loans" },
   { id: "reports", icon: "📊", label: "Reports" },
-  { id: "settings", icon: "⚙️", label: "Settings" },
+  { id: "budget-settings", icon: "📈", label: "Budget" },
 ];
 
 export const BottomNav = React.memo(({ active, navigate }) => {
@@ -14,7 +13,7 @@ export const BottomNav = React.memo(({ active, navigate }) => {
   const d = theme === "dark";
 
   return (
-    <nav className={`fixed bottom-0 left-0 right-0 flex z-40 border-t ${d ? "bg-[#080812] border-[#1e1e3a]" : "bg-white border-slate-100 shadow-lg"}`}
+    <nav className={`fixed bottom-0 left-0 right-0 flex z-30 border-t ${d ? "bg-[#080812]/95 border-[#1e1e3a]" : "bg-white/95 border-slate-100 shadow-lg"} backdrop-blur-xl`}
       role="tablist" aria-label="Main navigation">
       {TABS.map((t) => (
         <button

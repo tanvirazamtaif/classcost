@@ -12,7 +12,6 @@ const OnboardingWizard = lazy(() => import('./pages/OnboardingWizard').then(m =>
 const ParentOnboardingView = lazy(() => import('./pages/ParentOnboardingView'));
 const DashboardView = lazy(() => import('./pages/DashboardView').then(m => ({ default: m.DashboardView })));
 const ParentDashboardView = lazy(() => import('./pages/ParentDashboardView'));
-const AddExpenseView = lazy(() => import('./pages/AddExpenseView'));
 const SemesterView = lazy(() => import('./pages/SemesterView'));
 const ReportsView = lazy(() => import('./pages/ReportsView').then(m => ({ default: m.ReportsView })));
 const SettingsView = lazy(() => import('./pages/SettingsView'));
@@ -47,17 +46,17 @@ const InnerPage = () => {
   const d = theme === "dark";
 
   const pages = {
-    "add-daily": <AddExpenseView />,
     loans: <LoansView />,
     reports: <ReportsView />,
     settings: <SettingsView />,
     semester: <SemesterView />,
+    "budget-settings": <BudgetSettingsView />,
   };
 
   return (
     <div className={`min-h-screen ${d ? "bg-slate-950" : "bg-slate-50"}`}>
       <div className="max-w-md mx-auto pb-24 px-4 pt-6">
-        {pages[view] || pages["add-daily"]}
+        {pages[view] || pages["loans"]}
       </div>
       <BottomNav active={view} navigate={navigate} />
     </div>
@@ -81,9 +80,8 @@ const ViewRouter = () => {
         {view === "parent-onboarding" && <ParentOnboardingView />}
         {view === "education-setup" && <EducationSetupView />}
         {view === "historical-data" && <HistoricalDataView />}
-        {view === "budget-settings" && <BudgetSettingsView />}
         {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
-        {["add-daily", "semester", "reports", "settings", "loans"].includes(view) && (
+        {["semester", "reports", "settings", "loans", "budget-settings"].includes(view) && (
           <InnerPage />
         )}
       </Suspense>
