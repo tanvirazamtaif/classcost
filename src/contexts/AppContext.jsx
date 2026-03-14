@@ -37,15 +37,18 @@ export const useApp = () => {
   return ctx;
 };
 
-// Valid views for deep linking — prevents navigating to invalid routes via hash
+// Valid views for deep linking — prevents navigating to invalid routes via URL
 const VALID_VIEWS = new Set([
   'landing', 'otp', 'role-selection', 'onboarding', 'parent-onboarding',
   'education-setup', 'historical-data', 'budget-settings',
   'dashboard', 'add-daily', 'semester', 'reports', 'settings', 'loans',
 ]);
 
-/** Read hash on initial page load so direct links like /#reports work */
+/** Read pathname on initial page load so direct links like /reports work */
 const getInitialView = () => {
+  // Support both clean URLs (/reports) and legacy hash URLs (/#reports)
+  const path = window.location.pathname.slice(1);
+  if (path && VALID_VIEWS.has(path)) return path;
   const hash = window.location.hash.slice(1);
   if (hash && VALID_VIEWS.has(hash)) return hash;
   return null; // fall through to localStorage default
@@ -72,18 +75,22 @@ export const AppProvider = ({ children }) => {
     setThemeLocal((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
-  // ─── Hash-based browser history navigation ──────────────────────────────
-  const getViewFromHash = () => {
-    const hash = window.location.hash.slice(1); // remove '#'
-    return hash || null;
+  // ─── Clean URL browser history navigation ──────────────────────────────
+  const getViewFromPath = () => {
+    const path = window.location.pathname.slice(1);
+    if (path && VALID_VIEWS.has(path)) return path;
+    // Legacy hash fallback
+    const hash = window.location.hash.slice(1);
+    if (hash && VALID_VIEWS.has(hash)) return hash;
+    return null;
   };
 
   const navigate = useCallback((v, { replace = false } = {}) => {
     setView(v);
     if (replace) {
-      window.history.replaceState({ view: v }, '', `#${v}`);
+      window.history.replaceState({ view: v }, '', `/${v}`);
     } else {
-      window.history.pushState({ view: v }, '', `#${v}`);
+      window.history.pushState({ view: v }, '', `/${v}`);
     }
   }, []);
 
@@ -94,14 +101,15 @@ export const AppProvider = ({ children }) => {
   // Listen for browser back/forward
   useEffect(() => {
     const handlePopState = (e) => {
-      const v = e.state?.view || getViewFromHash();
+      const v = e.state?.view || getViewFromPath();
       if (v) setView(v);
     };
     window.addEventListener('popstate', handlePopState);
 
-    // Set initial hash if none exists
-    if (!window.location.hash && view) {
-      window.history.replaceState({ view }, '', `#${view}`);
+    // Set initial URL if on root
+    const currentPath = window.location.pathname.slice(1);
+    if (!currentPath && !window.location.hash && view) {
+      window.history.replaceState({ view }, '', `/${view}`);
     }
 
     return () => window.removeEventListener('popstate', handlePopState);

@@ -8,6 +8,7 @@ export default defineConfig({
       '/api': 'http://localhost:3001',
     },
   },
+  publicDir: 'public',
   build: {
     rollupOptions: {
       output: {
