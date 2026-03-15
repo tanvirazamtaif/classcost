@@ -27,6 +27,7 @@ const HousingEntryPage = lazy(() => import('./pages/HousingEntryPage'));
 const BooksEntryPage = lazy(() => import('./pages/BooksEntryPage'));
 const EducationFeePage = lazy(() => import('./pages/EducationFeePage'));
 const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
+const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = ({ view, dark }) => {
@@ -88,6 +89,7 @@ const ViewRouter = () => {
       {view === "otp" && <OTPVerification />}
       {view === "role-selection" && <RoleSelection />}
       <Suspense fallback={<PageLoader view={view} dark={dark} />}>
+        {view === "admin" && <AdminApp />}
         {view === "onboarding" && <OnboardingWizard />}
         {view === "parent-onboarding" && <ParentOnboardingView />}
         {view === "education-setup" && <EducationSetupView />}

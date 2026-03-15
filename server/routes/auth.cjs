@@ -53,7 +53,7 @@ router.post('/verify-otp', async (req, res) => {
 
     if (!user) {
       isNew = true;
-      user = await prisma.user.create({ data: { email, isLoggedIn: true } });
+      user = await prisma.user.create({ data: { email, isLoggedIn: true, lastLoginAt: new Date() } });
       await prisma.settings.create({
         data: {
           userId: user.id,
@@ -66,7 +66,7 @@ router.post('/verify-otp', async (req, res) => {
     } else {
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { isLoggedIn: true },
+        data: { isLoggedIn: true, lastLoginAt: new Date() },
       });
     }
 
@@ -103,7 +103,7 @@ router.post('/google', async (req, res) => {
     if (!user) {
       isNew = true;
       user = await prisma.user.create({
-        data: { email, name: name || null, isLoggedIn: true },
+        data: { email, name: name || null, isLoggedIn: true, lastLoginAt: new Date() },
       });
       await prisma.settings.create({
         data: {
@@ -117,7 +117,7 @@ router.post('/google', async (req, res) => {
     } else {
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { isLoggedIn: true, name: user.name || name || null },
+        data: { isLoggedIn: true, lastLoginAt: new Date(), name: user.name || name || null },
       });
     }
 
@@ -167,7 +167,7 @@ router.post('/login', async (req, res) => {
 
     const updated = await prisma.user.update({
       where: { id: user.id },
-      data: { isLoggedIn: true },
+      data: { isLoggedIn: true, lastLoginAt: new Date() },
     });
     res.json(updated);
   } catch (err) {
