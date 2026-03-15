@@ -51,22 +51,6 @@ export const EDUCATION_FEE_TYPES = [
     allowedPatterns: [PAYMENT_PATTERNS.RECURRING, PAYMENT_PATTERNS.PER_CLASS],
     fields: ['name', 'amount', 'dueDay', 'reminder', 'ratePerClass'],
   },
-  {
-    id: 'school_transport',
-    icon: '🚌',
-    label: 'School Transport',
-    desc: 'School bus/van fees',
-    defaultPattern: PAYMENT_PATTERNS.RECURRING,
-    fields: ['name', 'amount', 'dueDay', 'reminder'],
-  },
-  {
-    id: 'tiffin',
-    icon: '🍱',
-    label: 'Tiffin / Lunch',
-    desc: 'School meal fees',
-    defaultPattern: PAYMENT_PATTERNS.RECURRING,
-    fields: ['name', 'amount', 'dueDay', 'reminder'],
-  },
 
   // SEMESTER (Every 6 months)
   {
@@ -252,4 +236,108 @@ export const PAYMENT_METHODS = [
 
 export const getFeeTypeConfig = (feeTypeId) => {
   return EDUCATION_FEE_TYPES.find(t => t.id === feeTypeId) || null;
+};
+
+// Education levels for filtering
+export const EDUCATION_LEVELS = [
+  { id: 'school', label: 'School', icon: '🏫', desc: 'Primary / Secondary' },
+  { id: 'college', label: 'College', icon: '🎒', desc: 'HSC / Intermediate' },
+  { id: 'university', label: 'University', icon: '🎓', desc: 'Bachelor / Masters' },
+];
+
+// Which fee types are relevant for each education level
+export const FEE_TYPE_LEVELS = {
+  school_fee: ['school', 'college'],
+  coaching: ['school', 'college'],
+  private_tutor: ['school', 'college'],
+  uniform: ['school', 'college'],
+  exam_fee_board: ['school', 'college'],
+  semester_fee: ['university'],
+  exam_fee_semester: ['university'],
+  lab_fee: ['university'],
+  thesis_fee: ['university'],
+  medical_bond: ['university'],
+  library_fee: ['school', 'college', 'university'],
+  sports_fee: ['school', 'college', 'university'],
+  development_fee: ['school', 'college', 'university'],
+  session_fee: ['school', 'college', 'university'],
+  admission_fee: ['school', 'college', 'university'],
+  registration_fee: ['school', 'college', 'university'],
+  id_card: ['school', 'college', 'university'],
+};
+
+// Dynamic labels based on selected education level
+export const DYNAMIC_FEE_LABELS = {
+  school_fee: {
+    school: 'School Fee',
+    college: 'College Fee',
+    default: 'School / College Fee',
+  },
+  admission_fee: {
+    school: 'School Admission Fee',
+    college: 'College Admission Fee',
+    university: 'University Admission Fee',
+    default: 'Admission Fee',
+  },
+  registration_fee: {
+    school: 'School Registration Fee',
+    college: 'College Registration Fee',
+    university: 'University Registration Fee',
+    default: 'Registration / Form Fee',
+  },
+  library_fee: {
+    school: 'School Library Fee',
+    college: 'College Library Fee',
+    university: 'University Library Fee',
+    default: 'Library Fee',
+  },
+  sports_fee: {
+    school: 'School Sports Fee',
+    college: 'College Sports Fee',
+    university: 'University Club Fee',
+    default: 'Sports / Club Fee',
+  },
+  development_fee: {
+    school: 'School Development Fee',
+    college: 'College Development Fee',
+    university: 'University Development Fee',
+    default: 'Development Fee',
+  },
+  session_fee: {
+    school: 'School Session Fee',
+    college: 'College Session Fee',
+    university: 'University Session Fee',
+    default: 'Session Fee',
+  },
+  id_card: {
+    school: 'School ID Card',
+    college: 'College ID Card',
+    university: 'University ID Card',
+    default: 'ID Card Fee',
+  },
+};
+
+// Get label for a fee type based on education level
+export const getFeeLabel = (feeTypeId, educationLevel) => {
+  const labels = DYNAMIC_FEE_LABELS[feeTypeId];
+  if (!labels) return null;
+  return labels[educationLevel] || labels.default;
+};
+
+// Get relevant fee types for a level
+export const getFeeTypesForLevel = (level) => {
+  if (!level) return EDUCATION_FEE_TYPES;
+  return EDUCATION_FEE_TYPES.filter(feeType => {
+    const levels = FEE_TYPE_LEVELS[feeType.id];
+    return levels ? levels.includes(level) : true;
+  });
+};
+
+// Get hidden fee types (for "Show more")
+export const getHiddenFeeTypes = (level) => {
+  if (!level) return [];
+  return EDUCATION_FEE_TYPES.filter(feeType => {
+    const levels = FEE_TYPE_LEVELS[feeType.id];
+    return levels ? !levels.includes(level) : false;
+  });
 };

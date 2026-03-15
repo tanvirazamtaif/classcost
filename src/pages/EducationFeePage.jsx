@@ -1,31 +1,44 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Check, ChevronDown, ChevronRight, ChevronUp, Plus, Search, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
-import { EDUCATION_FEE_TYPES, PAYMENT_PATTERNS } from '../types/educationFees';
+import {
+  PAYMENT_PATTERNS,
+  EDUCATION_LEVELS,
+  getFeeTypesForLevel,
+  getHiddenFeeTypes,
+  getFeeLabel,
+} from '../types/educationFees';
 import { GButton, BottomSheet } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 
 export const EducationFeePage = () => {
-  const { navigate, theme } = useApp();
+  const { navigate, theme, educationLevel, setEducationLevel } = useApp();
   const { activeFees } = useEducationFees();
   const d = theme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomSheet, setShowCustomSheet] = useState(false);
+  const [showLevelPicker, setShowLevelPicker] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customIcon, setCustomIcon] = useState('📌');
   const [customPattern, setCustomPattern] = useState(PAYMENT_PATTERNS.RECURRING);
 
+  // Get relevant and hidden fee types
+  const relevantTypes = useMemo(() => getFeeTypesForLevel(educationLevel), [educationLevel]);
+  const hiddenTypes = useMemo(() => getHiddenFeeTypes(educationLevel), [educationLevel]);
+  const currentLevel = EDUCATION_LEVELS.find(l => l.id === educationLevel);
+
   // Filter by search
   const filteredTypes = searchQuery.trim()
-    ? EDUCATION_FEE_TYPES.filter(t =>
+    ? relevantTypes.filter(t =>
         t.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.desc?.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : EDUCATION_FEE_TYPES;
+    : relevantTypes;
 
   // Group by pattern
   const groups = {
@@ -101,6 +114,26 @@ export const EducationFeePage = () => {
       </header>
 
       <main className="max-w-md mx-auto p-4">
+        {/* Education Level Selector */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowLevelPicker(true)}
+          className={`w-full flex items-center justify-between p-4 mb-4 rounded-xl border transition ${
+            d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{currentLevel?.icon || '📋'}</span>
+            <div className="text-left">
+              <p className="text-xs text-surface-500">I'm studying in</p>
+              <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
+                {currentLevel?.label || 'Select Level'}
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-surface-400" />
+        </motion.button>
+
         {/* Active Fees Count */}
         {activeFees.length > 0 && (
           <div className="mb-4 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-xl">
@@ -121,25 +154,28 @@ export const EducationFeePage = () => {
                 {group.title}
               </p>
               <div className="space-y-2">
-                {group.items.map((type) => (
-                  <motion.button
-                    key={type.id}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleSelectType(type)}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition ${
-                      d ? 'bg-surface-900 border-surface-800 hover:border-primary-700' : 'bg-white border-surface-200 hover:border-primary-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{type.icon}</span>
-                      <div className="text-left">
-                        <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{type.label}</p>
-                        <p className="text-xs text-surface-500">{type.desc}</p>
+                {group.items.map((type) => {
+                  const displayLabel = getFeeLabel(type.id, educationLevel) || type.label;
+                  return (
+                    <motion.button
+                      key={type.id}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleSelectType(type)}
+                      className={`w-full flex items-center justify-between p-4 rounded-xl border transition ${
+                        d ? 'bg-surface-900 border-surface-800 hover:border-primary-700' : 'bg-white border-surface-200 hover:border-primary-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{type.icon}</span>
+                        <div className="text-left">
+                          <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{displayLabel}</p>
+                          <p className="text-xs text-surface-500">{type.desc}</p>
+                        </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-surface-400" />
-                  </motion.button>
-                ))}
+                      <ChevronRight className="w-5 h-5 text-surface-400" />
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
           );
@@ -155,6 +191,67 @@ export const EducationFeePage = () => {
             >
               Create custom type
             </button>
+          </div>
+        )}
+
+        {/* Show More Section */}
+        {hiddenTypes.length > 0 && educationLevel && (
+          <div className="mt-4">
+            <button
+              onClick={() => { haptics.light(); setShowMore(!showMore); }}
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm text-surface-500"
+            >
+              {showMore ? (
+                <>
+                  <ChevronUp className="w-4 h-4" />
+                  Hide other fee types
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  Show {hiddenTypes.length} more fee types
+                </>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {showMore && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <p className="text-xs text-surface-400 mb-3 px-1">
+                    Not typical for {currentLevel?.label}
+                  </p>
+
+                  <div className="space-y-2 opacity-60">
+                    {hiddenTypes.map((type) => (
+                      <motion.button
+                        key={type.id}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleSelectType(type)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border ${
+                          d ? 'bg-surface-800/50 border-surface-700' : 'bg-surface-50 border-surface-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{type.icon}</span>
+                          <div className="text-left">
+                            <p className={`font-medium text-sm ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                              {type.label}
+                            </p>
+                            <p className="text-xs text-surface-400">{type.desc}</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-surface-300" />
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -236,6 +333,77 @@ export const EducationFeePage = () => {
           <GButton fullWidth size="lg" onClick={handleSaveCustom} disabled={!customName.trim()}>
             Continue
           </GButton>
+        </div>
+      </BottomSheet>
+
+      {/* Education Level Picker */}
+      <BottomSheet
+        isOpen={showLevelPicker}
+        onClose={() => setShowLevelPicker(false)}
+        title="Select Education Level"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-surface-500 mb-4">
+            We'll show relevant fee types for you
+          </p>
+
+          {/* Show All Option */}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              haptics.success();
+              setEducationLevel(null);
+              setShowLevelPicker(false);
+            }}
+            className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
+              !educationLevel
+                ? 'bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-500'
+                : 'bg-surface-50 dark:bg-surface-800'
+            }`}
+          >
+            <span className="text-2xl">📋</span>
+            <div className="text-left flex-1">
+              <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Show All</p>
+              <p className="text-xs text-surface-500">All fee types</p>
+            </div>
+            {!educationLevel && (
+              <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center">
+                <Check className="w-3 h-3 text-white" />
+              </div>
+            )}
+          </motion.button>
+
+          {EDUCATION_LEVELS.map((level) => (
+            <motion.button
+              key={level.id}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                haptics.success();
+                setEducationLevel(level.id);
+                setShowLevelPicker(false);
+              }}
+              className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
+                educationLevel === level.id
+                  ? 'bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-500'
+                  : 'bg-surface-50 dark:bg-surface-800'
+              }`}
+            >
+              <span className="text-2xl">{level.icon}</span>
+              <div className="text-left flex-1">
+                <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{level.label}</p>
+                <p className="text-xs text-surface-500">{level.desc}</p>
+              </div>
+              {educationLevel === level.id && (
+                <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+              )}
+            </motion.button>
+          ))}
+
+          <p className="text-xs text-surface-400 text-center pt-2">
+            You can change this anytime
+          </p>
         </div>
       </BottomSheet>
     </motion.div>
