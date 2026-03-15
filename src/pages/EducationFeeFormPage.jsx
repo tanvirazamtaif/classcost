@@ -20,7 +20,8 @@ function getDaySuffix(day) {
 }
 
 export const EducationFeeFormPage = () => {
-  const { navigate, addToast, routeParams, theme } = useApp();
+  const { navigate, addToast, routeParams, theme, user } = useApp();
+  const profile = user?.profile;
   const { addFee, addSemesterFee, savedCreditRates, setSavedCreditRates } = useEducationFees();
   const d = theme === 'dark';
 
@@ -31,7 +32,7 @@ export const EducationFeeFormPage = () => {
   // FORM STATE
   // ═══════════════════════════════════════════════════════════════
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(profile?.institutionName || '');
   const [amount, setAmount] = useState('');
 
   // Recurring
@@ -44,7 +45,14 @@ export const EducationFeeFormPage = () => {
   const [ratePerClass, setRatePerClass] = useState('');
 
   // Semester
-  const [semesterName, setSemesterName] = useState(SEMESTER_NAMES[0]);
+  // Auto-select current semester based on date
+  const [semesterName, setSemesterName] = useState(() => {
+    const month = new Date().getMonth() + 1;
+    const year = new Date().getFullYear();
+    if (month >= 1 && month <= 4) return `Spring ${year}`;
+    if (month >= 5 && month <= 8) return `Summer ${year}`;
+    return `Fall ${year}`;
+  });
   const [dueDate, setDueDate] = useState('');
 
   // Per-credit
@@ -258,7 +266,11 @@ export const EducationFeeFormPage = () => {
         <div>
           <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
             {isRecurring ? 'School/Institution Name' : isSemester ? 'University Name' : 'Name'}
-            <span className="text-surface-400 font-normal ml-1">(optional)</span>
+            {profile?.institutionName ? (
+              <span className="text-surface-400 font-normal ml-1">(from profile)</span>
+            ) : (
+              <span className="text-surface-400 font-normal ml-1">(optional)</span>
+            )}
           </label>
           <input
             type="text"
