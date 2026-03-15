@@ -41,7 +41,7 @@ export const useApp = () => {
 const VALID_VIEWS = new Set([
   'landing', 'otp', 'role-selection', 'onboarding', 'parent-onboarding',
   'education-setup', 'historical-data', 'budget-settings',
-  'dashboard', 'semester', 'reports', 'settings', 'loans',
+  'dashboard', 'semester', 'reports', 'settings', 'loans', 'schedule',
 ]);
 
 /** Read pathname on initial page load so direct links like /reports work */
@@ -65,6 +65,7 @@ export const AppProvider = ({ children }) => {
   const [notifications, setNotificationsLocal] = useLocalStorage("ut_v3_notifs", {
     enabled: true, canteen: true, transport: true,
   });
+  const [scheduledPayments, setScheduledPaymentsLocal] = useLocalStorage("ut_v3_scheduled", []);
   const [syncing, setSyncing] = useState(false);
   const [pendingAccountType, setPendingAccountType] = useState(null); // temp during signup
   const [signupMethod, setSignupMethod] = useState(null); // 'email' | 'google' | null
@@ -278,6 +279,71 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
+  // ─── Scheduled / recurring payments ──────────────────────────────────────
+  const addScheduledPayment = useCallback((payment) => {
+    const newPayment = {
+      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+      createdAt: new Date().toISOString(),
+      isActive: true,
+      ...payment,
+    };
+    setScheduledPaymentsLocal(prev => [...prev, newPayment]);
+    return newPayment;
+  }, []);
+
+  const deleteScheduledPayment = useCallback((id) => {
+    setScheduledPaymentsLocal(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  const updateScheduledPayment = useCallback((id, updates) => {
+    setScheduledPaymentsLocal(prev => prev.map(p =>
+      p.id === id ? { ...p, ...updates } : p
+    ));
+  }, []);
+
+  const markScheduledAsPaid = useCallback(async (scheduledId) => {
+    const scheduled = scheduledPayments.find(p => p.id === scheduledId);
+    if (!scheduled) return;
+    await addExpense({
+      type: scheduled.category || scheduled.type,
+      amount: scheduled.amount,
+      label: scheduled.name,
+      details: 'Monthly payment',
+      date: new Date().toISOString().split('T')[0],
+      fromScheduled: scheduledId,
+    });
+    updateScheduledPayment(scheduledId, {
+      lastPaidAt: new Date().toISOString(),
+      lastPaidMonth: new Date().toISOString().slice(0, 7),
+    });
+    addToast(`${scheduled.name} marked as paid`, 'success');
+  }, [scheduledPayments, addExpense, updateScheduledPayment, addToast]);
+
+  const getUpcomingPayments = useCallback(() => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.toISOString().slice(0, 7);
+    return scheduledPayments
+      .filter(p => p.isActive !== false)
+      .map(p => {
+        const dueDay = p.dueDay || 1;
+        let daysUntil = dueDay - currentDay;
+        let status = 'upcoming';
+        const paidThisMonth = p.lastPaidMonth === currentMonth;
+        if (paidThisMonth) return { ...p, status: 'paid', daysUntil: 30 - currentDay + dueDay };
+        if (daysUntil < 0) { status = 'overdue'; daysUntil = Math.abs(daysUntil); }
+        else if (daysUntil === 0) status = 'today';
+        else if (daysUntil <= 3) status = 'soon';
+        return { ...p, status, daysUntil };
+      })
+      .filter(p => p.status !== 'paid')
+      .sort((a, b) => {
+        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+        if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+        return a.daysUntil - b.daysUntil;
+      });
+  }, [scheduledPayments]);
+
   // Nudge reminders moved to DashboardView as subtle dismissible tips
 
   const value = {
@@ -298,6 +364,8 @@ export const AppProvider = ({ children }) => {
     addLoan, addLoanPayment,
     loadUserData,
     syncing,
+    scheduledPayments, addScheduledPayment, deleteScheduledPayment,
+    updateScheduledPayment, markScheduledAsPaid, getUpcomingPayments,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -20,6 +20,7 @@ const LoansView = lazy(() => import('./pages/LoansView'));
 const EducationSetupView = lazy(() => import('./pages/EducationSetupView'));
 const HistoricalDataView = lazy(() => import('./pages/HistoricalDataView'));
 const BudgetSettingsView = lazy(() => import('./pages/BudgetSettingsView'));
+const ScheduleView = lazy(() => import('./pages/ScheduleView').then(m => ({ default: m.ScheduleView })));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = ({ view, dark }) => {
@@ -53,6 +54,7 @@ const InnerPage = () => {
     settings: <SettingsView />,
     semester: <SemesterView />,
     "budget-settings": <BudgetSettingsView />,
+    schedule: <ScheduleView />,
   };
 
   return (
@@ -85,7 +87,7 @@ const ViewRouter = () => {
         {view === "education-setup" && <EducationSetupView />}
         {view === "historical-data" && <HistoricalDataView />}
         {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
-        {["semester", "reports", "settings", "loans", "budget-settings"].includes(view) && (
+        {["semester", "reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
           <InnerPage />
         )}
       </Suspense>

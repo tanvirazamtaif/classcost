@@ -1,14 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Check } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { Header, LayoutBottomNav, Sidebar } from '../components/layout';
-import { FAB, GCard, GCardContent } from '../components/ui';
+import { FAB, GCard, GCardContent, GButton } from '../components/ui';
 import { AddPaymentSheet, PaymentCard } from '../components/feature';
 import { stagger, fadeInUp } from '../lib/animations';
 import { makeFmt } from '../utils/format';
 
 export const DashboardView = () => {
-  const { user, expenses, theme } = useApp();
+  const { user, expenses, theme, navigate, getUpcomingPayments, markScheduledAsPaid } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [preselectedCategory, setPreselectedCategory] = useState('');
@@ -106,6 +107,44 @@ export const DashboardView = () => {
             ))}
           </div>
         </motion.div>
+
+        {/* Upcoming Payments */}
+        {(getUpcomingPayments?.() || []).length > 0 && (
+          <motion.section variants={fadeInUp} className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className={`text-sm font-medium ${d ? 'text-surface-400' : 'text-surface-500'}`}>Upcoming</h2>
+              <button onClick={() => navigate('schedule')} className="text-xs text-primary-600 font-medium">See all</button>
+            </div>
+            <div className="space-y-2">
+              {(getUpcomingPayments?.() || []).slice(0, 3).map((payment) => (
+                <GCard key={payment.id}>
+                  <GCardContent className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-2 h-2 rounded-full ${
+                        payment.status === 'overdue' ? 'bg-danger-500' :
+                        payment.status === 'soon' || payment.status === 'today' ? 'bg-warning-500' :
+                        'bg-surface-400'
+                      }`} />
+                      <div>
+                        <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{payment.name}</p>
+                        <p className="text-xs text-surface-500">
+                          {currencySymbol}{(payment.amount || 0).toLocaleString()} · {
+                            payment.status === 'overdue' ? `${payment.daysUntil}d overdue` :
+                            payment.status === 'today' ? 'Due today!' :
+                            `Due in ${payment.daysUntil}d`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <GButton size="sm" variant="secondary" onClick={() => markScheduledAsPaid(payment.id)}>
+                      <Check className="w-4 h-4 mr-1" /> Paid
+                    </GButton>
+                  </GCardContent>
+                </GCard>
+              ))}
+            </div>
+          </motion.section>
+        )}
 
         {/* Recent Expenses */}
         <motion.section variants={fadeInUp}>
