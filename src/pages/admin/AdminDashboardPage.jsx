@@ -47,16 +47,6 @@ export const AdminDashboardPage = () => {
     }
   }, [adminFetch]);
 
-  // If user selected, show detail page
-  if (selectedUserId) {
-    return (
-      <AdminUserDetailPage
-        userId={selectedUserId}
-        onBack={() => setSelectedUserId(null)}
-      />
-    );
-  }
-
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([fetchStats(), fetchUsers(pagination.page, search)]);
@@ -75,6 +65,16 @@ export const AdminDashboardPage = () => {
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // If user selected, show detail page (after all hooks)
+  if (selectedUserId) {
+    return (
+      <AdminUserDetailPage
+        userId={selectedUserId}
+        onBack={() => setSelectedUserId(null)}
+      />
+    );
+  }
 
   const getEducationLevel = (user) => {
     if (user.profile && typeof user.profile === 'object' && user.profile.educationLevel) {
