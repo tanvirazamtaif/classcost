@@ -10,3 +10,4 @@ export { FloatingAddButton } from './FloatingAddButton';
 export { AddPaymentSheet } from './AddPaymentSheet';
 export { PaymentCard } from './PaymentCard';
 export { ExpenseChart } from './ExpenseChart';
+export { QuickEntrySheet } from './QuickEntrySheet';

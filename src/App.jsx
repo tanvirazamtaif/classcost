@@ -21,6 +21,9 @@ const EducationSetupView = lazy(() => import('./pages/EducationSetupView'));
 const HistoricalDataView = lazy(() => import('./pages/HistoricalDataView'));
 const BudgetSettingsView = lazy(() => import('./pages/BudgetSettingsView'));
 const ScheduleView = lazy(() => import('./pages/ScheduleView').then(m => ({ default: m.ScheduleView })));
+const EducationEntryPage = lazy(() => import('./pages/EducationEntryPage'));
+const HousingEntryPage = lazy(() => import('./pages/HousingEntryPage'));
+const BooksEntryPage = lazy(() => import('./pages/BooksEntryPage'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = ({ view, dark }) => {
@@ -87,6 +90,9 @@ const ViewRouter = () => {
         {view === "education-setup" && <EducationSetupView />}
         {view === "historical-data" && <HistoricalDataView />}
         {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
+        {view === "education-entry" && <EducationEntryPage />}
+        {view === "housing-entry" && <HousingEntryPage />}
+        {view === "books-entry" && <BooksEntryPage />}
         {["semester", "reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
           <InnerPage />
         )}

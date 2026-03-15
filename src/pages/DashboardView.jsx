@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { Header, LayoutBottomNav, Sidebar } from '../components/layout';
 import { FAB, GCard, GCardContent, GButton } from '../components/ui';
-import { AddPaymentSheet, PaymentCard } from '../components/feature';
+import { AddPaymentSheet, PaymentCard, QuickEntrySheet } from '../components/feature';
 import { stagger, fadeInUp } from '../lib/animations';
 import { makeFmt } from '../utils/format';
 
@@ -13,6 +13,7 @@ export const DashboardView = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [preselectedCategory, setPreselectedCategory] = useState('');
+  const [quickEntryCategory, setQuickEntryCategory] = useState(null);
   const d = theme === 'dark';
 
   const profile = user?.profile;
@@ -59,6 +60,15 @@ export const DashboardView = () => {
   };
 
   const handleOpenForm = (categoryId) => {
+    // Full entry pages for Education, Housing, Books
+    if (categoryId === 'education') return navigate('education-entry');
+    if (categoryId === 'hostel') return navigate('housing-entry');
+    if (categoryId === 'books') return navigate('books-entry');
+    // Quick entry sheet for Transport, Food
+    if (categoryId === 'transport' || categoryId === 'canteen') {
+      setQuickEntryCategory(categoryId);
+      return;
+    }
     setPreselectedCategory(categoryId || '');
     setSheetOpen(true);
   };
@@ -190,6 +200,11 @@ export const DashboardView = () => {
         isOpen={sheetOpen}
         onClose={() => { setSheetOpen(false); setPreselectedCategory(''); }}
         preselectedCategory={preselectedCategory}
+      />
+      <QuickEntrySheet
+        isOpen={!!quickEntryCategory}
+        onClose={() => setQuickEntryCategory(null)}
+        categoryId={quickEntryCategory || 'transport'}
       />
     </div>
   );

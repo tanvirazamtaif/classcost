@@ -42,6 +42,7 @@ const VALID_VIEWS = new Set([
   'landing', 'otp', 'role-selection', 'onboarding', 'parent-onboarding',
   'education-setup', 'historical-data', 'budget-settings',
   'dashboard', 'semester', 'reports', 'settings', 'loans', 'schedule',
+  'education-entry', 'housing-entry', 'books-entry', 'entry-detail',
 ]);
 
 /** Read pathname on initial page load so direct links like /reports work */
@@ -66,6 +67,7 @@ export const AppProvider = ({ children }) => {
     enabled: true, canteen: true, transport: true,
   });
   const [scheduledPayments, setScheduledPaymentsLocal] = useLocalStorage("ut_v3_scheduled", []);
+  const [entries, setEntriesLocal] = useLocalStorage("ut_v3_entries", []);
   const [syncing, setSyncing] = useState(false);
   const [pendingAccountType, setPendingAccountType] = useState(null); // temp during signup
   const [signupMethod, setSignupMethod] = useState(null); // 'email' | 'google' | null
@@ -279,6 +281,34 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
+  // ─── Category entries ───────────────────────────────────────────────────
+  const addEntry = useCallback(async (entry) => {
+    setEntriesLocal(prev => [...prev, entry]);
+    // Also create a backward-compatible expense record
+    await addExpense({
+      type: entry.category,
+      amount: entry.totalAmount,
+      label: entry.items?.length
+        ? entry.items.map(i => i.label).join(', ')
+        : entry.category,
+      details: entry.note || '',
+      date: entry.date,
+      entryId: entry.id,
+    });
+  }, [addExpense]);
+
+  const updateEntry = useCallback((id, updates) => {
+    setEntriesLocal(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+  }, []);
+
+  const deleteEntry = useCallback((id) => {
+    setEntriesLocal(prev => prev.filter(e => e.id !== id));
+  }, []);
+
+  const getEntriesByCategory = useCallback((category) => {
+    return entries.filter(e => e.category === category);
+  }, [entries]);
+
   // ─── Scheduled / recurring payments ──────────────────────────────────────
   const addScheduledPayment = useCallback((payment) => {
     const newPayment = {
@@ -366,6 +396,7 @@ export const AppProvider = ({ children }) => {
     syncing,
     scheduledPayments, addScheduledPayment, deleteScheduledPayment,
     updateScheduledPayment, markScheduledAsPaid, getUpcomingPayments,
+    entries, addEntry, updateEntry, deleteEntry, getEntriesByCategory,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
