@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Bell, Calculator, Plus, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Bell, Calculator, Plus, Check, AlertCircle, Info } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
-import { EDUCATION_FEE_TYPES, PAYMENT_PATTERNS, PAYMENT_METHODS, SEMESTER_NAMES, MONTHS } from '../types/educationFees';
+import { EDUCATION_FEE_TYPES, PAYMENT_PATTERNS, PAYMENT_METHODS, SEMESTER_NAMES, SEMESTERS, MONTHS, CONSTANTS, getFeeTypeConfig } from '../types/educationFees';
+import { validateInstallmentsTotal, calculatePerCreditTotal } from '../types/educationFeeSchema';
 import { GButton } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
@@ -24,17 +25,18 @@ export const EducationFeeFormPage = () => {
   const d = theme === 'dark';
 
   const feeType = routeParams?.feeType;
-  const typeConfig = feeType?.id
-    ? (EDUCATION_FEE_TYPES.find(t => t.id === feeType.id) || feeType)
-    : feeType;
+  const typeConfig = feeType?.id ? (getFeeTypeConfig(feeType.id) || feeType) : feeType;
 
-  // Common
+  // ═══════════════════════════════════════════════════════════════
+  // FORM STATE
+  // ═══════════════════════════════════════════════════════════════
+
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
 
   // Recurring
-  const [dueDay, setDueDay] = useState(10);
-  const [reminderDays, setReminderDays] = useState(2);
+  const [dueDay, setDueDay] = useState(CONSTANTS.DEFAULT_DUE_DAY);
+  const [reminderDays, setReminderDays] = useState(CONSTANTS.DEFAULT_REMINDER_DAYS);
   const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   // Per-class
@@ -47,9 +49,9 @@ export const EducationFeeFormPage = () => {
 
   // Per-credit
   const [usePerCredit, setUsePerCredit] = useState(false);
-  const [regularRate, setRegularRate] = useState(String(savedCreditRates.regular || 5500));
+  const [regularRate, setRegularRate] = useState(String(savedCreditRates.regular || CONSTANTS.DEFAULT_CREDIT_RATE));
   const [regularCredits, setRegularCredits] = useState('');
-  const [labRate, setLabRate] = useState(String(savedCreditRates.lab || 6500));
+  const [labRate, setLabRate] = useState(String(savedCreditRates.lab || CONSTANTS.DEFAULT_LAB_RATE));
   const [labCredits, setLabCredits] = useState('');
   const [showLabCredits, setShowLabCredits] = useState(false);
 
@@ -72,47 +74,91 @@ export const EducationFeeFormPage = () => {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // Per-credit total
-  const perCreditTotal = usePerCredit ? (
-    (Number(regularRate) * Number(regularCredits) || 0) +
-    (showLabCredits ? (Number(labRate) * Number(labCredits) || 0) : 0)
-  ) : 0;
+  // ═══════════════════════════════════════════════════════════════
+  // COMPUTED
+  // ═══════════════════════════════════════════════════════════════
 
-  // Auto-calculate installments
+  const isRecurring = typeConfig?.defaultPattern === PAYMENT_PATTERNS.RECURRING;
+  const isSemester = typeConfig?.defaultPattern === PAYMENT_PATTERNS.SEMESTER;
+  const isYearly = typeConfig?.defaultPattern === PAYMENT_PATTERNS.YEARLY;
+  const isOneTime = typeConfig?.defaultPattern === PAYMENT_PATTERNS.ONE_TIME;
+  const supportsPerCredit = typeConfig?.supportsPerCredit;
+  const supportsInstallments = typeConfig?.supportsInstallments;
+  const supportsPerClass = typeConfig?.allowedPatterns?.includes(PAYMENT_PATTERNS.PER_CLASS);
+
+  const perCreditTotal = useMemo(() => {
+    if (!usePerCredit) return 0;
+    return calculatePerCreditTotal({
+      regular: { rate: Number(regularRate) || 0, credits: Number(regularCredits) || 0 },
+      lab: showLabCredits ? { rate: Number(labRate) || 0, credits: Number(labCredits) || 0 } : null,
+    });
+  }, [usePerCredit, regularRate, regularCredits, labRate, labCredits, showLabCredits]);
+
+  const finalAmount = useMemo(() => {
+    if (usePerCredit) return perCreditTotal;
+    if (paymentMode === 'per_class') return Number(ratePerClass) || 0;
+    return Number(amount) || 0;
+  }, [usePerCredit, perCreditTotal, paymentMode, ratePerClass, amount]);
+
+  const installmentsTotal = useMemo(() => {
+    return installments.reduce((sum, inst) => sum + (Number(inst.amount) || 0), 0);
+  }, [installments]);
+
+  const installmentsMismatch = useInstallments && customInstallmentAmounts &&
+    !validateInstallmentsTotal(installments, finalAmount);
+
+  // ═══════════════════════════════════════════════════════════════
+  // EFFECTS
+  // ═══════════════════════════════════════════════════════════════
+
   useEffect(() => {
-    if (useInstallments && !customInstallmentAmounts) {
-      const total = usePerCredit ? perCreditTotal : Number(amount) || 0;
-      const equalAmount = Math.floor(total / installmentCount);
-      const remainder = total - (equalAmount * installmentCount);
-      const newInstallments = Array.from({ length: installmentCount }, (_, i) => {
-        const baseDate = dueDate ? new Date(dueDate) : new Date();
-        baseDate.setMonth(baseDate.getMonth() + i);
-        return {
-          part: i + 1,
-          amount: equalAmount + (i === 0 ? remainder : 0),
-          dueDate: baseDate.toISOString().split('T')[0],
-          isPaid: i === 0 ? alreadyPaid : false,
-        };
-      });
-      setInstallments(newInstallments);
-    }
-  }, [useInstallments, installmentCount, amount, perCreditTotal, dueDate, alreadyPaid, customInstallmentAmounts, usePerCredit]);
+    if (!useInstallments || customInstallmentAmounts) return;
+    const total = finalAmount;
+    if (total <= 0) return;
 
-  const installmentsTotal = installments.reduce((sum, inst) => sum + inst.amount, 0);
-  const expectedTotal = usePerCredit ? perCreditTotal : Number(amount) || 0;
-  const installmentsMismatch = useInstallments && customInstallmentAmounts && Math.abs(installmentsTotal - expectedTotal) > 1;
+    const equalAmount = Math.floor(total / installmentCount);
+    const remainder = total - (equalAmount * installmentCount);
+
+    const semester = SEMESTERS.find(s => semesterName?.toLowerCase().includes(s.label.toLowerCase()));
+    const baseYear = new Date().getFullYear();
+
+    const newInstallments = Array.from({ length: installmentCount }, (_, i) => {
+      let instDate;
+      if (semester && semester.defaultMonths[i]) {
+        instDate = new Date(baseYear, semester.defaultMonths[i] - 1, 15);
+      } else if (dueDate) {
+        instDate = new Date(dueDate);
+        instDate.setMonth(instDate.getMonth() + i);
+      } else {
+        instDate = new Date();
+        instDate.setMonth(instDate.getMonth() + i);
+      }
+      return {
+        part: i + 1,
+        amount: equalAmount + (i === 0 ? remainder : 0),
+        dueDate: instDate.toISOString().split('T')[0],
+        isPaid: i === 0 && alreadyPaid,
+      };
+    });
+    setInstallments(newInstallments);
+  }, [useInstallments, installmentCount, finalAmount, dueDate, alreadyPaid, semesterName, customInstallmentAmounts]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // HANDLERS
+  // ═══════════════════════════════════════════════════════════════
 
   const updateInstallment = (index, field, value) => {
-    setInstallments(prev => prev.map((inst, i) => i === index ? { ...inst, [field]: value } : inst));
+    setInstallments(prev => prev.map((inst, i) =>
+      i === index ? { ...inst, [field]: field === 'amount' ? Number(value) || 0 : value } : inst
+    ));
   };
 
   const validate = () => {
     const newErrors = {};
-    const finalAmount = usePerCredit ? perCreditTotal : Number(amount);
-    if (!finalAmount || finalAmount <= 0) newErrors.amount = 'Amount is required';
-    if (finalAmount > 50000000) newErrors.amount = 'Amount seems too high';
-    if (useInstallments && installmentsMismatch) newErrors.installments = 'Installments must equal total';
-    if (['semester', 'one_time'].includes(typeConfig?.defaultPattern) && !dueDate && !useInstallments) newErrors.dueDate = 'Due date is required';
+    if (finalAmount <= 0) newErrors.amount = 'Amount is required';
+    if (finalAmount > CONSTANTS.MAX_FEE_AMOUNT) newErrors.amount = 'Amount seems too high';
+    if (useInstallments && installmentsMismatch) newErrors.installments = `Total mismatch: ৳${installmentsTotal.toLocaleString()} ≠ ৳${finalAmount.toLocaleString()}`;
+    if ((isSemester || isOneTime) && !dueDate && !useInstallments) newErrors.dueDate = 'Due date is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -123,7 +169,6 @@ export const EducationFeeFormPage = () => {
     setSaving(true);
 
     try {
-      const finalAmount = usePerCredit ? perCreditTotal : Number(amount);
       if (usePerCredit) setSavedCreditRates({ regular: Number(regularRate), lab: Number(labRate) });
 
       let paymentPattern = typeConfig.defaultPattern;
@@ -137,7 +182,7 @@ export const EducationFeeFormPage = () => {
         paymentPattern,
         amount: finalAmount,
         dueDay, reminderDays,
-        alreadyPaidThisMonth: alreadyPaid,
+        alreadyPaidThisMonth: alreadyPaid && !useInstallments,
         ratePerClass: paymentMode === 'per_class' ? Number(ratePerClass) : null,
         semesterName, dueDate,
         isPerCredit: usePerCredit,
@@ -149,13 +194,13 @@ export const EducationFeeFormPage = () => {
         installmentData: useInstallments ? installments : null,
         dueMonth,
         isPaid, paidAt: isPaid ? paidDate : null,
-        initialPayment: (alreadyPaid || isPaid) ? {
+        initialPayment: (alreadyPaid || isPaid) && !useInstallments ? {
           amount: finalAmount, method: paymentMethod,
           paidAt: isPaid ? paidDate : new Date().toISOString(),
         } : null,
       };
 
-      if (useInstallments || typeConfig.defaultPattern === 'semester') {
+      if (useInstallments || isSemester) {
         addSemesterFee(feeData);
       } else {
         addFee(feeData);
@@ -172,6 +217,10 @@ export const EducationFeeFormPage = () => {
     }
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════
+
   if (!typeConfig) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
@@ -183,22 +232,14 @@ export const EducationFeeFormPage = () => {
     );
   }
 
-  const isRecurring = typeConfig.defaultPattern === 'recurring';
-  const isSemester = typeConfig.defaultPattern === 'semester';
-  const isYearly = typeConfig.defaultPattern === 'yearly';
-  const isOneTime = typeConfig.defaultPattern === 'one_time';
-  const supportsPerCredit = typeConfig.supportsPerCredit;
-  const supportsInstallments = typeConfig.supportsInstallments;
-  const supportsPerClass = typeConfig.allowedPatterns?.includes(PAYMENT_PATTERNS.PER_CLASS);
-
   return (
-    <motion.div {...pageTransition} className={`min-h-screen pb-24 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
+    <motion.div {...pageTransition} className={`min-h-screen pb-28 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => { haptics.light(); navigate('education-fees'); }}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800"
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition"
           >
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>
@@ -206,38 +247,39 @@ export const EducationFeeFormPage = () => {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto p-4">
+      <main className="max-w-md mx-auto p-4 space-y-6">
         {/* Icon & Description */}
-        <div className="text-center mb-6">
+        <div className="text-center py-4">
           <span className="text-5xl">{typeConfig.icon}</span>
           <p className="text-sm text-surface-500 mt-2">{typeConfig.desc}</p>
         </div>
 
-        {/* Name */}
-        <div className="mb-4">
+        {/* ═══ NAME ═══ */}
+        <div>
           <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-            {isRecurring ? 'School/Institution Name' : isSemester ? 'University Name' : 'Name'} (optional)
+            {isRecurring ? 'School/Institution Name' : isSemester ? 'University Name' : 'Name'}
+            <span className="text-surface-400 font-normal ml-1">(optional)</span>
           </label>
           <input
             type="text"
-            placeholder={isRecurring ? 'e.g., Dhaka Residential Model School' : isSemester ? 'e.g., North South University' : 'Enter name'}
+            placeholder={`e.g., ${isRecurring ? 'Dhaka College' : isSemester ? 'North South University' : 'Enter name'}`}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className={`w-full p-3 border rounded-xl text-sm outline-none focus:border-primary-600 ${
-              d ? 'bg-surface-800 border-surface-700 text-white' : 'bg-surface-100 border-surface-200 text-surface-900'
+            className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
+              d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
             }`}
           />
         </div>
 
-        {/* Semester Name */}
+        {/* ═══ SEMESTER NAME ═══ */}
         {isSemester && (
-          <div className="mb-4">
+          <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Semester</label>
             <select
               value={semesterName}
               onChange={(e) => setSemesterName(e.target.value)}
-              className={`w-full p-3 border rounded-xl text-sm outline-none focus:border-primary-600 ${
-                d ? 'bg-surface-800 border-surface-700 text-white' : 'bg-surface-100 border-surface-200 text-surface-900'
+              className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 ${
+                d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
               }`}
             >
               {SEMESTER_NAMES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -245,221 +287,312 @@ export const EducationFeeFormPage = () => {
           </div>
         )}
 
-        {/* Per-Class Toggle */}
+        {/* ═══ PER-CLASS TOGGLE ═══ */}
         {supportsPerClass && (
-          <div className="mb-4">
+          <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Payment Type</label>
             <div className="flex gap-2">
-              {['monthly', 'per_class'].map(m => (
+              {[
+                { id: 'monthly', label: '📅 Monthly' },
+                { id: 'per_class', label: '🎯 Per Class' },
+              ].map(opt => (
                 <button
-                  key={m}
-                  onClick={() => setPaymentMode(m)}
+                  key={opt.id}
+                  onClick={() => { haptics.light(); setPaymentMode(opt.id); }}
                   className={`flex-1 py-3 rounded-xl text-sm font-medium transition ${
-                    paymentMode === m ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'
+                    paymentMode === opt.id ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'
                   }`}
                 >
-                  {m === 'monthly' ? 'Monthly' : 'Per Class'}
+                  {opt.label}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Per-Credit Calculator */}
+        {/* ═══ PER-CREDIT TOGGLE ═══ */}
         {supportsPerCredit && (
-          <div className="mb-4">
-            <label className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer ${d ? 'bg-surface-800' : 'bg-surface-100'}`}>
-              <input type="checkbox" checked={usePerCredit} onChange={(e) => setUsePerCredit(e.target.checked)} className="w-5 h-5 accent-primary-600" />
-              <div>
-                <span className={`text-sm font-medium flex items-center gap-2 ${d ? 'text-white' : 'text-surface-900'}`}>
-                  <Calculator className="w-4 h-4" /> Calculate by credits
-                </span>
-                <p className="text-xs text-surface-500">For per-credit universities</p>
-              </div>
-            </label>
-          </div>
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => { haptics.light(); setUsePerCredit(!usePerCredit); }}
+            className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
+              usePerCredit
+                ? 'bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-500'
+                : `${d ? 'bg-surface-800' : 'bg-surface-100'} border-2 border-transparent`
+            }`}
+          >
+            <Calculator className={`w-5 h-5 ${usePerCredit ? 'text-primary-600' : 'text-surface-400'}`} />
+            <div className="text-left flex-1">
+              <p className={`text-sm font-medium ${usePerCredit ? 'text-primary-700 dark:text-primary-300' : d ? 'text-surface-300' : 'text-surface-700'}`}>
+                Calculate by credits
+              </p>
+              <p className="text-xs text-surface-500">For per-credit universities</p>
+            </div>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+              usePerCredit ? 'border-primary-600 bg-primary-600' : 'border-surface-300'
+            }`}>
+              {usePerCredit && <Check className="w-3 h-3 text-white" />}
+            </div>
+          </motion.button>
         )}
 
+        {/* ═══ PER-CREDIT CALCULATOR ═══ */}
         {usePerCredit && (
-          <div className={`mb-4 p-4 rounded-xl border ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
-            <div className="mb-4">
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className={`p-4 rounded-xl border space-y-4 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}
+          >
+            <div>
               <p className={`text-sm font-medium mb-2 ${d ? 'text-surface-300' : 'text-surface-700'}`}>Regular Credits</p>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-xs text-surface-500">Rate/credit</label>
-                  <div className={`flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700' : 'border-surface-200'}`}>
-                    <span className="text-surface-500 mr-1">৳</span>
-                    <input type="number" value={regularRate} onChange={(e) => setRegularRate(e.target.value)} className={`w-full bg-transparent outline-none ${d ? 'text-white' : 'text-surface-900'}`} />
+                  <label className="text-xs text-surface-500 mb-1 block">Rate/credit</label>
+                  <div className={`flex items-center border rounded-lg px-3 py-2.5 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
+                    <span className="text-surface-400 mr-1">৳</span>
+                    <input type="number" value={regularRate} onChange={(e) => setRegularRate(e.target.value)}
+                      className={`w-full bg-transparent outline-none text-sm ${d ? 'text-white' : 'text-surface-900'}`} />
                   </div>
                 </div>
-                <div className="w-20">
-                  <label className="text-xs text-surface-500">Credits</label>
-                  <input type="number" value={regularCredits} onChange={(e) => setRegularCredits(e.target.value)} className={`w-full border rounded-lg px-3 py-2 bg-transparent outline-none ${d ? 'border-surface-700 text-white' : 'border-surface-200 text-surface-900'}`} />
+                <div className="w-24">
+                  <label className="text-xs text-surface-500 mb-1 block">Credits</label>
+                  <input type="number" value={regularCredits} onChange={(e) => setRegularCredits(e.target.value)} placeholder="0"
+                    className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none ${d ? 'border-surface-700 bg-surface-800 text-white' : 'border-surface-200 bg-surface-50 text-surface-900'}`} />
                 </div>
               </div>
-              {regularRate && regularCredits && <p className="text-xs text-surface-500 mt-1">Subtotal: ৳{(Number(regularRate) * Number(regularCredits)).toLocaleString()}</p>}
+              {regularRate && regularCredits && (
+                <p className="text-xs text-surface-500 mt-1.5">= ৳{(Number(regularRate) * Number(regularCredits)).toLocaleString()}</p>
+              )}
             </div>
 
             {!showLabCredits ? (
-              <button onClick={() => setShowLabCredits(true)} className="text-sm text-primary-600 font-medium flex items-center gap-1">
+              <button onClick={() => setShowLabCredits(true)} className="text-sm text-primary-600 font-medium flex items-center gap-1.5">
                 <Plus className="w-4 h-4" /> Add Lab Credits
               </button>
             ) : (
-              <div className="mb-4">
+              <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Lab Credits</p>
-                  <button onClick={() => { setShowLabCredits(false); setLabCredits(''); }} className="text-xs text-danger-500">Remove</button>
+                  <button onClick={() => { setShowLabCredits(false); setLabCredits(''); }} className="text-xs text-danger-500 font-medium">Remove</button>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="text-xs text-surface-500">Rate/credit</label>
-                    <div className={`flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700' : 'border-surface-200'}`}>
-                      <span className="text-surface-500 mr-1">৳</span>
-                      <input type="number" value={labRate} onChange={(e) => setLabRate(e.target.value)} className={`w-full bg-transparent outline-none ${d ? 'text-white' : 'text-surface-900'}`} />
+                    <label className="text-xs text-surface-500 mb-1 block">Rate/credit</label>
+                    <div className={`flex items-center border rounded-lg px-3 py-2.5 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
+                      <span className="text-surface-400 mr-1">৳</span>
+                      <input type="number" value={labRate} onChange={(e) => setLabRate(e.target.value)}
+                        className={`w-full bg-transparent outline-none text-sm ${d ? 'text-white' : 'text-surface-900'}`} />
                     </div>
                   </div>
-                  <div className="w-20">
-                    <label className="text-xs text-surface-500">Credits</label>
-                    <input type="number" value={labCredits} onChange={(e) => setLabCredits(e.target.value)} className={`w-full border rounded-lg px-3 py-2 bg-transparent outline-none ${d ? 'border-surface-700 text-white' : 'border-surface-200 text-surface-900'}`} />
+                  <div className="w-24">
+                    <label className="text-xs text-surface-500 mb-1 block">Credits</label>
+                    <input type="number" value={labCredits} onChange={(e) => setLabCredits(e.target.value)} placeholder="0"
+                      className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none ${d ? 'border-surface-700 bg-surface-800 text-white' : 'border-surface-200 bg-surface-50 text-surface-900'}`} />
                   </div>
                 </div>
-                {labRate && labCredits && <p className="text-xs text-surface-500 mt-1">Subtotal: ৳{(Number(labRate) * Number(labCredits)).toLocaleString()}</p>}
+                {labRate && labCredits && (
+                  <p className="text-xs text-surface-500 mt-1.5">= ৳{(Number(labRate) * Number(labCredits)).toLocaleString()}</p>
+                )}
               </div>
             )}
 
-            <div className={`mt-4 pt-4 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
+            <div className={`pt-4 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
               <div className="flex items-center justify-between">
                 <span className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Total</span>
                 <span className="text-xl font-bold text-primary-600">৳{perCreditTotal.toLocaleString()}</span>
               </div>
-              <p className="text-xs text-surface-500 mt-1">Rates saved for next semester</p>
+              <p className="text-xs text-surface-500 mt-1 flex items-center gap-1">
+                <Info className="w-3 h-3" /> Rates saved for next semester
+              </p>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Amount (if not per-credit) */}
+        {/* ═══ AMOUNT INPUT ═══ */}
         {!usePerCredit && (
-          <div className="mb-4">
+          <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
               {paymentMode === 'per_class' ? 'Rate per class' : 'Amount'}
             </label>
-            <div className={`flex items-center border-2 rounded-xl px-4 py-3 focus-within:border-primary-600 ${
-              errors.amount ? 'border-danger-500' : d ? 'border-surface-700' : 'border-surface-200'
-            }`}>
-              <span className="text-xl text-surface-500 mr-2">৳</span>
+            <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${
+              errors.amount ? 'border-danger-500' : `${d ? 'border-surface-800' : 'border-surface-200'} focus-within:border-primary-500`
+            } ${d ? 'bg-surface-900' : 'bg-white'}`}>
+              <span className="text-xl text-surface-400 mr-2">৳</span>
               <input
-                type="number"
-                inputMode="numeric"
-                placeholder="0"
+                type="number" inputMode="numeric" placeholder="0"
                 value={paymentMode === 'per_class' ? ratePerClass : amount}
                 onChange={(e) => paymentMode === 'per_class' ? setRatePerClass(e.target.value) : setAmount(e.target.value)}
                 className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
               />
             </div>
-            {errors.amount && <p className="text-xs text-danger-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>}
+            {errors.amount && (
+              <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>
+            )}
           </div>
         )}
 
-        {/* Installments Toggle */}
+        {/* ═══ INSTALLMENTS ═══ */}
         {supportsInstallments && (
-          <div className="mb-4">
-            <label className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer ${d ? 'bg-surface-800' : 'bg-surface-100'}`}>
-              <input type="checkbox" checked={useInstallments} onChange={(e) => setUseInstallments(e.target.checked)} className="w-5 h-5 accent-primary-600" />
-              <div>
-                <span className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Pay in installments</span>
+          <>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { haptics.light(); setUseInstallments(!useInstallments); }}
+              className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
+                useInstallments
+                  ? 'bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-500'
+                  : `${d ? 'bg-surface-800' : 'bg-surface-100'} border-2 border-transparent`
+              }`}
+            >
+              <div className="text-2xl">📋</div>
+              <div className="text-left flex-1">
+                <p className={`text-sm font-medium ${useInstallments ? 'text-primary-700 dark:text-primary-300' : d ? 'text-surface-300' : 'text-surface-700'}`}>
+                  Pay in installments
+                </p>
                 <p className="text-xs text-surface-500">Split into 2-4 parts</p>
               </div>
-            </label>
-          </div>
-        )}
-
-        {/* Installments Setup */}
-        {useInstallments && (
-          <div className={`mb-4 p-4 rounded-xl border ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
-            <div className="flex items-center justify-between mb-4">
-              <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Number of parts</p>
-              <div className="flex gap-2">
-                {[2, 3, 4].map(n => (
-                  <button key={n} onClick={() => { setInstallmentCount(n); setCustomInstallmentAmounts(false); }}
-                    className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
-                      installmentCount === n ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'
-                    }`}>{n}</button>
-                ))}
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                useInstallments ? 'border-primary-600 bg-primary-600' : 'border-surface-300'
+              }`}>
+                {useInstallments && <Check className="w-3 h-3 text-white" />}
               </div>
-            </div>
+            </motion.button>
 
-            <label className="flex items-center gap-2 mb-4 cursor-pointer">
-              <input type="checkbox" checked={customInstallmentAmounts} onChange={(e) => setCustomInstallmentAmounts(e.target.checked)} className="w-4 h-4 accent-primary-600" />
-              <span className="text-sm text-surface-500">Customize amounts</span>
-            </label>
-
-            <div className="space-y-3">
-              {installments.map((inst, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-sm text-surface-500 w-14">Part {inst.part}</span>
-                  <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700' : 'border-surface-200'}`}>
-                    <span className="text-surface-500 mr-1">৳</span>
-                    <input type="number" value={inst.amount}
-                      onChange={(e) => { setCustomInstallmentAmounts(true); updateInstallment(i, 'amount', Number(e.target.value)); }}
-                      disabled={!customInstallmentAmounts}
-                      className={`w-full bg-transparent outline-none text-sm ${d ? 'text-white' : 'text-surface-900'}`} />
+            {useInstallments && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className={`p-4 rounded-xl border space-y-4 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Number of parts</p>
+                  <div className="flex gap-2">
+                    {[2, 3, 4].map(n => (
+                      <button key={n} onClick={() => { haptics.light(); setInstallmentCount(n); setCustomInstallmentAmounts(false); }}
+                        className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
+                          installmentCount === n ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'
+                        }`}>{n}</button>
+                    ))}
                   </div>
-                  <input type="date" value={inst.dueDate} onChange={(e) => updateInstallment(i, 'dueDate', e.target.value)}
-                    className={`w-28 border rounded-lg px-2 py-2 text-xs bg-transparent ${d ? 'border-surface-700 text-white' : 'border-surface-200 text-surface-900'}`} />
-                  {i === 0 && (
-                    <label className="flex items-center gap-1">
-                      <input type="checkbox" checked={inst.isPaid} onChange={(e) => updateInstallment(i, 'isPaid', e.target.checked)} className="w-4 h-4 accent-primary-600" />
-                      <span className="text-xs text-surface-500">Paid</span>
-                    </label>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={customInstallmentAmounts}
+                    onChange={(e) => setCustomInstallmentAmounts(e.target.checked)}
+                    className="w-4 h-4 accent-primary-600 rounded" />
+                  <span className="text-sm text-surface-500">Customize amounts</span>
+                </label>
+
+                <div className="space-y-3">
+                  {installments.map((inst, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs text-surface-500 w-14">Part {inst.part}</span>
+                      <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
+                        <span className="text-surface-400 mr-1 text-sm">৳</span>
+                        <input type="number" value={inst.amount}
+                          onChange={(e) => { setCustomInstallmentAmounts(true); updateInstallment(i, 'amount', e.target.value); }}
+                          disabled={!customInstallmentAmounts}
+                          className={`w-full bg-transparent outline-none text-sm disabled:text-surface-400 ${d ? 'text-white' : 'text-surface-900'}`} />
+                      </div>
+                      <input type="date" value={inst.dueDate}
+                        onChange={(e) => updateInstallment(i, 'dueDate', e.target.value)}
+                        className={`w-28 border rounded-lg px-2 py-2 text-xs ${d ? 'border-surface-700 bg-surface-800 text-white' : 'border-surface-200 bg-surface-50 text-surface-900'}`} />
+                      {i === 0 && (
+                        <label className="flex items-center gap-1 shrink-0">
+                          <input type="checkbox" checked={inst.isPaid}
+                            onChange={(e) => updateInstallment(i, 'isPaid', e.target.checked)}
+                            className="w-4 h-4 accent-primary-600" />
+                          <span className="text-xs text-surface-500">Paid</span>
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className={`pt-3 border-t ${installmentsMismatch ? 'border-danger-200' : d ? 'border-surface-800' : 'border-surface-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-surface-500">Total</span>
+                    <span className={`font-medium ${installmentsMismatch ? 'text-danger-500' : d ? 'text-white' : 'text-surface-900'}`}>
+                      ৳{installmentsTotal.toLocaleString()}
+                    </span>
+                  </div>
+                  {installmentsMismatch && (
+                    <p className="text-xs text-danger-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Must equal ৳{finalAmount.toLocaleString()}
+                    </p>
+                  )}
+                  {!installmentsMismatch && installments.length > 0 && (
+                    <p className="text-xs text-success-500 mt-1 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Amounts match
+                    </p>
                   )}
                 </div>
-              ))}
-            </div>
-
-            <div className={`mt-4 pt-4 border-t ${installmentsMismatch ? 'border-danger-200' : d ? 'border-surface-800' : 'border-surface-200'}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-500">Total</span>
-                <span className={`font-medium ${installmentsMismatch ? 'text-danger-500' : d ? 'text-white' : 'text-surface-900'}`}>
-                  ৳{installmentsTotal.toLocaleString()}
-                  {installmentsMismatch && <span className="text-xs ml-1">(should be ৳{expectedTotal.toLocaleString()})</span>}
-                </span>
-              </div>
-              {installmentsMismatch && <p className="text-xs text-danger-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Installments must equal total amount</p>}
-              {!installmentsMismatch && installments.length > 0 && <p className="text-xs text-success-500 mt-1 flex items-center gap-1"><Check className="w-3 h-3" />Amounts match</p>}
-            </div>
-          </div>
+              </motion.div>
+            )}
+          </>
         )}
 
-        {/* Due Date (semester/one-time without installments) */}
+        {/* ═══ DUE DATE (Semester/One-time) ═══ */}
         {(isSemester || isOneTime) && !useInstallments && (
-          <div className="mb-4">
+          <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Due Date</label>
             <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-              className={`w-full p-3 border rounded-xl text-sm outline-none focus:border-primary-600 ${
-                errors.dueDate ? 'border-danger-500' : d ? 'bg-surface-800 border-surface-700 text-white' : 'bg-surface-100 border-surface-200 text-surface-900'
+              className={`w-full p-3.5 border rounded-xl text-sm outline-none transition ${
+                errors.dueDate ? 'border-danger-500' : `${d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'} focus:border-primary-500`
               }`} />
             {errors.dueDate && <p className="text-xs text-danger-500 mt-1">{errors.dueDate}</p>}
           </div>
         )}
 
-        {/* Due Day (recurring) */}
+        {/* ═══ DUE MONTH (Yearly) ═══ */}
+        {isYearly && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Due Month</label>
+              <select value={dueMonth} onChange={(e) => setDueMonth(Number(e.target.value))}
+                className={`w-full p-3.5 border rounded-xl text-sm ${d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'}`}>
+                {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Due Day</label>
+              <select value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))}
+                className={`w-full p-3.5 border rounded-xl text-sm ${d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'}`}>
+                {Array.from({ length: 28 }, (_, i) => i + 1).map(dd => (
+                  <option key={dd} value={dd}>{dd}{getDaySuffix(dd)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ RECURRING SETTINGS ═══ */}
         {isRecurring && (
           <>
-            <div className={`border-t my-6 ${d ? 'border-surface-800' : 'border-surface-200'}`} />
-            <p className={`text-sm font-medium mb-4 ${d ? 'text-surface-300' : 'text-surface-700'}`}>This is a monthly payment</p>
-            <div className="mb-4">
-              <label className="text-sm text-surface-500 mb-2 flex items-center gap-2"><Calendar className="w-4 h-4" />Due day of month</label>
-              <div className="flex items-center gap-3">
-                <input type="range" min="1" max="28" value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))} className="flex-1 accent-primary-600" />
-                <span className={`w-12 text-center font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>{dueDay}{getDaySuffix(dueDay)}</span>
+            <div className={`h-px ${d ? 'bg-surface-800' : 'bg-surface-200'}`} />
+            <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Monthly payment settings</p>
+
+            <div>
+              <label className="text-sm text-surface-500 mb-2 flex items-center gap-2">
+                <Calendar className="w-4 h-4" /> Due day of month
+              </label>
+              <div className="flex items-center gap-4">
+                <input type="range" min="1" max="28" value={dueDay}
+                  onChange={(e) => setDueDay(Number(e.target.value))}
+                  className="flex-1 accent-primary-600 h-2" />
+                <span className={`w-14 text-center font-semibold rounded-lg py-1.5 ${d ? 'text-white bg-surface-800' : 'text-surface-900 bg-surface-100'}`}>
+                  {dueDay}{getDaySuffix(dueDay)}
+                </span>
               </div>
             </div>
-            <div className="mb-6">
-              <label className="text-sm text-surface-500 mb-2 flex items-center gap-2"><Bell className="w-4 h-4" />Remind me before</label>
+
+            <div>
+              <label className="text-sm text-surface-500 mb-2 flex items-center gap-2">
+                <Bell className="w-4 h-4" /> Remind me before
+              </label>
               <div className="flex gap-2">
                 {[1, 2, 3, 5, 7].map(days => (
                   <button key={days} onClick={() => { haptics.light(); setReminderDays(days); }}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
                       reminderDays === days ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'
                     }`}>{days}d</button>
                 ))}
@@ -468,37 +601,39 @@ export const EducationFeeFormPage = () => {
           </>
         )}
 
-        {/* Due Month (yearly) */}
-        {isYearly && (
-          <div className="mb-4">
-            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Due Month</label>
-            <select value={dueMonth} onChange={(e) => setDueMonth(Number(e.target.value))}
-              className={`w-full p-3 border rounded-xl text-sm outline-none focus:border-primary-600 ${d ? 'bg-surface-800 border-surface-700 text-white' : 'bg-surface-100 border-surface-200 text-surface-900'}`}>
-              {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </div>
-        )}
-
-        {/* Already Paid */}
+        {/* ═══ ALREADY PAID ═══ */}
         {(isRecurring || isOneTime) && !useInstallments && (
-          <label className={`flex items-center gap-3 p-4 rounded-xl mb-6 cursor-pointer ${d ? 'bg-surface-800' : 'bg-surface-100'}`}>
-            <input type="checkbox" checked={isRecurring ? alreadyPaid : isPaid}
-              onChange={(e) => isRecurring ? setAlreadyPaid(e.target.checked) : setIsPaid(e.target.checked)}
-              className="w-5 h-5 accent-primary-600" />
-            <span className={`text-sm ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => { haptics.light(); isRecurring ? setAlreadyPaid(!alreadyPaid) : setIsPaid(!isPaid); }}
+            className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
+              (alreadyPaid || isPaid)
+                ? 'bg-success-50 dark:bg-success-900/20 border-2 border-success-500'
+                : `${d ? 'bg-surface-800' : 'bg-surface-100'} border-2 border-transparent`
+            }`}
+          >
+            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
+              (alreadyPaid || isPaid) ? 'border-success-600 bg-success-600' : 'border-surface-300'
+            }`}>
+              {(alreadyPaid || isPaid) && <Check className="w-3 h-3 text-white" />}
+            </div>
+            <span className={`text-sm ${(alreadyPaid || isPaid) ? 'text-success-700 dark:text-success-300' : d ? 'text-surface-300' : 'text-surface-700'}`}>
               {isRecurring ? 'I already paid this month' : 'I already paid this'}
             </span>
-          </label>
+          </motion.button>
         )}
 
-        {/* Payment Method */}
+        {/* ═══ PAYMENT METHOD ═══ */}
         {(alreadyPaid || isPaid || (useInstallments && installments[0]?.isPaid)) && (
-          <div className="mb-6">
-            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Payment Method (optional)</label>
+          <div>
+            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+              Payment method <span className="text-surface-400 font-normal">(optional)</span>
+            </label>
             <div className="flex flex-wrap gap-2">
               {PAYMENT_METHODS.map(method => (
-                <button key={method.id} onClick={() => { haptics.light(); setPaymentMethod(method.id); }}
-                  className={`px-4 py-2 rounded-full text-sm transition ${
+                <button key={method.id}
+                  onClick={() => { haptics.light(); setPaymentMethod(paymentMethod === method.id ? null : method.id); }}
+                  className={`px-4 py-2.5 rounded-full text-sm font-medium transition ${
                     paymentMethod === method.id ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'
                   }`}>{method.icon} {method.label}</button>
               ))}
@@ -507,10 +642,19 @@ export const EducationFeeFormPage = () => {
         )}
       </main>
 
-      {/* Save */}
+      {/* ═══ SAVE BUTTON ═══ */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-t border-surface-200 dark:border-surface-800">
         <div className="max-w-md mx-auto">
-          <GButton fullWidth size="lg" onClick={handleSave} loading={saving} disabled={saving || (useInstallments && installmentsMismatch)}>
+          {finalAmount > 0 && (
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-sm text-surface-500">
+                {isRecurring ? 'Monthly' : isSemester ? 'Semester' : isYearly ? 'Yearly' : 'Total'}
+              </span>
+              <span className="text-lg font-bold text-primary-600">৳{finalAmount.toLocaleString()}</span>
+            </div>
+          )}
+          <GButton fullWidth size="lg" onClick={handleSave} loading={saving}
+            disabled={saving || (useInstallments && installmentsMismatch) || finalAmount <= 0}>
             Save
           </GButton>
         </div>

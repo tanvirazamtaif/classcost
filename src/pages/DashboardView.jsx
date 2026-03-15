@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, AlertCircle, CreditCard } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { Header, LayoutBottomNav, Sidebar } from '../components/layout';
 import { FAB, GCard, GCardContent, GButton } from '../components/ui';
@@ -8,7 +8,9 @@ import { AddPaymentSheet, PaymentCard, QuickEntrySheet } from '../components/fea
 import { stagger, fadeInUp } from '../lib/animations';
 import { makeFmt } from '../utils/format';
 import { useEducationFees } from '../contexts/EducationFeeContext';
+import { STATUS_CONFIG } from '../types/educationFees';
 import { MarkPaidSheet } from '../components/education/MarkPaidSheet';
+import { SkipPeriodSheet } from '../components/education/SkipPeriodSheet';
 
 export const DashboardView = () => {
   const { user, expenses, theme, navigate, getUpcomingPayments, markScheduledAsPaid } = useApp();
@@ -17,9 +19,11 @@ export const DashboardView = () => {
   const [preselectedCategory, setPreselectedCategory] = useState('');
   const [quickEntryCategory, setQuickEntryCategory] = useState(null);
   const [selectedEduPayment, setSelectedEduPayment] = useState(null);
+  const [showMarkPaid, setShowMarkPaid] = useState(false);
+  const [showSkipSheet, setShowSkipSheet] = useState(false);
   const d = theme === 'dark';
 
-  const { getUpcomingPayments: eduUpcoming, getTotalPaidThisMonth: eduMonthly } = useEducationFees();
+  const { getUpcomingPayments: eduUpcoming, getOverduePayments: overduePayments, getTotalPaidThisMonth: eduMonthly } = useEducationFees();
 
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || 'BDT');
@@ -65,11 +69,9 @@ export const DashboardView = () => {
   };
 
   const handleOpenForm = (categoryId) => {
-    // Full entry pages for Education, Housing, Books
     if (categoryId === 'education') return navigate('education-fees');
     if (categoryId === 'hostel') return navigate('housing-entry');
     if (categoryId === 'books') return navigate('books-entry');
-    // Quick entry sheet for Transport, Food
     if (categoryId === 'transport' || categoryId === 'canteen') {
       setQuickEntryCategory(categoryId);
       return;
@@ -78,7 +80,6 @@ export const DashboardView = () => {
     setSheetOpen(true);
   };
 
-  // Category quick-access buttons
   const quickCategories = [
     { id: 'education', icon: '🎓', label: 'Education', bg: 'bg-purple-100 dark:bg-purple-900/30' },
     { id: 'transport', icon: '🚌', label: 'Transport', bg: 'bg-blue-100 dark:bg-blue-900/30' },
@@ -161,40 +162,142 @@ export const DashboardView = () => {
           </motion.section>
         )}
 
-        {/* Education Fee Upcoming */}
-        {eduUpcoming.length > 0 && (
+        {/* Education Fee Section */}
+        {(overduePayments.length > 0 || eduUpcoming.length > 0) && (
           <motion.section variants={fadeInUp} className="mb-6">
+            {/* Overdue Alert */}
+            {overduePayments.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-3 p-3 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-xl"
+              >
+                <div className="flex items-center gap-2 text-danger-700 dark:text-danger-300">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    {overduePayments.length} overdue payment{overduePayments.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Section Header */}
             <div className="flex items-center justify-between mb-3">
-              <h2 className={`text-sm font-medium ${d ? 'text-surface-400' : 'text-surface-500'}`}>Education Fees Due</h2>
-              <button onClick={() => navigate('education-fees')} className="text-xs text-primary-600 font-medium">Manage</button>
+              <h2 className={`text-sm font-semibold ${d ? 'text-surface-400' : 'text-surface-500'} uppercase tracking-wide`}>
+                Education Fees
+              </h2>
+              <button onClick={() => navigate('education-fees')} className="text-xs text-primary-600 font-medium">
+                + Add Fee
+              </button>
             </div>
-            <div className="space-y-2">
-              {eduUpcoming.slice(0, 3).map((payment, i) => (
-                <GCard key={payment.fee.id + (payment.period || i)}>
-                  <GCardContent className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{payment.fee.icon}</span>
-                      <div>
-                        <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
-                          {payment.fee.name || payment.fee.feeType}
+
+            {/* Upcoming Education Payments */}
+            <div className="space-y-3">
+              {eduUpcoming.slice(0, 5).map((payment, index) => {
+                const sc = STATUS_CONFIG[payment.status] || STATUS_CONFIG.upcoming;
+                const isOverdue = payment.status === 'overdue';
+                const isPartial = payment.status === 'partial';
+
+                return (
+                  <motion.div
+                    key={`${payment.fee.id}-${payment.period || payment.installment?.id || index}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={`p-4 rounded-xl border transition ${
+                      isOverdue
+                        ? 'bg-danger-50 dark:bg-danger-900/10 border-danger-200 dark:border-danger-800'
+                        : d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{payment.fee.icon}</span>
+                        <div>
+                          <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
+                            {payment.fee.name || payment.fee.feeType}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={`text-xs font-medium ${sc.textClass}`}>
+                              {sc.icon} {sc.label}
+                            </span>
+                            {payment.type === 'installment' && (
+                              <span className="text-xs text-surface-400">Part {payment.installment.part}</span>
+                            )}
+                            {payment.daysUntilDue !== undefined && (
+                              <span className="text-xs text-surface-400">
+                                {payment.daysUntilDue === 0 ? 'Today' :
+                                 payment.daysUntilDue === 1 ? 'Tomorrow' :
+                                 payment.daysUntilDue < 0 ? `${Math.abs(payment.daysUntilDue)}d ago` :
+                                 `${payment.daysUntilDue}d left`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className={`font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>
+                          ৳{(payment.remainingAmount || payment.amount || 0).toLocaleString()}
                         </p>
-                        <p className="text-xs text-surface-500">
-                          {currencySymbol}{(payment.remainingAmount || 0).toLocaleString()} · {
-                            payment.status === 'overdue' ? `${Math.abs(payment.daysUntilDue)}d overdue` :
-                            payment.daysUntilDue === 0 ? 'Due today!' :
-                            `Due in ${payment.daysUntilDue}d`
-                          }
-                        </p>
+                        {isPartial && (
+                          <p className="text-xs text-warning-600">of ৳{payment.amount.toLocaleString()}</p>
+                        )}
                       </div>
                     </div>
-                    <GButton size="sm" variant="secondary" onClick={() => setSelectedEduPayment(payment)}>
-                      <Check className="w-4 h-4 mr-1" /> Pay
-                    </GButton>
-                  </GCardContent>
-                </GCard>
-              ))}
+
+                    {/* Actions */}
+                    <div className="flex gap-2 mt-3">
+                      <GButton
+                        size="sm"
+                        onClick={() => {
+                          setSelectedEduPayment(payment);
+                          setShowMarkPaid(true);
+                        }}
+                        className="flex-1"
+                      >
+                        <CreditCard className="w-4 h-4 mr-1.5" />
+                        {payment.type === 'per_class' ? 'Record Classes' : 'Pay'}
+                      </GButton>
+
+                      {payment.type === 'recurring' && (
+                        <GButton
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setSelectedEduPayment(payment);
+                            setShowSkipSheet(true);
+                          }}
+                        >
+                          Skip
+                        </GButton>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
+
+            {eduUpcoming.length > 5 && (
+              <button onClick={() => navigate('education-fees')} className="w-full mt-3 py-2 text-sm text-primary-600 font-medium">
+                View all {eduUpcoming.length} payments
+              </button>
+            )}
           </motion.section>
+        )}
+
+        {/* Education Empty State */}
+        {eduUpcoming.length === 0 && (getUpcomingPayments?.() || []).length === 0 && expenses.filter(e => !e.isHistorical).length === 0 && (
+          <motion.div variants={fadeInUp} className={`p-6 rounded-xl border-2 border-dashed text-center mb-6 ${
+            d ? 'bg-surface-900 border-surface-800' : 'bg-surface-50 border-surface-200'
+          }`}>
+            <span className="text-4xl">🎓</span>
+            <p className={`mt-2 font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>No education fees yet</p>
+            <p className="text-sm text-surface-500 mt-1">Add your school, college, or tuition fees to start tracking</p>
+            <GButton onClick={() => navigate('education-fees')} className="mt-4">
+              Add Education Fee
+            </GButton>
+          </motion.div>
         )}
 
         {/* Recent Expenses */}
@@ -248,8 +351,13 @@ export const DashboardView = () => {
         categoryId={quickEntryCategory || 'transport'}
       />
       <MarkPaidSheet
-        isOpen={!!selectedEduPayment}
-        onClose={() => setSelectedEduPayment(null)}
+        isOpen={showMarkPaid}
+        onClose={() => { setShowMarkPaid(false); setSelectedEduPayment(null); }}
+        upcomingPayment={selectedEduPayment}
+      />
+      <SkipPeriodSheet
+        isOpen={showSkipSheet}
+        onClose={() => { setShowSkipSheet(false); setSelectedEduPayment(null); }}
         upcomingPayment={selectedEduPayment}
       />
     </div>
