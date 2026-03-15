@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, User, Mail, Calendar, Clock,
+  ArrowLeft, User, Mail, Calendar, Clock, AtSign,
   GraduationCap, Building, BookOpen, CreditCard, Receipt,
   Wallet, AlertCircle, CheckCircle,
   Edit, RefreshCw, Crown,
@@ -213,6 +213,7 @@ export const AdminUserDetailPage = ({ userId, onBack }) => {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   <InfoCard icon={User} label="Full Name" value={user.name} />
+                  <InfoCard icon={AtSign} label="Nickname" value={user.profile?.nickname || user.nickname || '—'} />
                   <InfoCard icon={Mail} label="Email" value={user.email} />
                   <InfoCard icon={CreditCard} label="Currency" value={currency} />
                 </div>
