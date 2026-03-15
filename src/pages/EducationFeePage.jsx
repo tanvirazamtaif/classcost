@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, ChevronDown, ChevronRight, ChevronUp, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Plus, Search, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import {
@@ -15,17 +15,25 @@ import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 
 export const EducationFeePage = () => {
-  const { navigate, theme, educationLevel, setEducationLevel } = useApp();
+  const { navigate, theme, educationLevel, setEducationLevel, educationLevelAsked, setEducationLevelAsked } = useApp();
   const { activeFees } = useEducationFees();
   const d = theme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomSheet, setShowCustomSheet] = useState(false);
-  const [showLevelPicker, setShowLevelPicker] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [showLevelPopup, setShowLevelPopup] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customIcon, setCustomIcon] = useState('📌');
   const [customPattern, setCustomPattern] = useState(PAYMENT_PATTERNS.RECURRING);
+
+  // Show popup if education level not set and not asked before
+  useEffect(() => {
+    if (!educationLevel && !educationLevelAsked) {
+      const timer = setTimeout(() => setShowLevelPopup(true), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [educationLevel, educationLevelAsked]);
 
   // Get relevant and hidden fee types
   const relevantTypes = useMemo(() => getFeeTypesForLevel(educationLevel), [educationLevel]);
@@ -58,6 +66,13 @@ export const EducationFeePage = () => {
     navigate('education-fee-form', { params: { feeType: type } });
   };
 
+  const handleSelectLevel = (levelId) => {
+    haptics.success();
+    setEducationLevel(levelId);
+    setEducationLevelAsked(true);
+    setShowLevelPopup(false);
+  };
+
   const handleSaveCustom = () => {
     if (!customName.trim()) return;
     haptics.success();
@@ -88,7 +103,14 @@ export const EducationFeePage = () => {
           >
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>
-          <h1 className={`text-lg font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Education Fees</h1>
+          <div className="flex-1">
+            <h1 className={`text-lg font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Education Fees</h1>
+            {currentLevel && (
+              <p className="text-xs text-surface-500">
+                {currentLevel.icon} {currentLevel.label}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Search */}
@@ -114,26 +136,6 @@ export const EducationFeePage = () => {
       </header>
 
       <main className="max-w-md mx-auto p-4">
-        {/* Education Level Selector */}
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowLevelPicker(true)}
-          className={`w-full flex items-center justify-between p-4 mb-4 rounded-xl border transition ${
-            d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{currentLevel?.icon || '📋'}</span>
-            <div className="text-left">
-              <p className="text-xs text-surface-500">I'm studying in</p>
-              <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
-                {currentLevel?.label || 'Select Level'}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-surface-400" />
-        </motion.button>
-
         {/* Active Fees Count */}
         {activeFees.length > 0 && (
           <div className="mb-4 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-xl">
@@ -277,7 +279,6 @@ export const EducationFeePage = () => {
       {/* Custom Type Sheet */}
       <BottomSheet isOpen={showCustomSheet} onClose={() => setShowCustomSheet(false)} title="Add Custom Fee Type">
         <div className="space-y-4">
-          {/* Icon */}
           <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Icon</label>
             <div className="flex flex-wrap gap-2">
@@ -295,7 +296,6 @@ export const EducationFeePage = () => {
             </div>
           </div>
 
-          {/* Name */}
           <div>
             <label className={`text-sm font-medium mb-1 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Name</label>
             <input
@@ -307,7 +307,6 @@ export const EducationFeePage = () => {
             />
           </div>
 
-          {/* Pattern */}
           <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Payment Type</label>
             <div className="grid grid-cols-2 gap-2">
@@ -336,76 +335,74 @@ export const EducationFeePage = () => {
         </div>
       </BottomSheet>
 
-      {/* Education Level Picker */}
-      <BottomSheet
-        isOpen={showLevelPicker}
-        onClose={() => setShowLevelPicker(false)}
-        title="Select Education Level"
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-surface-500 mb-4">
-            We'll show relevant fee types for you
-          </p>
+      {/* Education Level Popup (Floating Modal) */}
+      <AnimatePresence>
+        {showLevelPopup && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-50"
+            />
 
-          {/* Show All Option */}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              haptics.success();
-              setEducationLevel(null);
-              setShowLevelPicker(false);
-            }}
-            className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
-              !educationLevel
-                ? 'bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-500'
-                : 'bg-surface-50 dark:bg-surface-800'
-            }`}
-          >
-            <span className="text-2xl">📋</span>
-            <div className="text-left flex-1">
-              <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Show All</p>
-              <p className="text-xs text-surface-500">All fee types</p>
-            </div>
-            {!educationLevel && (
-              <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center">
-                <Check className="w-3 h-3 text-white" />
-              </div>
-            )}
-          </motion.button>
-
-          {EDUCATION_LEVELS.map((level) => (
-            <motion.button
-              key={level.id}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                haptics.success();
-                setEducationLevel(level.id);
-                setShowLevelPicker(false);
-              }}
-              className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
-                educationLevel === level.id
-                  ? 'bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-500'
-                  : 'bg-surface-50 dark:bg-surface-800'
-              }`}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-sm mx-auto"
             >
-              <span className="text-2xl">{level.icon}</span>
-              <div className="text-left flex-1">
-                <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{level.label}</p>
-                <p className="text-xs text-surface-500">{level.desc}</p>
-              </div>
-              {educationLevel === level.id && (
-                <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center">
-                  <Check className="w-3 h-3 text-white" />
+              <div className={`rounded-2xl p-6 shadow-2xl ${d ? 'bg-surface-900' : 'bg-white'}`}>
+                <div className="text-center mb-6">
+                  <span className="text-5xl">🎓</span>
+                  <h2 className={`text-xl font-bold mt-3 ${d ? 'text-white' : 'text-surface-900'}`}>
+                    Where are you studying?
+                  </h2>
+                  <p className="text-sm text-surface-500 mt-1">
+                    We'll show relevant fee types for you
+                  </p>
                 </div>
-              )}
-            </motion.button>
-          ))}
 
-          <p className="text-xs text-surface-400 text-center pt-2">
-            You can change this anytime
-          </p>
-        </div>
-      </BottomSheet>
+                <div className="space-y-3">
+                  {EDUCATION_LEVELS.map((level) => (
+                    <motion.button
+                      key={level.id}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleSelectLevel(level.id)}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl transition ${
+                        d ? 'bg-surface-800 hover:bg-primary-900/20' : 'bg-surface-50 hover:bg-primary-50'
+                      }`}
+                    >
+                      <span className="text-3xl">{level.icon}</span>
+                      <div className="text-left">
+                        <p className={`font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>
+                          {level.label}
+                        </p>
+                        <p className="text-xs text-surface-500">{level.desc}</p>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEducationLevel(null);
+                    setEducationLevelAsked(true);
+                    setShowLevelPopup(false);
+                  }}
+                  className="w-full mt-4 py-2 text-sm text-surface-400 hover:text-surface-600"
+                >
+                  Show all fee types instead
+                </button>
+
+                <p className="text-xs text-surface-400 text-center mt-3">
+                  You can change this in Settings
+                </p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

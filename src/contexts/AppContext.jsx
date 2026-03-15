@@ -74,6 +74,7 @@ export const AppProvider = ({ children }) => {
   const [pendingAccountType, setPendingAccountType] = useState(null); // temp during signup
   const [signupMethod, setSignupMethod] = useState(null); // 'email' | 'google' | null
   const [educationLevel, setEducationLevel] = useLocalStorage('classcost_education_level', null);
+  const [educationLevelAsked, setEducationLevelAsked] = useLocalStorage('classcost_education_level_asked', false);
   const [theme, setThemeLocal] = useLocalStorage("ut_v3_theme", "dark");
   const { toasts, addToast } = useToast();
 
@@ -403,6 +404,7 @@ export const AppProvider = ({ children }) => {
     updateScheduledPayment, markScheduledAsPaid, getUpcomingPayments,
     entries, addEntry, updateEntry, deleteEntry, getEntriesByCategory,
     educationLevel, setEducationLevel,
+    educationLevelAsked, setEducationLevelAsked,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

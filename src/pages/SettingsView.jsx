@@ -3,16 +3,19 @@ import { useApp } from '../contexts/AppContext';
 import { EDU, CURRENCIES, PROMOTION_CONFIG } from '../constants';
 import { makeFmt, todayStr } from '../utils';
 import { Btn, Card, Input, Badge, Toggle } from '../components/ui';
+import { BottomSheet } from '../components/ui';
 import { redeemPromoCode } from '../api';
+import { EDUCATION_LEVELS } from '../types/educationFees';
 
 const SettingsView = () => {
   useEffect(() => { document.title = "Settings — ClassCost"; }, []);
-  const { user, setUser, notifications, setNotifications, navigate, addToast, generateInviteCode } = useApp();
+  const { user, setUser, notifications, setNotifications, navigate, addToast, generateInviteCode, educationLevel, setEducationLevel } = useApp();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];
   const trialDays=user?.trialStart?Math.max(0,90-Math.floor((Date.now()-user.trialStart)/86400000)):90;
   const cfg = PROMOTION_CONFIG[profile?.educationLevel] || {};
   const [showLevelPicker, setShowLevelPicker] = useState(false);
+  const [showEduLevelPicker, setShowEduLevelPicker] = useState(false);
 
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
@@ -122,6 +125,27 @@ const SettingsView = () => {
             </div>
           </div>
         )}
+      </Card>
+
+      <Card className="p-5">
+        <h3 className="text-sm font-bold text-slate-700 mb-3">🎓 Education Level</h3>
+        <button
+          onClick={() => setShowEduLevelPicker(true)}
+          className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">
+              {EDUCATION_LEVELS.find(l => l.id === educationLevel)?.icon || '📋'}
+            </span>
+            <div className="text-left">
+              <p className="text-xs text-slate-400">Fee types filter</p>
+              <p className="font-bold text-sm text-slate-800">
+                {EDUCATION_LEVELS.find(l => l.id === educationLevel)?.label || 'Show All'}
+              </p>
+            </div>
+          </div>
+          <span className="text-slate-400">›</span>
+        </button>
       </Card>
 
       <Card className="p-5">
@@ -254,6 +278,53 @@ const SettingsView = () => {
       </Card>
 
       <div className="text-center text-slate-300 text-xs py-2">ClassCost v1.0</div>
+
+      <BottomSheet isOpen={showEduLevelPicker} onClose={() => setShowEduLevelPicker(false)} title="Education Level">
+        <div className="space-y-3">
+          {EDUCATION_LEVELS.map((level) => (
+            <button
+              key={level.id}
+              onClick={() => {
+                setEducationLevel(level.id);
+                setShowEduLevelPicker(false);
+                addToast(`Education level: ${level.label}`, 'success');
+              }}
+              className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
+                educationLevel === level.id
+                  ? 'bg-indigo-50 ring-2 ring-indigo-500'
+                  : 'bg-slate-50 hover:bg-slate-100'
+              }`}
+            >
+              <span className="text-2xl">{level.icon}</span>
+              <div className="text-left flex-1">
+                <p className={`font-bold text-sm ${educationLevel === level.id ? 'text-indigo-700' : 'text-slate-700'}`}>{level.label}</p>
+                <p className="text-xs text-slate-400">{level.desc}</p>
+              </div>
+              {educationLevel === level.id && <span className="text-indigo-600 text-sm">✓</span>}
+            </button>
+          ))}
+
+          <button
+            onClick={() => {
+              setEducationLevel(null);
+              setShowEduLevelPicker(false);
+              addToast('Showing all fee types', 'success');
+            }}
+            className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
+              !educationLevel
+                ? 'bg-indigo-50 ring-2 ring-indigo-500'
+                : 'bg-slate-50 hover:bg-slate-100'
+            }`}
+          >
+            <span className="text-2xl">📋</span>
+            <div className="text-left flex-1">
+              <p className={`font-bold text-sm ${!educationLevel ? 'text-indigo-700' : 'text-slate-700'}`}>Show All</p>
+              <p className="text-xs text-slate-400">All fee types</p>
+            </div>
+            {!educationLevel && <span className="text-indigo-600 text-sm">✓</span>}
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   );
 };
