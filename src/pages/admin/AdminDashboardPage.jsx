@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Users, TrendingUp, DollarSign, GraduationCap,
   LogOut, Search, ChevronLeft, ChevronRight,
-  Activity, Eye, RefreshCw, X, BookOpen, Landmark,
-  Crown, Calendar,
+  Activity, RefreshCw, BookOpen, Landmark,
+  Crown, Calendar, ExternalLink,
 } from 'lucide-react';
 import { useAdmin } from '../../contexts/AdminContext';
+import AdminUserDetailPage from './AdminUserDetailPage';
 
 export const AdminDashboardPage = () => {
   const { adminFetch, logout } = useAdmin();
@@ -15,7 +16,7 @@ export const AdminDashboardPage = () => {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch dashboard stats
@@ -46,16 +47,15 @@ export const AdminDashboardPage = () => {
     }
   }, [adminFetch]);
 
-  // Fetch user details
-  const fetchUserDetails = useCallback(async (userId) => {
-    try {
-      const res = await adminFetch(`/api/admin/users/${userId}`);
-      const data = await res.json();
-      setSelectedUser(data);
-    } catch (error) {
-      console.error('Failed to fetch user details:', error);
-    }
-  }, [adminFetch]);
+  // If user selected, show detail page
+  if (selectedUserId) {
+    return (
+      <AdminUserDetailPage
+        userId={selectedUserId}
+        onBack={() => setSelectedUserId(null)}
+      />
+    );
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -326,10 +326,11 @@ export const AdminDashboardPage = () => {
                       </td>
                       <td className="px-4 sm:px-6 py-4">
                         <button
-                          onClick={() => fetchUserDetails(user.id)}
-                          className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-800 rounded-lg transition"
+                          onClick={() => setSelectedUserId(user.id)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-lg transition text-xs font-medium"
                         >
-                          <Eye className="w-4 h-4" />
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">View</span>
                         </button>
                       </td>
                     </tr>
@@ -367,110 +368,6 @@ export const AdminDashboardPage = () => {
         </div>
       </main>
 
-      {/* User Detail Modal */}
-      <AnimatePresence>
-        {selectedUser && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-900 rounded-2xl p-5 sm:p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto border border-surface-800"
-            >
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-bold text-white">User Details</h3>
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="p-1.5 text-surface-400 hover:text-white hover:bg-surface-800 rounded-lg transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 rounded-full bg-primary-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
-                  {selectedUser.name?.charAt(0)?.toUpperCase() || '?'}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-bold text-white truncate">{selectedUser.name || 'Unnamed'}</p>
-                    {isPremium(selectedUser) && (
-                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full text-xs font-medium">Premium</span>
-                    )}
-                  </div>
-                  <p className="text-surface-400 text-sm truncate">{selectedUser.email}</p>
-                  <p className="text-surface-500 text-xs">ID: {selectedUser.id}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-surface-800 rounded-xl p-3.5">
-                    <p className="text-surface-400 text-xs mb-1">Education Level</p>
-                    <p className="text-white font-medium text-sm">{getEducationLevel(selectedUser) || '--'}</p>
-                  </div>
-                  <div className="bg-surface-800 rounded-xl p-3.5">
-                    <p className="text-surface-400 text-xs mb-1">Institution</p>
-                    <p className="text-white font-medium text-sm truncate">{getInstitution(selectedUser) || '--'}</p>
-                  </div>
-                  <div className="bg-surface-800 rounded-xl p-3.5">
-                    <p className="text-surface-400 text-xs mb-1">Currency</p>
-                    <p className="text-white font-medium text-sm">{selectedUser.currency || 'BDT'}</p>
-                  </div>
-                  <div className="bg-surface-800 rounded-xl p-3.5">
-                    <p className="text-surface-400 text-xs mb-1">Joined</p>
-                    <p className="text-white font-medium text-sm">
-                      {formatDate(selectedUser.createdAt)}
-                    </p>
-                  </div>
-                  <div className="bg-surface-800 rounded-xl p-3.5">
-                    <p className="text-surface-400 text-xs mb-1">Last Login</p>
-                    <p className="text-white font-medium text-sm">
-                      {formatRelative(selectedUser.lastLoginAt)}
-                    </p>
-                  </div>
-                  <div className="bg-surface-800 rounded-xl p-3.5">
-                    <p className="text-surface-400 text-xs mb-1">Status</p>
-                    <p className={`font-medium text-sm ${selectedUser.profileComplete ? 'text-green-400' : 'text-yellow-400'}`}>
-                      {selectedUser.profileComplete ? 'Complete' : 'Incomplete'}
-                    </p>
-                  </div>
-                </div>
-
-                {isPremium(selectedUser) && (
-                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5">
-                    <p className="text-amber-400 text-xs mb-1">Premium Until</p>
-                    <p className="text-amber-300 font-medium text-sm">
-                      {formatDate(selectedUser.premiumUntil)}
-                      {selectedUser.premiumSource && (
-                        <span className="text-amber-400/60 ml-2">via {selectedUser.premiumSource}</span>
-                      )}
-                    </p>
-                  </div>
-                )}
-
-                <div className="bg-surface-800 rounded-xl p-3.5">
-                  <p className="text-surface-400 text-xs mb-3">Activity Summary</p>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-2xl font-bold text-white">{selectedUser._count?.expenses || 0}</p>
-                      <p className="text-surface-400 text-xs">Expenses</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{selectedUser._count?.semesters || 0}</p>
-                      <p className="text-surface-400 text-xs">Semesters</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{selectedUser._count?.loans || 0}</p>
-                      <p className="text-surface-400 text-xs">Loans</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

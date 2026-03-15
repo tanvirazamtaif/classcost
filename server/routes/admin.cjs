@@ -188,6 +188,66 @@ router.get('/users', verifyAdmin, async (req, res) => {
   }
 });
 
+// ── GET /api/admin/users/:id/full — Full user details with all related data ──
+
+router.get('/users/:id/full', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        settings: true,
+        expenses: {
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        semesters: {
+          orderBy: { createdAt: 'desc' },
+        },
+        loans: {
+          orderBy: { createdAt: 'desc' },
+        },
+        _count: {
+          select: {
+            expenses: true,
+            semesters: true,
+            loans: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Calculate totals
+    const totalExpenses = user.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    // Build recent activity from expenses
+    const recentActivity = user.expenses.slice(0, 15).map((e) => ({
+      type: 'expense',
+      description: e.type || 'Expense',
+      amount: `${user.currency || 'BDT'} ${(e.amount || 0).toLocaleString()}`,
+      date: e.date || e.createdAt,
+      note: e.note || null,
+    }));
+
+    res.json({
+      ...user,
+      totalExpenses,
+      recentActivity,
+      isActive:
+        user.lastLoginAt &&
+        Date.now() - new Date(user.lastLoginAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+    });
+  } catch (error) {
+    console.error('Full user detail error:', error);
+    res.status(500).json({ error: 'Failed to fetch user details' });
+  }
+});
+
 // ── GET /api/admin/users/:id ─────────────────────────────────────────────────
 
 router.get('/users/:id', verifyAdmin, async (req, res) => {
