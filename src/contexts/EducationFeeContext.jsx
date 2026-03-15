@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { FEE_STATUS, PAYMENT_PATTERNS } from '../types/educationFees';
+import { FEE_STATUS, PAYMENT_PATTERNS, CONSTANTS } from '../types/educationFees';
 import {
   createEducationFee,
   createPayment,
   createInstallment,
   getCurrentPeriod,
+  getNextPeriod,
   getPeriodFromDate,
+  getYearlyPeriod,
   calculatePeriodStatus,
   getCurrentAmount,
   getAmountForPeriod,
@@ -24,12 +26,34 @@ export const useEducationFees = () => {
   return context;
 };
 
+// Helper: update fee with change history
+const updateFeeWithHistory = (fee, changes, action, details, data = null) => {
+  return {
+    ...fee,
+    ...changes,
+    changeHistory: [
+      ...fee.changeHistory,
+      { timestamp: new Date().toISOString(), action, details, data },
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+// Helper: add payment to paymentsByPeriod index
+const indexPayment = (paymentsByPeriod, period, paymentId) => {
+  const existing = paymentsByPeriod[period] || [];
+  return { ...paymentsByPeriod, [period]: [...existing, paymentId] };
+};
+
 export const EducationFeeProvider = ({ children }) => {
   const [fees, setFees] = useLocalStorage('classcost_education_fees', []);
   const [savedCreditRates, setSavedCreditRates] = useLocalStorage('classcost_credit_rates', {
-    regular: 5500,
-    lab: 6500,
+    regular: CONSTANTS.DEFAULT_CREDIT_RATE,
+    lab: CONSTANTS.DEFAULT_LAB_RATE,
   });
+
+  // Active fees (exclude soft-deleted)
+  const activeFees = useMemo(() => fees.filter(f => !f.isDeleted), [fees]);
 
   // ═══════════════════════════════════════════════════════════════
   // CREATE OPERATIONS
@@ -44,6 +68,15 @@ export const EducationFeeProvider = ({ children }) => {
         status: FEE_STATUS.PAID,
         paidAmount: newFee.recurring.amount,
         dueAmount: newFee.recurring.amount,
+        remaining: 0,
+      };
+      // Create next period as upcoming
+      const nextPeriod = getNextPeriod(currentPeriod);
+      newFee.periodStatus[nextPeriod] = {
+        status: FEE_STATUS.UPCOMING,
+        paidAmount: 0,
+        dueAmount: newFee.recurring.amount,
+        remaining: newFee.recurring.amount,
       };
     }
 
@@ -93,6 +126,7 @@ export const EducationFeeProvider = ({ children }) => {
       const payment = createPayment({
         ...paymentData,
         forPeriod: period,
+        forFeeType: fee.feeType,
         isPartial: newPaidAmount < dueAmount,
         isLate: paymentData.paidAt ?
           new Date(paymentData.paidAt) > getDueDateForPeriod(fee, period) : false,
@@ -109,9 +143,35 @@ export const EducationFeeProvider = ({ children }) => {
         },
       };
 
+      // Auto-create next period if fully paid (recurring/yearly)
+      if (newPaidAmount >= dueAmount && fee.recurring?.isActive) {
+        const nextPeriod = getNextPeriod(period);
+        if (!newPeriodStatus[nextPeriod]) {
+          newPeriodStatus[nextPeriod] = {
+            status: FEE_STATUS.UPCOMING,
+            paidAmount: 0,
+            dueAmount: getCurrentAmount(fee),
+            remaining: getCurrentAmount(fee),
+          };
+        }
+      }
+
+      if (newPaidAmount >= dueAmount && fee.yearly?.isActive) {
+        const nextYearly = getYearlyPeriod(parseInt(period) + 1);
+        if (!newPeriodStatus[nextYearly]) {
+          newPeriodStatus[nextYearly] = {
+            status: FEE_STATUS.FUTURE,
+            paidAmount: 0,
+            dueAmount: getCurrentAmount(fee),
+            remaining: getCurrentAmount(fee),
+          };
+        }
+      }
+
       return {
         ...fee,
         payments: [...fee.payments, payment],
+        paymentsByPeriod: indexPayment(fee.paymentsByPeriod || {}, period, payment.id),
         periodStatus: newPeriodStatus,
         changeHistory: [
           ...fee.changeHistory,
@@ -131,6 +191,98 @@ export const EducationFeeProvider = ({ children }) => {
     return recordPayment(feeId, { ...paymentData, isPartial: true });
   }, [recordPayment]);
 
+  const recordPerClassPayment = useCallback((feeId, paymentData) => {
+    setFees(prev => prev.map(fee => {
+      if (fee.id !== feeId || !fee.perClass) return fee;
+
+      const period = paymentData.forPeriod || getCurrentPeriod();
+      const classCount = paymentData.classCount || 1;
+      const amount = fee.perClass.ratePerClass * classCount;
+
+      const payment = createPayment({
+        ...paymentData,
+        amount,
+        forPeriod: period,
+        forFeeType: fee.feeType,
+        note: paymentData.note || `${classCount} class(es)`,
+      });
+
+      const existingPaid = fee.periodStatus[period]?.paidAmount || 0;
+      const newPaidAmount = existingPaid + amount;
+
+      const updatedClassTracking = {
+        ...fee.perClass.classTracking,
+        totalClasses: (fee.perClass.classTracking?.totalClasses || 0) + classCount,
+        attendedClasses: (fee.perClass.classTracking?.attendedClasses || 0) + classCount,
+        lastClassDate: new Date().toISOString().split('T')[0],
+      };
+
+      return updateFeeWithHistory(
+        {
+          ...fee,
+          payments: [...fee.payments, payment],
+          paymentsByPeriod: indexPayment(fee.paymentsByPeriod || {}, period, payment.id),
+          periodStatus: {
+            ...fee.periodStatus,
+            [period]: {
+              status: FEE_STATUS.PARTIAL,
+              paidAmount: newPaidAmount,
+              dueAmount: newPaidAmount,
+              remaining: 0,
+            },
+          },
+          perClass: { ...fee.perClass, classTracking: updatedClassTracking },
+        },
+        {},
+        'per_class_payment',
+        `Paid ৳${amount} for ${classCount} class(es)`,
+        { paymentId: payment.id, classCount, period }
+      );
+    }));
+  }, [setFees]);
+
+  const recordRefund = useCallback((feeId, refundData) => {
+    setFees(prev => prev.map(fee => {
+      if (fee.id !== feeId) return fee;
+
+      const period = refundData.forPeriod || getCurrentPeriod();
+      const refund = createPayment({
+        ...refundData,
+        amount: -Math.abs(refundData.amount),
+        forPeriod: period,
+        forFeeType: fee.feeType,
+        isRefund: true,
+        note: refundData.note || 'Refund',
+      });
+
+      const existingPaid = fee.periodStatus[period]?.paidAmount || 0;
+      const newPaidAmount = Math.max(0, existingPaid - Math.abs(refundData.amount));
+      const dueAmount = fee.periodStatus[period]?.dueAmount || getAmountForPeriod(fee, period);
+
+      return updateFeeWithHistory(
+        {
+          ...fee,
+          payments: [...fee.payments, refund],
+          paymentsByPeriod: indexPayment(fee.paymentsByPeriod || {}, period, refund.id),
+          periodStatus: {
+            ...fee.periodStatus,
+            [period]: {
+              status: newPaidAmount >= dueAmount ? FEE_STATUS.PAID :
+                      newPaidAmount > 0 ? FEE_STATUS.PARTIAL : FEE_STATUS.UPCOMING,
+              paidAmount: newPaidAmount,
+              dueAmount,
+              remaining: Math.max(0, dueAmount - newPaidAmount),
+            },
+          },
+        },
+        {},
+        'refund_recorded',
+        `Refund ৳${Math.abs(refundData.amount)} for ${period}`,
+        { paymentId: refund.id, period }
+      );
+    }));
+  }, [setFees]);
+
   const recordAdvancePayment = useCallback((feeId, paymentData) => {
     const { amount, months, startPeriod, ...rest } = paymentData;
     const perMonth = amount / months;
@@ -140,21 +292,50 @@ export const EducationFeeProvider = ({ children }) => {
 
       const payments = [];
       const newPeriodStatus = { ...fee.periodStatus };
+      let newPaymentsByPeriod = { ...(fee.paymentsByPeriod || {}) };
       let [year, month] = startPeriod.split('-').map(Number);
 
       for (let i = 0; i < months; i++) {
         const period = `${year}-${String(month).padStart(2, '0')}`;
+
+        // Skip already-paid periods
+        if (newPeriodStatus[period]?.status === FEE_STATUS.PAID) {
+          month++;
+          if (month > 12) { month = 1; year++; }
+          continue;
+        }
+
         const dueAmount = getAmountForPeriod(fee, period);
-        const payment = createPayment({ ...rest, amount: perMonth, forPeriod: period, isAdvance: i > 0, advanceMonths: i });
+        const payment = createPayment({
+          ...rest,
+          amount: perMonth,
+          forPeriod: period,
+          forFeeType: fee.feeType,
+          isAdvance: i > 0,
+          advanceMonths: i,
+        });
         payments.push(payment);
-        newPeriodStatus[period] = { status: FEE_STATUS.PAID, paidAmount: dueAmount, dueAmount };
+        newPeriodStatus[period] = { status: FEE_STATUS.PAID, paidAmount: dueAmount, dueAmount, remaining: 0 };
+        newPaymentsByPeriod = indexPayment(newPaymentsByPeriod, period, payment.id);
         month++;
         if (month > 12) { month = 1; year++; }
+      }
+
+      // Create next period after advance
+      const lastPeriod = `${year}-${String(month).padStart(2, '0')}`;
+      if (!newPeriodStatus[lastPeriod] && fee.recurring?.isActive) {
+        newPeriodStatus[lastPeriod] = {
+          status: FEE_STATUS.UPCOMING,
+          paidAmount: 0,
+          dueAmount: getCurrentAmount(fee),
+          remaining: getCurrentAmount(fee),
+        };
       }
 
       return {
         ...fee,
         payments: [...fee.payments, ...payments],
+        paymentsByPeriod: newPaymentsByPeriod,
         periodStatus: newPeriodStatus,
         changeHistory: [
           ...fee.changeHistory,
@@ -169,7 +350,7 @@ export const EducationFeeProvider = ({ children }) => {
     setFees(prev => prev.map(fee => {
       if (fee.id !== feeId || !fee.semester?.installments) return fee;
 
-      const payment = createPayment({ ...paymentData, forInstallment: installmentId });
+      const payment = createPayment({ ...paymentData, forInstallment: installmentId, forFeeType: fee.feeType });
 
       const updatedInstallments = fee.semester.installments.map(inst => {
         if (inst.id !== installmentId) return inst;
@@ -196,6 +377,7 @@ export const EducationFeeProvider = ({ children }) => {
       return {
         ...fee,
         payments: [...fee.payments, payment],
+        paymentsByPeriod: indexPayment(fee.paymentsByPeriod || {}, payment.forPeriod || 'installment', payment.id),
         semester: { ...fee.semester, installments: updatedInstallments },
         changeHistory: [
           ...fee.changeHistory,
@@ -209,24 +391,51 @@ export const EducationFeeProvider = ({ children }) => {
   const skipPeriod = useCallback((feeId, period, reason) => {
     setFees(prev => prev.map(fee => {
       if (fee.id !== feeId) return fee;
-      return {
-        ...fee,
-        periodStatus: {
-          ...fee.periodStatus,
-          [period]: { status: FEE_STATUS.SKIPPED, paidAmount: 0, dueAmount: 0, skipReason: reason || 'Skipped' },
-        },
-        changeHistory: [
-          ...fee.changeHistory,
-          { timestamp: new Date().toISOString(), action: 'period_skipped', details: `Skipped ${period}: ${reason || 'No reason'}`, data: { period, reason } },
-        ],
-        updatedAt: new Date().toISOString(),
+
+      const newPeriodStatus = {
+        ...fee.periodStatus,
+        [period]: { status: FEE_STATUS.SKIPPED, paidAmount: 0, dueAmount: 0, skipReason: reason || 'Skipped' },
       };
+
+      // Create next period when skipping
+      if (fee.recurring?.isActive) {
+        const nextPeriod = getNextPeriod(period);
+        if (!newPeriodStatus[nextPeriod]) {
+          newPeriodStatus[nextPeriod] = {
+            status: FEE_STATUS.UPCOMING,
+            paidAmount: 0,
+            dueAmount: getCurrentAmount(fee),
+            remaining: getCurrentAmount(fee),
+          };
+        }
+      }
+
+      return updateFeeWithHistory(
+        { ...fee, periodStatus: newPeriodStatus },
+        {},
+        'period_skipped',
+        `Skipped ${period}: ${reason || 'No reason'}`,
+        { period, reason }
+      );
     }));
   }, [setFees]);
 
   // ═══════════════════════════════════════════════════════════════
   // UPDATE OPERATIONS
   // ═══════════════════════════════════════════════════════════════
+
+  const updateFee = useCallback((feeId, changes, reason) => {
+    setFees(prev => prev.map(fee => {
+      if (fee.id !== feeId) return fee;
+      return updateFeeWithHistory(
+        { ...fee, ...changes },
+        {},
+        'fee_updated',
+        reason || 'Fee updated',
+        { changes }
+      );
+    }));
+  }, [setFees]);
 
   const updateFeeAmount = useCallback((feeId, newAmount, effectiveFrom, reason) => {
     setFees(prev => prev.map(fee => {
@@ -245,12 +454,13 @@ export const EducationFeeProvider = ({ children }) => {
       else if (fee.oneTime) updatedFee.oneTime = { ...fee.oneTime, amount: newAmount };
       else if (fee.semester) updatedFee.semester = { ...fee.semester, totalAmount: newAmount };
 
-      updatedFee.changeHistory = [
-        ...fee.changeHistory,
-        { timestamp: new Date().toISOString(), action: 'amount_updated', details: `Amount changed to ৳${newAmount}`, data: { oldAmount: getCurrentAmount(fee), newAmount, effectiveFrom, reason } },
-      ];
-      updatedFee.updatedAt = new Date().toISOString();
-      return updatedFee;
+      return updateFeeWithHistory(
+        updatedFee,
+        {},
+        'amount_updated',
+        `Amount changed to ৳${newAmount}`,
+        { oldAmount: getCurrentAmount(fee), newAmount, effectiveFrom, reason }
+      );
     }));
   }, [setFees]);
 
@@ -262,15 +472,13 @@ export const EducationFeeProvider = ({ children }) => {
       const updatedInstallments = fee.semester.installments.map(inst =>
         inst.id !== installmentId ? inst : { ...inst, amount: newAmount }
       );
-      return {
-        ...fee,
-        semester: { ...fee.semester, installments: updatedInstallments },
-        changeHistory: [
-          ...fee.changeHistory,
-          { timestamp: new Date().toISOString(), action: 'installment_updated', details: `Installment changed from ৳${oldAmount} to ৳${newAmount}`, data: { installmentId, oldAmount, newAmount } },
-        ],
-        updatedAt: new Date().toISOString(),
-      };
+      return updateFeeWithHistory(
+        { ...fee, semester: { ...fee.semester, installments: updatedInstallments } },
+        {},
+        'installment_updated',
+        `Installment changed from ৳${oldAmount} to ৳${newAmount}`,
+        { installmentId, oldAmount, newAmount }
+      );
     }));
   }, [setFees]);
 
@@ -281,12 +489,13 @@ export const EducationFeeProvider = ({ children }) => {
       if (fee.recurring) updatedFee.recurring = { ...fee.recurring, isActive: false, endDate: endDate || new Date().toISOString().split('T')[0] };
       else if (fee.perClass) updatedFee.perClass = { ...fee.perClass, isActive: false };
       else if (fee.yearly) updatedFee.yearly = { ...fee.yearly, isActive: false };
-      updatedFee.changeHistory = [
-        ...fee.changeHistory,
-        { timestamp: new Date().toISOString(), action: 'deactivated', details: `Fee deactivated: ${reason || 'No reason'}`, data: { endDate, reason } },
-      ];
-      updatedFee.updatedAt = new Date().toISOString();
-      return updatedFee;
+      return updateFeeWithHistory(
+        updatedFee,
+        {},
+        'deactivated',
+        `Fee deactivated: ${reason || 'No reason'}`,
+        { endDate, reason }
+      );
     }));
   }, [setFees]);
 
@@ -297,16 +506,43 @@ export const EducationFeeProvider = ({ children }) => {
       if (fee.recurring) updatedFee.recurring = { ...fee.recurring, isActive: true, endDate: null };
       else if (fee.perClass) updatedFee.perClass = { ...fee.perClass, isActive: true };
       else if (fee.yearly) updatedFee.yearly = { ...fee.yearly, isActive: true };
-      updatedFee.changeHistory = [
-        ...fee.changeHistory,
-        { timestamp: new Date().toISOString(), action: 'reactivated', details: 'Fee reactivated' },
-      ];
-      updatedFee.updatedAt = new Date().toISOString();
-      return updatedFee;
+      return updateFeeWithHistory(
+        updatedFee,
+        {},
+        'reactivated',
+        'Fee reactivated'
+      );
     }));
   }, [setFees]);
 
+  // Soft delete
   const deleteFee = useCallback((feeId) => {
+    setFees(prev => prev.map(fee => {
+      if (fee.id !== feeId) return fee;
+      return updateFeeWithHistory(
+        { ...fee, isDeleted: true, deletedAt: new Date().toISOString() },
+        {},
+        'deleted',
+        'Fee soft-deleted'
+      );
+    }));
+  }, [setFees]);
+
+  // Restore soft-deleted fee
+  const restoreFee = useCallback((feeId) => {
+    setFees(prev => prev.map(fee => {
+      if (fee.id !== feeId) return fee;
+      return updateFeeWithHistory(
+        { ...fee, isDeleted: false, deletedAt: null },
+        {},
+        'restored',
+        'Fee restored'
+      );
+    }));
+  }, [setFees]);
+
+  // Hard delete (permanent)
+  const hardDeleteFee = useCallback((feeId) => {
     setFees(prev => prev.filter(fee => fee.id !== feeId));
   }, [setFees]);
 
@@ -318,15 +554,28 @@ export const EducationFeeProvider = ({ children }) => {
     return fees.find(fee => fee.id === feeId);
   }, [fees]);
 
+  const getFeesByType = useCallback((feeType) => {
+    return activeFees.filter(fee => fee.feeType === feeType);
+  }, [activeFees]);
+
+  const searchFees = useCallback((query) => {
+    const q = query.toLowerCase();
+    return activeFees.filter(fee =>
+      (fee.name || '').toLowerCase().includes(q) ||
+      (fee.feeType || '').toLowerCase().includes(q) ||
+      (fee.customTypeName || '').toLowerCase().includes(q)
+    );
+  }, [activeFees]);
+
   const getActiveRecurringFees = useMemo(() => {
-    return fees.filter(fee => fee.recurring?.isActive || fee.perClass?.isActive);
-  }, [fees]);
+    return activeFees.filter(fee => fee.recurring?.isActive || fee.perClass?.isActive);
+  }, [activeFees]);
 
   const getUpcomingPayments = useMemo(() => {
     const today = new Date();
     const upcoming = [];
 
-    fees.forEach(fee => {
+    activeFees.forEach(fee => {
       if (fee.recurring?.isActive) {
         const currentPeriod = getCurrentPeriod();
         const status = calculatePeriodStatus(fee, currentPeriod);
@@ -361,8 +610,8 @@ export const EducationFeeProvider = ({ children }) => {
         const thisYear = today.getFullYear();
         const dueDate = new Date(thisYear, fee.yearly.dueMonth - 1, fee.yearly.dueDay);
         const daysUntil = getDaysUntilDue(dueDate);
-        if (daysUntil >= -30 && daysUntil <= 30) {
-          const period = `${thisYear}`;
+        if (daysUntil >= -CONSTANTS.UPCOMING_WINDOW_DAYS && daysUntil <= CONSTANTS.UPCOMING_WINDOW_DAYS) {
+          const period = getYearlyPeriod(thisYear);
           const periodData = fee.periodStatus[period];
           if (!periodData || periodData.status !== FEE_STATUS.PAID) {
             upcoming.push({
@@ -380,7 +629,7 @@ export const EducationFeeProvider = ({ children }) => {
       if (fee.oneTime && !fee.oneTime.isPaid && fee.oneTime.dueDate) {
         const dueDate = new Date(fee.oneTime.dueDate);
         const daysUntil = getDaysUntilDue(dueDate);
-        if (daysUntil >= -30 && daysUntil <= 30) {
+        if (daysUntil >= -CONSTANTS.UPCOMING_WINDOW_DAYS && daysUntil <= CONSTANTS.UPCOMING_WINDOW_DAYS) {
           upcoming.push({
             fee, type: 'one_time',
             amount: fee.oneTime.amount, paidAmount: 0,
@@ -397,7 +646,7 @@ export const EducationFeeProvider = ({ children }) => {
       if (b.status === FEE_STATUS.OVERDUE && a.status !== FEE_STATUS.OVERDUE) return 1;
       return a.daysUntilDue - b.daysUntilDue;
     });
-  }, [fees]);
+  }, [activeFees]);
 
   const getOverduePayments = useMemo(() => {
     return getUpcomingPayments.filter(p => p.status === FEE_STATUS.OVERDUE);
@@ -412,28 +661,33 @@ export const EducationFeeProvider = ({ children }) => {
   const getTotalPaidThisMonth = useMemo(() => {
     const currentPeriod = getCurrentPeriod();
     let total = 0;
-    fees.forEach(fee => {
+    activeFees.forEach(fee => {
       fee.payments.forEach(payment => {
-        if (getPeriodFromDate(payment.paidAt) === currentPeriod) total += payment.amount;
+        if (!payment.isRefund && getPeriodFromDate(payment.paidAt) === currentPeriod) total += payment.amount;
       });
     });
     return total;
-  }, [fees]);
+  }, [activeFees]);
 
   const getTotalPaidAllTime = useMemo(() => {
     let total = 0;
-    fees.forEach(fee => {
-      fee.payments.forEach(payment => { total += payment.amount; });
+    activeFees.forEach(fee => {
+      fee.payments.forEach(payment => {
+        if (!payment.isRefund) total += payment.amount;
+      });
     });
     return total;
-  }, [fees]);
+  }, [activeFees]);
 
   const value = {
-    fees, savedCreditRates, setSavedCreditRates,
+    fees, activeFees, savedCreditRates, setSavedCreditRates,
     addFee, addSemesterFee,
-    recordPayment, recordPartialPayment, recordAdvancePayment, payInstallment, skipPeriod,
-    updateFeeAmount, updateInstallmentAmount, deactivateFee, reactivateFee, deleteFee,
-    getFeeById, getActiveRecurringFees, getUpcomingPayments, getOverduePayments,
+    recordPayment, recordPartialPayment, recordPerClassPayment, recordRefund,
+    recordAdvancePayment, payInstallment, skipPeriod,
+    updateFee, updateFeeAmount, updateInstallmentAmount,
+    deactivateFee, reactivateFee, deleteFee, restoreFee, hardDeleteFee,
+    getFeeById, getFeesByType, searchFees, getActiveRecurringFees,
+    getUpcomingPayments, getOverduePayments,
     getPaymentHistory, getTotalPaidThisMonth, getTotalPaidAllTime,
   };
 

@@ -2,6 +2,18 @@
 // EDUCATION FEE TYPES - Complete Bangladesh Education System
 // ═══════════════════════════════════════════════════════════════
 
+export const CONSTANTS = {
+  DEFAULT_DUE_DAY: 10,
+  DEFAULT_REMINDER_DAYS: 2,
+  YEARLY_REMINDER_DAYS: 7,
+  UPCOMING_WINDOW_DAYS: 30,
+  UPCOMING_THRESHOLD_DAYS: 7,
+  INSTALLMENT_TOLERANCE: 0,
+  MAX_ADVANCE_MONTHS: 12,
+  DEFAULT_CREDIT_RATE: 5500,
+  DEFAULT_LAB_RATE: 6500,
+};
+
 export const PAYMENT_PATTERNS = {
   RECURRING: 'recurring',
   SEMESTER: 'semester',
@@ -189,12 +201,12 @@ export const FEE_STATUS = {
 };
 
 export const STATUS_CONFIG = {
-  paid: { color: 'green', icon: '✅', label: 'Paid' },
-  partial: { color: 'yellow', icon: '🟡', label: 'Partial' },
-  upcoming: { color: 'yellow', icon: '🟡', label: 'Upcoming' },
-  overdue: { color: 'red', icon: '🔴', label: 'Overdue' },
-  skipped: { color: 'gray', icon: '⚪', label: 'Skipped' },
-  future: { color: 'gray', icon: '⚪', label: 'Future' },
+  paid: { color: 'green', icon: '✅', label: 'Paid', bgClass: 'bg-green-100 dark:bg-green-900/30', textClass: 'text-green-700 dark:text-green-400' },
+  partial: { color: 'yellow', icon: '🟡', label: 'Partial', bgClass: 'bg-yellow-100 dark:bg-yellow-900/30', textClass: 'text-yellow-700 dark:text-yellow-400' },
+  upcoming: { color: 'yellow', icon: '🟡', label: 'Upcoming', bgClass: 'bg-yellow-100 dark:bg-yellow-900/30', textClass: 'text-yellow-700 dark:text-yellow-400' },
+  overdue: { color: 'red', icon: '🔴', label: 'Overdue', bgClass: 'bg-red-100 dark:bg-red-900/30', textClass: 'text-red-700 dark:text-red-400' },
+  skipped: { color: 'gray', icon: '⚪', label: 'Skipped', bgClass: 'bg-surface-100 dark:bg-surface-800', textClass: 'text-surface-500' },
+  future: { color: 'gray', icon: '⚪', label: 'Future', bgClass: 'bg-surface-100 dark:bg-surface-800', textClass: 'text-surface-500' },
 };
 
 export const MONTHS = [
@@ -212,6 +224,12 @@ export const MONTHS = [
   { value: 12, label: 'December' },
 ];
 
+export const SEMESTERS = [
+  { id: 'spring', label: 'Spring', defaultMonths: [1, 6] },
+  { id: 'summer', label: 'Summer', defaultMonths: [5, 10] },
+  { id: 'fall', label: 'Fall', defaultMonths: [9, 2] },
+];
+
 export const SEMESTER_NAMES = [
   'Spring 2026',
   'Summer 2026',
@@ -225,7 +243,12 @@ export const PAYMENT_METHODS = [
   { id: 'cash', icon: '💵', label: 'Cash' },
   { id: 'bkash', icon: '📱', label: 'bKash' },
   { id: 'nagad', icon: '📱', label: 'Nagad' },
+  { id: 'rocket', icon: '🚀', label: 'Rocket' },
   { id: 'bank', icon: '🏦', label: 'Bank' },
   { id: 'card', icon: '💳', label: 'Card' },
   { id: 'other', icon: '📋', label: 'Other' },
 ];
+
+export const getFeeTypeConfig = (feeTypeId) => {
+  return EDUCATION_FEE_TYPES.find(t => t.id === feeTypeId) || null;
+};
