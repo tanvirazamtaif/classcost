@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
+import { EducationFeeProvider } from './contexts/EducationFeeContext';
 import { ErrorBoundary, RoleSelection } from './components/feature';
 import { ToastContainer, DashboardSkeleton, ReportsSkeleton } from './components/ui';
 import { Header, LayoutBottomNav, Sidebar } from './components/layout';
@@ -24,6 +25,8 @@ const ScheduleView = lazy(() => import('./pages/ScheduleView').then(m => ({ defa
 const EducationEntryPage = lazy(() => import('./pages/EducationEntryPage'));
 const HousingEntryPage = lazy(() => import('./pages/HousingEntryPage'));
 const BooksEntryPage = lazy(() => import('./pages/BooksEntryPage'));
+const EducationFeePage = lazy(() => import('./pages/EducationFeePage'));
+const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
 const PageLoader = ({ view, dark }) => {
@@ -93,6 +96,8 @@ const ViewRouter = () => {
         {view === "education-entry" && <EducationEntryPage />}
         {view === "housing-entry" && <HousingEntryPage />}
         {view === "books-entry" && <BooksEntryPage />}
+        {view === "education-fees" && <EducationFeePage />}
+        {view === "education-fee-form" && <EducationFeeFormPage />}
         {["semester", "reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
           <InnerPage />
         )}
@@ -127,7 +132,9 @@ export default function App() {
           select{-webkit-appearance:none}
         `}</style>
         <AppProvider>
-          <ViewRouter />
+          <EducationFeeProvider>
+            <ViewRouter />
+          </EducationFeeProvider>
         </AppProvider>
       </div>
     </ErrorBoundary>

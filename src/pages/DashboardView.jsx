@@ -7,6 +7,8 @@ import { FAB, GCard, GCardContent, GButton } from '../components/ui';
 import { AddPaymentSheet, PaymentCard, QuickEntrySheet } from '../components/feature';
 import { stagger, fadeInUp } from '../lib/animations';
 import { makeFmt } from '../utils/format';
+import { useEducationFees } from '../contexts/EducationFeeContext';
+import { MarkPaidSheet } from '../components/education/MarkPaidSheet';
 
 export const DashboardView = () => {
   const { user, expenses, theme, navigate, getUpcomingPayments, markScheduledAsPaid } = useApp();
@@ -14,7 +16,10 @@ export const DashboardView = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [preselectedCategory, setPreselectedCategory] = useState('');
   const [quickEntryCategory, setQuickEntryCategory] = useState(null);
+  const [selectedEduPayment, setSelectedEduPayment] = useState(null);
   const d = theme === 'dark';
+
+  const { getUpcomingPayments: eduUpcoming, getTotalPaidThisMonth: eduMonthly } = useEducationFees();
 
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || 'BDT');
@@ -61,7 +66,7 @@ export const DashboardView = () => {
 
   const handleOpenForm = (categoryId) => {
     // Full entry pages for Education, Housing, Books
-    if (categoryId === 'education') return navigate('education-entry');
+    if (categoryId === 'education') return navigate('education-fees');
     if (categoryId === 'hostel') return navigate('housing-entry');
     if (categoryId === 'books') return navigate('books-entry');
     // Quick entry sheet for Transport, Food
@@ -156,6 +161,42 @@ export const DashboardView = () => {
           </motion.section>
         )}
 
+        {/* Education Fee Upcoming */}
+        {eduUpcoming.length > 0 && (
+          <motion.section variants={fadeInUp} className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className={`text-sm font-medium ${d ? 'text-surface-400' : 'text-surface-500'}`}>Education Fees Due</h2>
+              <button onClick={() => navigate('education-fees')} className="text-xs text-primary-600 font-medium">Manage</button>
+            </div>
+            <div className="space-y-2">
+              {eduUpcoming.slice(0, 3).map((payment, i) => (
+                <GCard key={payment.fee.id + (payment.period || i)}>
+                  <GCardContent className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{payment.fee.icon}</span>
+                      <div>
+                        <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
+                          {payment.fee.name || payment.fee.feeType}
+                        </p>
+                        <p className="text-xs text-surface-500">
+                          {currencySymbol}{(payment.remainingAmount || 0).toLocaleString()} · {
+                            payment.status === 'overdue' ? `${Math.abs(payment.daysUntilDue)}d overdue` :
+                            payment.daysUntilDue === 0 ? 'Due today!' :
+                            `Due in ${payment.daysUntilDue}d`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <GButton size="sm" variant="secondary" onClick={() => setSelectedEduPayment(payment)}>
+                      <Check className="w-4 h-4 mr-1" /> Pay
+                    </GButton>
+                  </GCardContent>
+                </GCard>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
         {/* Recent Expenses */}
         <motion.section variants={fadeInUp}>
           <div className="flex items-center justify-between mb-3">
@@ -205,6 +246,11 @@ export const DashboardView = () => {
         isOpen={!!quickEntryCategory}
         onClose={() => setQuickEntryCategory(null)}
         categoryId={quickEntryCategory || 'transport'}
+      />
+      <MarkPaidSheet
+        isOpen={!!selectedEduPayment}
+        onClose={() => setSelectedEduPayment(null)}
+        upcomingPayment={selectedEduPayment}
       />
     </div>
   );

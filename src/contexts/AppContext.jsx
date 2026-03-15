@@ -43,6 +43,7 @@ const VALID_VIEWS = new Set([
   'education-setup', 'historical-data', 'budget-settings',
   'dashboard', 'semester', 'reports', 'settings', 'loans', 'schedule',
   'education-entry', 'housing-entry', 'books-entry', 'entry-detail',
+  'education-fees', 'education-fee-form',
 ]);
 
 /** Read pathname on initial page load so direct links like /reports work */
@@ -69,6 +70,7 @@ export const AppProvider = ({ children }) => {
   const [scheduledPayments, setScheduledPaymentsLocal] = useLocalStorage("ut_v3_scheduled", []);
   const [entries, setEntriesLocal] = useLocalStorage("ut_v3_entries", []);
   const [syncing, setSyncing] = useState(false);
+  const [routeParams, setRouteParams] = useState(null); // params passed via navigate()
   const [pendingAccountType, setPendingAccountType] = useState(null); // temp during signup
   const [signupMethod, setSignupMethod] = useState(null); // 'email' | 'google' | null
   const [theme, setThemeLocal] = useLocalStorage("ut_v3_theme", "dark");
@@ -98,8 +100,9 @@ export const AppProvider = ({ children }) => {
     return null;
   };
 
-  const navigate = useCallback((v, { replace = false } = {}) => {
+  const navigate = useCallback((v, { replace = false, params = null } = {}) => {
     setView(v);
+    setRouteParams(params);
     if (replace) {
       window.history.replaceState({ view: v }, '', `/${v}`);
     } else {
@@ -388,6 +391,7 @@ export const AppProvider = ({ children }) => {
     updateSubscription, setAccountType, generateInviteCode,
     pendingAccountType, setPendingAccountType,
     signupMethod, setSignupMethod,
+    routeParams,
     // Server-synced helpers
     addExpense, removeExpense,
     addSemester, editSemester,
