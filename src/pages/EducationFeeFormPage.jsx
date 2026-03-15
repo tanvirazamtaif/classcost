@@ -32,7 +32,7 @@ export const EducationFeeFormPage = () => {
   // FORM STATE
   // ═══════════════════════════════════════════════════════════════
 
-  const [name, setName] = useState(profile?.institutionName || '');
+  const [name, setName] = useState(profile?.institutionName || user?.institution || '');
   const [amount, setAmount] = useState('');
 
   // Recurring
@@ -118,6 +118,12 @@ export const EducationFeeFormPage = () => {
   // ═══════════════════════════════════════════════════════════════
   // EFFECTS
   // ═══════════════════════════════════════════════════════════════
+
+  // Sync institution name when user data loads after mount
+  useEffect(() => {
+    const institution = profile?.institutionName || user?.institution || '';
+    if (institution && !name) setName(institution);
+  }, [profile?.institutionName, user?.institution]);
 
   useEffect(() => {
     if (!useInstallments || customInstallmentAmounts) return;
@@ -266,7 +272,7 @@ export const EducationFeeFormPage = () => {
         <div>
           <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
             {isRecurring ? 'School/Institution Name' : isSemester ? 'University Name' : 'Name'}
-            {profile?.institutionName ? (
+            {(profile?.institutionName || user?.institution) ? (
               <span className="text-surface-400 font-normal ml-1">(from profile)</span>
             ) : (
               <span className="text-surface-400 font-normal ml-1">(optional)</span>
