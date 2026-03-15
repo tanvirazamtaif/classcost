@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Plus, Search, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
+import { EDU } from '../constants';
 import {
   PAYMENT_PATTERNS,
   EDUCATION_LEVELS,
@@ -14,8 +15,17 @@ import { GButton, BottomSheet } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 
+// Map EDU group values to fee filter categories
+const GROUP_TO_FILTER = {
+  early: 'school',
+  school: 'school',
+  college: 'college',
+  university: 'university',
+  postgrad: 'university',
+};
+
 export const EducationFeePage = () => {
-  const { navigate, theme, educationLevel, setEducationLevel, educationLevelAsked, setEducationLevelAsked } = useApp();
+  const { navigate, theme, user, educationLevel, setEducationLevel, educationLevelAsked, setEducationLevelAsked } = useApp();
   const { activeFees } = useEducationFees();
   const d = theme === 'dark';
 
@@ -27,18 +37,26 @@ export const EducationFeePage = () => {
   const [customIcon, setCustomIcon] = useState('📌');
   const [customPattern, setCustomPattern] = useState(PAYMENT_PATTERNS.RECURRING);
 
-  // Show popup if education level not set and not asked before
+  // Derive fee filter from existing profile, fall back to manual override
+  const profileLevel = user?.profile?.educationLevel;
+  const profileGroup = profileLevel && EDU[profileLevel] ? EDU[profileLevel].group : null;
+  const effectiveLevel = useMemo(() => {
+    if (profileGroup) return GROUP_TO_FILTER[profileGroup] || null;
+    return educationLevel; // fallback to manual selection
+  }, [profileGroup, educationLevel]);
+
+  // Show popup only if no profile level AND no manual override AND not asked before
   useEffect(() => {
-    if (!educationLevel && !educationLevelAsked) {
+    if (!profileGroup && !educationLevel && !educationLevelAsked) {
       const timer = setTimeout(() => setShowLevelPopup(true), 300);
       return () => clearTimeout(timer);
     }
-  }, [educationLevel, educationLevelAsked]);
+  }, [profileGroup, educationLevel, educationLevelAsked]);
 
   // Get relevant and hidden fee types
-  const relevantTypes = useMemo(() => getFeeTypesForLevel(educationLevel), [educationLevel]);
-  const hiddenTypes = useMemo(() => getHiddenFeeTypes(educationLevel), [educationLevel]);
-  const currentLevel = EDUCATION_LEVELS.find(l => l.id === educationLevel);
+  const relevantTypes = useMemo(() => getFeeTypesForLevel(effectiveLevel), [effectiveLevel]);
+  const hiddenTypes = useMemo(() => getHiddenFeeTypes(effectiveLevel), [effectiveLevel]);
+  const currentLevel = EDUCATION_LEVELS.find(l => l.id === effectiveLevel);
 
   // Filter by search
   const filteredTypes = searchQuery.trim()
@@ -157,7 +175,7 @@ export const EducationFeePage = () => {
               </p>
               <div className="space-y-2">
                 {group.items.map((type) => {
-                  const displayLabel = getFeeLabel(type.id, educationLevel) || type.label;
+                  const displayLabel = getFeeLabel(type.id, effectiveLevel) || type.label;
                   return (
                     <motion.button
                       key={type.id}
@@ -197,7 +215,7 @@ export const EducationFeePage = () => {
         )}
 
         {/* Show More Section */}
-        {hiddenTypes.length > 0 && educationLevel && (
+        {hiddenTypes.length > 0 && effectiveLevel && (
           <div className="mt-4">
             <button
               onClick={() => { haptics.light(); setShowMore(!showMore); }}
@@ -335,7 +353,7 @@ export const EducationFeePage = () => {
         </div>
       </BottomSheet>
 
-      {/* Education Level Popup (Floating Modal) */}
+      {/* Education Level Popup — only if no profile level and no manual override */}
       <AnimatePresence>
         {showLevelPopup && (
           <>

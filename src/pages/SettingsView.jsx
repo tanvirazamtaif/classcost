@@ -7,6 +7,9 @@ import { BottomSheet } from '../components/ui';
 import { redeemPromoCode } from '../api';
 import { EDUCATION_LEVELS } from '../types/educationFees';
 
+// Map EDU group to fee filter category
+const GROUP_TO_FILTER = { early: 'school', school: 'school', college: 'college', university: 'university', postgrad: 'university' };
+
 const SettingsView = () => {
   useEffect(() => { document.title = "Settings — ClassCost"; }, []);
   const { user, setUser, notifications, setNotifications, navigate, addToast, generateInviteCode, educationLevel, setEducationLevel } = useApp();
@@ -128,24 +131,37 @@ const SettingsView = () => {
       </Card>
 
       <Card className="p-5">
-        <h3 className="text-sm font-bold text-slate-700 mb-3">🎓 Education Level</h3>
-        <button
-          onClick={() => setShowEduLevelPicker(true)}
-          className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">
-              {EDUCATION_LEVELS.find(l => l.id === educationLevel)?.icon || '📋'}
-            </span>
-            <div className="text-left">
-              <p className="text-xs text-slate-400">Fee types filter</p>
-              <p className="font-bold text-sm text-slate-800">
-                {EDUCATION_LEVELS.find(l => l.id === educationLevel)?.label || 'Show All'}
-              </p>
-            </div>
-          </div>
-          <span className="text-slate-400">›</span>
-        </button>
+        <h3 className="text-sm font-bold text-slate-700 mb-3">🎓 Education Fee Filter</h3>
+        {(() => {
+          const profileGroup = profile?.educationLevel && EDU[profile.educationLevel] ? EDU[profile.educationLevel].group : null;
+          const effectiveLevel = profileGroup ? GROUP_TO_FILTER[profileGroup] : educationLevel;
+          const effectiveLevelInfo = EDUCATION_LEVELS.find(l => l.id === effectiveLevel);
+          const isFromProfile = !!profileGroup;
+          return (
+            <>
+              <button
+                onClick={() => setShowEduLevelPicker(true)}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{effectiveLevelInfo?.icon || '📋'}</span>
+                  <div className="text-left">
+                    <p className="text-xs text-slate-400">Fee types shown for</p>
+                    <p className="font-bold text-sm text-slate-800">
+                      {effectiveLevelInfo?.label || 'Show All'}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-slate-400">›</span>
+              </button>
+              {isFromProfile && (
+                <p className="text-xs text-slate-400 mt-2 px-1">
+                  Auto-detected from your profile ({mod?.shortLabel})
+                </p>
+              )}
+            </>
+          );
+        })()}
       </Card>
 
       <Card className="p-5">
