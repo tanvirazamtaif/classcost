@@ -9,7 +9,7 @@ import { makeFmt } from '../utils/format';
 
 export const ReportsView = () => {
   const { expenses, user, theme } = useApp();
-  const { getTotalPaidAllTime, getTotalPaidThisMonth } = useEducationFees();
+  const { getTotalPaidAllTime, getTotalPaidThisMonth, activeFees } = useEducationFees();
   const d = theme === 'dark';
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || 'BDT');
@@ -50,6 +50,15 @@ export const ReportsView = () => {
       .slice(0, 5);
   }, [filteredExpenses]);
 
+  // Combine regular expenses with education fees for the pie chart
+  const allExpensesForChart = useMemo(() => {
+    const eduTotal = getTotalPaidAllTime || 0;
+    const eduEntry = eduTotal > 0
+      ? [{ type: 'education', amount: eduTotal, date: new Date().toISOString().split('T')[0], label: 'Education Fees' }]
+      : [];
+    return [...filteredExpenses, ...eduEntry];
+  }, [filteredExpenses, getTotalPaidAllTime]);
+
   const categoryLabels = {
     education: '🎓 Education', transport: '🚌 Transport', canteen: '🍽️ Food',
     hostel: '🏠 Housing', books: '📚 Books', uniform: '👔 Uniform'
@@ -88,7 +97,7 @@ export const ReportsView = () => {
       <GCard>
         <GCardContent>
           <h3 className={`text-sm font-medium mb-4 ${d ? 'text-surface-400' : 'text-surface-500'}`}>Breakdown</h3>
-          <ExpenseChart expenses={filteredExpenses} currencySymbol={currencySymbol} />
+          <ExpenseChart expenses={allExpensesForChart} currencySymbol={currencySymbol} />
         </GCardContent>
       </GCard>
 
