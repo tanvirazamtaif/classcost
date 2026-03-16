@@ -39,21 +39,24 @@ export const EducationFeePage = () => {
   const [customPattern, setCustomPattern] = useState(PAYMENT_PATTERNS.RECURRING);
   const [activeMultiEntryType, setActiveMultiEntryType] = useState(null);
 
-  // Derive fee filter from existing profile, fall back to manual override
+  // Derive fee filter from profile (eduType is the group: school/college/university)
+  // or from the detailed profile.educationLevel (EDU key like "secondary", "hsc", etc.)
   const profileLevel = user?.profile?.educationLevel;
   const profileGroup = profileLevel && EDU[profileLevel] ? EDU[profileLevel].group : null;
+  const eduTypeGroup = user?.eduType; // already a group value set during onboarding
   const effectiveLevel = useMemo(() => {
     if (profileGroup) return GROUP_TO_FILTER[profileGroup] || null;
+    if (eduTypeGroup) return GROUP_TO_FILTER[eduTypeGroup] || eduTypeGroup;
     return educationLevel; // fallback to manual selection
-  }, [profileGroup, educationLevel]);
+  }, [profileGroup, eduTypeGroup, educationLevel]);
 
-  // Show popup only if no profile level AND no manual override AND not asked before
+  // Show popup only if no profile level, no eduType, no manual override, and not asked before
   useEffect(() => {
-    if (!profileGroup && !educationLevel && !educationLevelAsked) {
+    if (!profileGroup && !eduTypeGroup && !educationLevel && !educationLevelAsked) {
       const timer = setTimeout(() => setShowLevelPopup(true), 300);
       return () => clearTimeout(timer);
     }
-  }, [profileGroup, educationLevel, educationLevelAsked]);
+  }, [profileGroup, eduTypeGroup, educationLevel, educationLevelAsked]);
 
   // Get relevant and hidden fee types
   const relevantTypes = useMemo(() => getFeeTypesForLevel(effectiveLevel), [effectiveLevel]);
