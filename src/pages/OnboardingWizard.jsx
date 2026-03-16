@@ -4,6 +4,7 @@ import { EDU, EDU_GROUPS, INSTITUTIONS } from '../constants/education';
 import { CURRENCIES } from '../constants/currencies';
 import { HOSTEL_TYPES } from '../constants/categories';
 import { Btn, Input, Select, Toggle } from '../components/ui';
+import { validateInstitution, validateAmount } from '../utils/guardian';
 
 export const OnboardingWizard = () => {
   const { user, setUser, navigate, addToast } = useApp();
@@ -21,7 +22,22 @@ export const OnboardingWizard = () => {
   });
   const [instQuery, setInstQuery] = useState("");
   const [showInstDrop, setShowInstDrop] = useState(false);
+  const [guardianError, setGuardianError] = useState("");
   const upd = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  // Guardian: validate institution when selected
+  const selectInstitution = (name) => {
+    const eduGroup = mod?.group || form.educationLevel;
+    if (eduGroup && name) {
+      const check = validateInstitution(name, eduGroup);
+      if (!check.valid) { setGuardianError(check.error); return; }
+      if (check.warning) { addToast(check.warning, "warning"); }
+    }
+    setGuardianError("");
+    upd("institutionName", name);
+    setInstQuery(name);
+    setShowInstDrop(false);
+  };
 
   const mod = EDU[form.educationLevel];
   const allInsts = INSTITUTIONS[form.educationLevel] || [];
@@ -66,6 +82,29 @@ export const OnboardingWizard = () => {
 
   const handleFinish = () => {
     if (!form.fullName || !form.educationLevel) { addToast("Fill required fields", "error"); return; }
+
+    // Guardian: validate institution vs education level
+    if (form.institutionName) {
+      const eduGroup = mod?.group || form.educationLevel;
+      const instCheck = validateInstitution(form.institutionName, eduGroup);
+      if (!instCheck.valid) { addToast(instCheck.error, "error"); return; }
+      if (instCheck.warning) addToast(instCheck.warning, "warning");
+    }
+
+    // Guardian: validate amounts
+    if (form.hasCoaching && form.coachingFee) {
+      const amtCheck = validateAmount(form.coachingFee, 'coaching');
+      if (!amtCheck.valid) { addToast(amtCheck.error, "error"); return; }
+    }
+    if (form.hasBatch && form.batchFee) {
+      const amtCheck = validateAmount(form.batchFee, 'batch');
+      if (!amtCheck.valid) { addToast(amtCheck.error, "error"); return; }
+    }
+    if (form.hasHostel && form.hostelFee) {
+      const amtCheck = validateAmount(form.hostelFee, 'hostel');
+      if (!amtCheck.valid) { addToast(amtCheck.error, "error"); return; }
+    }
+
     setUser((p) => ({
       ...p,
       name: form.fullName,
@@ -200,13 +239,13 @@ export const OnboardingWizard = () => {
               {showInstDrop && (
                 <div className="absolute top-20 left-0 right-0 z-20 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-52 overflow-y-auto">
                   {(instQuery ? filteredInsts : allInsts.slice(0, 8)).map((u) => (
-                    <button key={u} onClick={() => { upd("institutionName", u); setInstQuery(u); setShowInstDrop(false); }}
+                    <button key={u} onClick={() => selectInstitution(u)}
                       className="w-full text-left px-4 py-3 text-sm hover:bg-indigo-50 text-slate-700 font-medium border-b border-slate-50 last:border-0">
                       {mod?.icon} {u}
                     </button>
                   ))}
                   {instQuery && !filteredInsts.includes(instQuery) && (
-                    <button onClick={() => { upd("institutionName", instQuery); setShowInstDrop(false); }}
+                    <button onClick={() => selectInstitution(instQuery)}
                       className="w-full text-left px-4 py-3 text-sm text-indigo-600 font-semibold border-t border-slate-100">
                       + Use "{instQuery}"
                     </button>
@@ -214,6 +253,16 @@ export const OnboardingWizard = () => {
                 </div>
               )}
             </div>
+
+            {guardianError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <span className="text-red-500 text-sm mt-0.5">❌</span>
+                <div>
+                  <p className="text-sm text-red-700 font-medium">{guardianError}</p>
+                  <p className="text-xs text-red-500 mt-0.5">Please choose the correct institution for your education level.</p>
+                </div>
+              </div>
+            )}
 
             {mod && (
               <div className="flex flex-col gap-1.5">

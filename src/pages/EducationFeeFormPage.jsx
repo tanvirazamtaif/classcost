@@ -9,6 +9,7 @@ import { validateInstallmentsTotal, calculatePerCreditTotal } from '../types/edu
 import { GButton } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { guardianValidate, validatePrivateTutor, validateAmount } from '../utils/guardian';
 
 function getDaySuffix(day) {
   if (day >= 11 && day <= 13) return 'th';
@@ -22,7 +23,7 @@ function getDaySuffix(day) {
 
 export const EducationFeeFormPage = () => {
   const { navigate, addToast, routeParams, theme } = useApp();
-  const { institutionName } = useUserProfile();
+  const { institutionName, educationLevel } = useUserProfile();
   const { addFee, addSemesterFee, savedCreditRates, setSavedCreditRates } = useEducationFees();
   const d = theme === 'dark';
 
@@ -178,8 +179,36 @@ export const EducationFeeFormPage = () => {
     if (finalAmount > CONSTANTS.MAX_FEE_AMOUNT) newErrors.amount = 'Amount seems too high';
     if (useInstallments && installmentsMismatch) newErrors.installments = `Total mismatch: ৳${installmentsTotal.toLocaleString()} ≠ ৳${finalAmount.toLocaleString()}`;
     if ((isSemester || isOneTime) && !dueDate && !useInstallments) newErrors.dueDate = 'Due date is required';
-    if (isTutor && !tutorName.trim()) newErrors.tutorName = "Tutor's name is required";
-    if (isTutor && !tutorSubject.trim()) newErrors.subject = 'Subject is required';
+
+    // Guardian: validate tutor (name must be a person, not institution)
+    if (isTutor) {
+      const tutorCheck = validatePrivateTutor({ tutorName, subject: tutorSubject, monthlyFee: finalAmount });
+      if (!tutorCheck.valid) {
+        newErrors.tutorName = tutorCheck.error;
+      } else if (tutorCheck.warning) {
+        addToast(tutorCheck.warning, 'warning');
+      }
+    }
+
+    // Guardian: validate amount with context
+    if (finalAmount > 0) {
+      const amtCheck = validateAmount(finalAmount, typeConfig?.id, educationLevel);
+      if (!amtCheck.valid) {
+        newErrors.amount = amtCheck.error;
+      } else if (amtCheck.warning) {
+        addToast(amtCheck.warning, 'warning');
+      }
+    }
+
+    // Guardian: validate fee type for education level
+    if (educationLevel && typeConfig?.id) {
+      const feeCheck = guardianValidate({ feeType: typeConfig.id, amount: finalAmount, eduType: educationLevel }, 'educationFee');
+      if (!feeCheck.valid) {
+        newErrors.feeType = feeCheck.errors[0];
+      }
+      feeCheck.warnings.forEach(w => addToast(w, 'warning'));
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -275,6 +304,14 @@ export const EducationFeeFormPage = () => {
           <span className="text-5xl">{typeConfig.icon}</span>
           <p className="text-sm text-surface-500 mt-2">{typeConfig.desc}</p>
         </div>
+
+        {/* Guardian fee-type error */}
+        {errors.feeType && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-red-700 dark:text-red-400">{errors.feeType}</p>
+          </div>
+        )}
 
         {/* ═══ NAME / TUTOR FIELDS ═══ */}
         {isTutor ? (
