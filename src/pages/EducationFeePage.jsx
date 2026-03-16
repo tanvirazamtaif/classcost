@@ -14,6 +14,7 @@ import {
 import { GButton, BottomSheet } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { ListAddView } from '../components/education/ListAddView';
 
 // Map EDU group values to fee filter categories
 const GROUP_TO_FILTER = {
@@ -26,7 +27,7 @@ const GROUP_TO_FILTER = {
 
 export const EducationFeePage = () => {
   const { navigate, theme, user, educationLevel, setEducationLevel, educationLevelAsked, setEducationLevelAsked } = useApp();
-  const { activeFees } = useEducationFees();
+  const { activeFees, deleteFee } = useEducationFees();
   const d = theme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,6 +37,7 @@ export const EducationFeePage = () => {
   const [customName, setCustomName] = useState('');
   const [customIcon, setCustomIcon] = useState('📌');
   const [customPattern, setCustomPattern] = useState(PAYMENT_PATTERNS.RECURRING);
+  const [activeMultiEntryType, setActiveMultiEntryType] = useState(null);
 
   // Derive fee filter from existing profile, fall back to manual override
   const profileLevel = user?.profile?.educationLevel;
@@ -81,7 +83,30 @@ export const EducationFeePage = () => {
 
   const handleSelectType = (type) => {
     haptics.light();
-    navigate('education-fee-form', { params: { feeType: type } });
+    if (type.isMultiEntry) {
+      setActiveMultiEntryType(type);
+    } else {
+      navigate('education-fee-form', { params: { feeType: type } });
+    }
+  };
+
+  // Get fees for a multi-entry type
+  const getMultiEntryItems = (typeId) => {
+    return activeFees.filter(f => f.feeType === typeId);
+  };
+
+  // Render item for multi-entry list
+  const renderMultiEntryItem = (fee) => {
+    const amount = fee.recurring?.amount || fee.oneTime?.amount || fee.yearly?.amount || fee.semester?.totalAmount || 0;
+    return (
+      <>
+        <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{fee.name || fee.customTypeName || fee.feeType}</p>
+        {fee.feeType === 'private_tutor' && fee.name && (
+          <p className="text-xs text-surface-500">{fee.name}</p>
+        )}
+        <p className="text-sm text-surface-500">৳{amount.toLocaleString()}{fee.recurring ? '/month' : ''}</p>
+      </>
+    );
   };
 
   const handleSelectLevel = (levelId) => {
@@ -163,10 +188,33 @@ export const EducationFeePage = () => {
           </div>
         )}
 
-        <p className="text-sm text-surface-500 mb-4">What did you pay for?</p>
+        {/* Multi-Entry List View */}
+        {activeMultiEntryType && (
+          <div className="mb-6">
+            <button
+              onClick={() => setActiveMultiEntryType(null)}
+              className="flex items-center gap-1 text-sm text-primary-600 mb-4"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to all fee types
+            </button>
+            <ListAddView
+              title={`${activeMultiEntryType.icon} ${activeMultiEntryType.label}`}
+              items={getMultiEntryItems(activeMultiEntryType.id)}
+              onAdd={() => navigate('education-fee-form', { params: { feeType: activeMultiEntryType } })}
+              onEdit={(fee) => navigate('education-fee-form', { params: { feeType: activeMultiEntryType, editFee: fee } })}
+              onDelete={(feeId) => deleteFee(feeId)}
+              renderItem={renderMultiEntryItem}
+              emptyMessage={`No ${activeMultiEntryType.label.toLowerCase()} added yet`}
+              addButtonText={`Add ${activeMultiEntryType.label}`}
+              dark={d}
+            />
+          </div>
+        )}
+
+        {!activeMultiEntryType && <p className="text-sm text-surface-500 mb-4">What did you pay for?</p>}
 
         {/* Fee Type Groups */}
-        {Object.entries(groups).map(([key, group]) => {
+        {!activeMultiEntryType && Object.entries(groups).map(([key, group]) => {
           if (group.items.length === 0) return null;
           return (
             <div key={key} className="mb-6">
@@ -192,6 +240,11 @@ export const EducationFeePage = () => {
                           <p className="text-xs text-surface-500">{type.desc}</p>
                         </div>
                       </div>
+                      {type.isMultiEntry && getMultiEntryItems(type.id).length > 0 && (
+                        <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-medium px-2 py-0.5 rounded-full mr-2">
+                          {getMultiEntryItems(type.id).length}
+                        </span>
+                      )}
                       <ChevronRight className="w-5 h-5 text-surface-400" />
                     </motion.button>
                   );

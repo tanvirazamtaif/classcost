@@ -21,12 +21,17 @@ const DEFAULT_USER = {
 /** Merge stored user with defaults so new fields always exist */
 const mergeUserDefaults = (stored) => {
   if (!stored) return null;
-  return {
+  const merged = {
     ...DEFAULT_USER,
     ...stored,
     subscription: { ...DEFAULT_USER.subscription, ...(stored.subscription || {}) },
     linkedAccounts: stored.linkedAccounts || DEFAULT_USER.linkedAccounts,
   };
+  // Normalize institution name: ensure user.institution is always set if available in profile
+  if (!merged.institution && merged.profile?.institutionName) {
+    merged.institution = merged.profile.institutionName;
+  }
+  return merged;
 };
 
 const AppContext = createContext(null);
@@ -162,6 +167,7 @@ export const AppProvider = ({ children }) => {
           classLevel: u.classLevel, currency: u.currency,
           pin: u.pin, parentPin: u.parentPin, isLoggedIn: u.isLoggedIn,
           profileComplete: u.profileComplete, onboardingSkipped: u.onboardingSkipped,
+          onboardingStep: u.onboardingStep, onboardingComplete: u.onboardingComplete,
           profile: u.profile || null,
           accountType: u.accountType || 'student',
           subscription: u.subscription || DEFAULT_USER.subscription,

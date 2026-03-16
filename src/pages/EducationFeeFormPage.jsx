@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Bell, Calculator, Plus, Check, AlertCircle, Info } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
+import { useUserProfile } from '../hooks/useUserProfile';
 import { EDUCATION_FEE_TYPES, PAYMENT_PATTERNS, PAYMENT_METHODS, SEMESTER_NAMES, SEMESTERS, MONTHS, CONSTANTS, getFeeTypeConfig } from '../types/educationFees';
 import { validateInstallmentsTotal, calculatePerCreditTotal } from '../types/educationFeeSchema';
 import { GButton } from '../components/ui';
@@ -20,8 +21,8 @@ function getDaySuffix(day) {
 }
 
 export const EducationFeeFormPage = () => {
-  const { navigate, addToast, routeParams, theme, user } = useApp();
-  const profile = user?.profile;
+  const { navigate, addToast, routeParams, theme } = useApp();
+  const { institutionName } = useUserProfile();
   const { addFee, addSemesterFee, savedCreditRates, setSavedCreditRates } = useEducationFees();
   const d = theme === 'dark';
 
@@ -32,8 +33,13 @@ export const EducationFeeFormPage = () => {
   // FORM STATE
   // ═══════════════════════════════════════════════════════════════
 
-  const [name, setName] = useState(profile?.institutionName || user?.institution || '');
+  const isTutor = typeConfig?.id === 'private_tutor';
+  const [name, setName] = useState(isTutor ? '' : institutionName);
   const [amount, setAmount] = useState('');
+
+  // Private Tutor specific
+  const [tutorName, setTutorName] = useState('');
+  const [tutorSubject, setTutorSubject] = useState('');
 
   // Recurring
   const [dueDay, setDueDay] = useState(CONSTANTS.DEFAULT_DUE_DAY);
@@ -121,9 +127,8 @@ export const EducationFeeFormPage = () => {
 
   // Sync institution name when user data loads after mount
   useEffect(() => {
-    const institution = profile?.institutionName || user?.institution || '';
-    if (institution && !name) setName(institution);
-  }, [profile?.institutionName, user?.institution]);
+    if (institutionName && !name) setName(institutionName);
+  }, [institutionName]);
 
   useEffect(() => {
     if (!useInstallments || customInstallmentAmounts) return;
@@ -173,6 +178,8 @@ export const EducationFeeFormPage = () => {
     if (finalAmount > CONSTANTS.MAX_FEE_AMOUNT) newErrors.amount = 'Amount seems too high';
     if (useInstallments && installmentsMismatch) newErrors.installments = `Total mismatch: ৳${installmentsTotal.toLocaleString()} ≠ ৳${finalAmount.toLocaleString()}`;
     if ((isSemester || isOneTime) && !dueDate && !useInstallments) newErrors.dueDate = 'Due date is required';
+    if (isTutor && !tutorName.trim()) newErrors.tutorName = "Tutor's name is required";
+    if (isTutor && !tutorSubject.trim()) newErrors.subject = 'Subject is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -191,8 +198,9 @@ export const EducationFeeFormPage = () => {
 
       const feeData = {
         feeType: typeConfig.id,
-        name: name || typeConfig.label,
+        name: isTutor ? `${tutorName} (${tutorSubject})` : (name || typeConfig.label),
         icon: typeConfig.icon,
+        ...(isTutor ? { tutorName, subject: tutorSubject } : {}),
         paymentPattern,
         amount: finalAmount,
         dueDay, reminderDays,
@@ -268,26 +276,59 @@ export const EducationFeeFormPage = () => {
           <p className="text-sm text-surface-500 mt-2">{typeConfig.desc}</p>
         </div>
 
-        {/* ═══ NAME ═══ */}
-        <div>
-          <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-            {isRecurring ? 'School/Institution Name' : isSemester ? 'University Name' : 'Name'}
-            {(profile?.institutionName || user?.institution) ? (
-              <span className="text-surface-400 font-normal ml-1">(from profile)</span>
-            ) : (
-              <span className="text-surface-400 font-normal ml-1">(optional)</span>
-            )}
-          </label>
-          <input
-            type="text"
-            placeholder={`e.g., ${isRecurring ? 'Dhaka College' : isSemester ? 'North South University' : 'Enter name'}`}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
-              d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-            }`}
-          />
-        </div>
+        {/* ═══ NAME / TUTOR FIELDS ═══ */}
+        {isTutor ? (
+          <>
+            <div>
+              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                Tutor's Name *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Mr. Rahman, Fatema Apa"
+                value={tutorName}
+                onChange={(e) => { setTutorName(e.target.value); setName(e.target.value); }}
+                className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
+                  d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
+                }`}
+              />
+            </div>
+            <div>
+              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                Subject *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Math, Physics, English"
+                value={tutorSubject}
+                onChange={(e) => setTutorSubject(e.target.value)}
+                className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
+                  d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
+                }`}
+              />
+            </div>
+          </>
+        ) : (
+          <div>
+            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+              {isRecurring ? 'School/Institution Name' : isSemester ? 'University Name' : 'Name'}
+              {institutionName ? (
+                <span className="text-surface-400 font-normal ml-1">(from profile)</span>
+              ) : (
+                <span className="text-surface-400 font-normal ml-1">(optional)</span>
+              )}
+            </label>
+            <input
+              type="text"
+              placeholder={`e.g., ${isRecurring ? 'Dhaka College' : isSemester ? 'North South University' : 'Enter name'}`}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
+                d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
+              }`}
+            />
+          </div>
+        )}
 
         {/* ═══ SEMESTER NAME ═══ */}
         {isSemester && (

@@ -158,6 +158,131 @@ export async function updateSettings(userId, data) {
   });
 }
 
+// ── Education Fees ─────────────────────────────────────────────────────────
+
+export async function getEducationFees(userId) {
+  return request(`/api/education-fees/${userId}`);
+}
+
+export async function syncEducationFees(userId, fees) {
+  return request('/api/education-fees/sync', {
+    method: 'POST',
+    body: JSON.stringify({ userId, fees }),
+  });
+}
+
+// ── Coaching Centers ──────────────────────────────────────────────────────
+
+export async function getCoachingCenters(userId) {
+  return request(`/api/coaching/${userId}`);
+}
+
+export async function createCoachingCenter(data) {
+  return request('/api/coaching', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateCoachingCenter(id, data) {
+  return request(`/api/coaching/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteCoachingCenter(id) {
+  return request(`/api/coaching/${id}`, { method: 'DELETE' });
+}
+
+export async function recordCoachingPayment(id) {
+  return request(`/api/coaching/${id}/payment`, { method: 'PATCH' });
+}
+
+// ── Batches ───────────────────────────────────────────────────────────────
+
+export async function getBatches(userId) {
+  return request(`/api/batches/${userId}`);
+}
+
+export async function createBatch(data) {
+  return request('/api/batches', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateBatch(id, data) {
+  return request(`/api/batches/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteBatch(id) {
+  return request(`/api/batches/${id}`, { method: 'DELETE' });
+}
+
+// ── Private Tutors ────────────────────────────────────────────────────────
+
+export async function getTutors(userId) {
+  return request(`/api/tutors/${userId}`);
+}
+
+export async function createTutor(data) {
+  return request('/api/tutors', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateTutor(id, data) {
+  return request(`/api/tutors/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteTutor(id) {
+  return request(`/api/tutors/${id}`, { method: 'DELETE' });
+}
+
+// ── Clubs ─────────────────────────────────────────────────────────────────
+
+export async function getClubs(userId) {
+  return request(`/api/clubs/${userId}`);
+}
+
+export async function createClub(data) {
+  return request('/api/clubs', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateClub(id, data) {
+  return request(`/api/clubs/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteClub(id) {
+  return request(`/api/clubs/${id}`, { method: 'DELETE' });
+}
+
+// ── Events ────────────────────────────────────────────────────────────────
+
+export async function getEvents(userId) {
+  return request(`/api/events/${userId}`);
+}
+
+export async function createEvent(data) {
+  return request('/api/events', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateEvent(id, data) {
+  return request(`/api/events/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteEvent(id) {
+  return request(`/api/events/${id}`, { method: 'DELETE' });
+}
+
+// ── Uniforms ──────────────────────────────────────────────────────────────
+
+export async function getUniforms(userId) {
+  return request(`/api/uniforms/${userId}`);
+}
+
+export async function createUniform(data) {
+  return request('/api/uniforms', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateUniform(id, data) {
+  return request(`/api/uniforms/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteUniform(id) {
+  return request(`/api/uniforms/${id}`, { method: 'DELETE' });
+}
+
 // ── Promo Redemption (public) ──────────────────────────────────────────────
 
 export async function redeemPromoCode(userId, code) {

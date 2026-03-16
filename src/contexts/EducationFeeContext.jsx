@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import React, { createContext, useContext, useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { useApp } from './AppContext';
+import * as api from '../api';
 import { FEE_STATUS, PAYMENT_PATTERNS, CONSTANTS } from '../types/educationFees';
 import {
   createEducationFee,
@@ -45,12 +46,96 @@ const indexPayment = (paymentsByPeriod, period, paymentId) => {
   return { ...paymentsByPeriod, [period]: [...existing, paymentId] };
 };
 
+// localStorage key for migration
+const LOCAL_STORAGE_KEY = 'classcost_education_fees';
+const CREDIT_RATES_KEY = 'classcost_credit_rates';
+
 export const EducationFeeProvider = ({ children }) => {
-  const [fees, setFees] = useLocalStorage('classcost_education_fees', []);
-  const [savedCreditRates, setSavedCreditRates] = useLocalStorage('classcost_credit_rates', {
+  const { user } = useApp();
+  const [fees, setFees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [savedCreditRates, setSavedCreditRates] = useState({
     regular: CONSTANTS.DEFAULT_CREDIT_RATE,
     lab: CONSTANTS.DEFAULT_LAB_RATE,
   });
+  const syncTimeoutRef = useRef(null);
+  const isInitialLoad = useRef(true);
+
+  // Load fees from database when user logs in
+  useEffect(() => {
+    if (!user?.id) {
+      setFees([]);
+      setLoading(false);
+      return;
+    }
+
+    const loadFees = async () => {
+      setLoading(true);
+      try {
+        const dbFees = await api.getEducationFees(user.id);
+        if (dbFees && dbFees.length > 0) {
+          setFees(dbFees);
+        } else {
+          // Check localStorage for migration
+          const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (localData) {
+            try {
+              const localFees = JSON.parse(localData);
+              if (Array.isArray(localFees) && localFees.length > 0) {
+                setFees(localFees);
+                // Sync to database
+                await api.syncEducationFees(user.id, localFees);
+                // Clear localStorage after successful migration
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+              }
+            } catch (e) {
+              console.error('Failed to migrate localStorage fees:', e);
+            }
+          }
+        }
+
+        // Load credit rates from localStorage (small config, keep local)
+        const savedRates = localStorage.getItem(CREDIT_RATES_KEY);
+        if (savedRates) {
+          try { setSavedCreditRates(JSON.parse(savedRates)); } catch (e) { /* ignore */ }
+        }
+      } catch (err) {
+        console.error('Failed to load education fees:', err);
+        // Fallback to localStorage if API fails
+        const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (localData) {
+          try { setFees(JSON.parse(localData)); } catch (e) { /* ignore */ }
+        }
+      } finally {
+        setLoading(false);
+        isInitialLoad.current = false;
+      }
+    };
+
+    loadFees();
+  }, [user?.id]);
+
+  // Debounced sync to database on fee changes
+  useEffect(() => {
+    if (isInitialLoad.current || !user?.id || loading) return;
+
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => {
+      api.syncEducationFees(user.id, fees).catch(err => {
+        console.error('Failed to sync fees to database:', err);
+      });
+    }, 1000);
+
+    return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
+  }, [fees, user?.id, loading]);
+
+  // Save credit rates to localStorage when changed
+  const updateCreditRates = useCallback((rates) => {
+    setSavedCreditRates(rates);
+    localStorage.setItem(CREDIT_RATES_KEY, JSON.stringify(rates));
+  }, []);
 
   // Active fees (exclude soft-deleted)
   const activeFees = useMemo(() => fees.filter(f => !f.isDeleted), [fees]);
@@ -82,7 +167,7 @@ export const EducationFeeProvider = ({ children }) => {
 
     setFees(prev => [newFee, ...prev]);
     return newFee;
-  }, [setFees]);
+  }, []);
 
   const addSemesterFee = useCallback((data) => {
     let installments = null;
@@ -185,7 +270,7 @@ export const EducationFeeProvider = ({ children }) => {
         updatedAt: new Date().toISOString(),
       };
     }));
-  }, [setFees]);
+  }, []);
 
   const recordPartialPayment = useCallback((feeId, paymentData) => {
     return recordPayment(feeId, { ...paymentData, isPartial: true });
@@ -239,7 +324,7 @@ export const EducationFeeProvider = ({ children }) => {
         { paymentId: payment.id, classCount, period }
       );
     }));
-  }, [setFees]);
+  }, []);
 
   const recordRefund = useCallback((feeId, refundData) => {
     setFees(prev => prev.map(fee => {
@@ -281,7 +366,7 @@ export const EducationFeeProvider = ({ children }) => {
         { paymentId: refund.id, period }
       );
     }));
-  }, [setFees]);
+  }, []);
 
   const recordAdvancePayment = useCallback((feeId, paymentData) => {
     const { amount, months, startPeriod, ...rest } = paymentData;
@@ -344,7 +429,7 @@ export const EducationFeeProvider = ({ children }) => {
         updatedAt: new Date().toISOString(),
       };
     }));
-  }, [setFees]);
+  }, []);
 
   const payInstallment = useCallback((feeId, installmentId, paymentData) => {
     setFees(prev => prev.map(fee => {
@@ -386,7 +471,7 @@ export const EducationFeeProvider = ({ children }) => {
         updatedAt: new Date().toISOString(),
       };
     }));
-  }, [setFees]);
+  }, []);
 
   const skipPeriod = useCallback((feeId, period, reason) => {
     setFees(prev => prev.map(fee => {
@@ -418,7 +503,7 @@ export const EducationFeeProvider = ({ children }) => {
         { period, reason }
       );
     }));
-  }, [setFees]);
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════
   // UPDATE OPERATIONS
@@ -435,7 +520,7 @@ export const EducationFeeProvider = ({ children }) => {
         { changes }
       );
     }));
-  }, [setFees]);
+  }, []);
 
   const updateFeeAmount = useCallback((feeId, newAmount, effectiveFrom, reason) => {
     setFees(prev => prev.map(fee => {
@@ -462,7 +547,7 @@ export const EducationFeeProvider = ({ children }) => {
         { oldAmount: getCurrentAmount(fee), newAmount, effectiveFrom, reason }
       );
     }));
-  }, [setFees]);
+  }, []);
 
   const updateInstallmentAmount = useCallback((feeId, installmentId, newAmount) => {
     setFees(prev => prev.map(fee => {
@@ -480,7 +565,7 @@ export const EducationFeeProvider = ({ children }) => {
         { installmentId, oldAmount, newAmount }
       );
     }));
-  }, [setFees]);
+  }, []);
 
   const deactivateFee = useCallback((feeId, endDate, reason) => {
     setFees(prev => prev.map(fee => {
@@ -497,7 +582,7 @@ export const EducationFeeProvider = ({ children }) => {
         { endDate, reason }
       );
     }));
-  }, [setFees]);
+  }, []);
 
   const reactivateFee = useCallback((feeId) => {
     setFees(prev => prev.map(fee => {
@@ -513,7 +598,7 @@ export const EducationFeeProvider = ({ children }) => {
         'Fee reactivated'
       );
     }));
-  }, [setFees]);
+  }, []);
 
   // Soft delete
   const deleteFee = useCallback((feeId) => {
@@ -526,7 +611,7 @@ export const EducationFeeProvider = ({ children }) => {
         'Fee soft-deleted'
       );
     }));
-  }, [setFees]);
+  }, []);
 
   // Restore soft-deleted fee
   const restoreFee = useCallback((feeId) => {
@@ -539,12 +624,12 @@ export const EducationFeeProvider = ({ children }) => {
         'Fee restored'
       );
     }));
-  }, [setFees]);
+  }, []);
 
   // Hard delete (permanent)
   const hardDeleteFee = useCallback((feeId) => {
     setFees(prev => prev.filter(fee => fee.id !== feeId));
-  }, [setFees]);
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════
   // QUERY OPERATIONS
@@ -680,7 +765,7 @@ export const EducationFeeProvider = ({ children }) => {
   }, [activeFees]);
 
   const value = {
-    fees, activeFees, savedCreditRates, setSavedCreditRates,
+    fees, activeFees, loading, savedCreditRates, setSavedCreditRates: updateCreditRates,
     addFee, addSemesterFee,
     recordPayment, recordPartialPayment, recordPerClassPayment, recordRefund,
     recordAdvancePayment, payInstallment, skipPeriod,

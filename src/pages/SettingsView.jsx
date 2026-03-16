@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useUserProfile } from '../hooks/useUserProfile';
 import { EDU, CURRENCIES, PROMOTION_CONFIG } from '../constants';
 import { makeFmt, todayStr } from '../utils';
 import { Btn, Card, Input, Badge, Toggle } from '../components/ui';
@@ -13,6 +14,7 @@ const GROUP_TO_FILTER = { early: 'school', school: 'school', college: 'college',
 const SettingsView = () => {
   useEffect(() => { document.title = "Settings — ClassCost"; }, []);
   const { user, setUser, notifications, setNotifications, navigate, addToast, generateInviteCode, educationLevel, setEducationLevel } = useApp();
+  const { institutionName } = useUserProfile();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];
   const trialDays=user?.trialStart?Math.max(0,90-Math.floor((Date.now()-user.trialStart)/86400000)):90;
@@ -60,7 +62,7 @@ const SettingsView = () => {
           <div className="flex-1 min-w-0">
             <p className="font-bold text-slate-800">{profile?.fullName||"Student"}</p>
             <p className="text-slate-500 text-sm truncate">{user?.email}</p>
-            <p className="text-indigo-600 text-xs truncate">{profile?.institutionName||""}</p>
+            <p className="text-indigo-600 text-xs truncate">{institutionName}</p>
           </div>
           <Badge color={mod?.color||"indigo"}>{mod?.icon} {mod?.shortLabel}</Badge>
         </div>

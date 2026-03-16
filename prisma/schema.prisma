@@ -19,8 +19,10 @@ model User {
   pin               String?
   parentPin         String?
   isLoggedIn        Boolean    @default(false)
-  profileComplete   Boolean    @default(false)
-  onboardingSkipped Boolean    @default(false)
+  profileComplete    Boolean    @default(false)
+  onboardingSkipped  Boolean    @default(false)
+  onboardingStep     Int        @default(0)
+  onboardingComplete Boolean    @default(false)
   profile           Json?
   premiumUntil      DateTime?
   premiumSource     String?
@@ -28,10 +30,17 @@ model User {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
-  expenses  Expense[]
-  semesters Semester[]
-  loans     Loan[]
-  settings  Settings?
+  expenses        Expense[]
+  semesters       Semester[]
+  loans           Loan[]
+  settings        Settings?
+  coachingCenters CoachingCenter[]
+  batches         Batch[]
+  privateTutors   PrivateTutor[]
+  clubs           Club[]
+  events          Event[]
+  uniforms        Uniform[]
+  educationFees   EducationFee[]
 }
 
 model PromoCode {
@@ -103,4 +112,93 @@ model Settings {
   privacy       Json   @default("{}")
   promotion     Json   @default("{}")
   customModules Json   @default("[]")
+}
+
+model CoachingCenter {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  monthlyFee Float
+  totalMonths Int?
+  monthsPaid  Int     @default(0)
+  startDate  DateTime
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Batch {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  fee       Float
+  frequency String
+  isPaid    Boolean   @default(false)
+  startDate DateTime
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model PrivateTutor {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutorName      String
+  subject        String
+  monthlyFee     Float
+  paymentType    String
+  sessionsPerWeek Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Club {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  fee       Float
+  frequency String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  amount    Float
+  date      DateTime
+  category  String
+  isPaid    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Uniform {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseDate DateTime
+  description  String?
+  amount       Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EducationFee {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feeType   String
+  data      Json      // Full complex fee object (payments, periodStatus, installments, etc.)
+  isDeleted Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }

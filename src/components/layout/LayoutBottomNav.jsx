@@ -1,10 +1,11 @@
 import React from 'react';
-import { Home, CreditCard, PieChart, Settings } from 'lucide-react';
+import { Home, GraduationCap, CreditCard, PieChart, Settings } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { haptics } from '../../lib/haptics';
 
 const navItems = [
   { id: 'dashboard', icon: Home, label: 'Home' },
+  { id: 'education-fees', icon: GraduationCap, label: 'Fees' },
   { id: 'loans', icon: CreditCard, label: 'Loans' },
   { id: 'reports', icon: PieChart, label: 'Reports' },
   { id: 'settings', icon: Settings, label: 'Settings' },

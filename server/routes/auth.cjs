@@ -183,7 +183,8 @@ router.put('/profile/:id', async (req, res) => {
     const allowedFields = [
       'name', 'eduType', 'institution', 'classLevel', 'currency',
       'familyCode', 'pin', 'parentPin', 'isLoggedIn',
-      'profileComplete', 'onboardingSkipped', 'profile',
+      'profileComplete', 'onboardingSkipped', 'onboardingStep', 'onboardingComplete',
+      'profile',
     ];
     const data = {};
     for (const field of allowedFields) {

@@ -9,6 +9,13 @@ const semesterRoutes = require('./routes/semesters.cjs');
 const loanRoutes = require('./routes/loans.cjs');
 const settingsRoutes = require('./routes/settings.cjs');
 const adminRoutes = require('./routes/admin.cjs');
+const coachingRoutes = require('./routes/coaching.cjs');
+const batchRoutes = require('./routes/batches.cjs');
+const tutorRoutes = require('./routes/tutors.cjs');
+const clubRoutes = require('./routes/clubs.cjs');
+const eventRoutes = require('./routes/events.cjs');
+const uniformRoutes = require('./routes/uniforms.cjs');
+const educationFeeRoutes = require('./routes/educationFees.cjs');
 
 const app = express();
 
@@ -21,6 +28,13 @@ app.use('/api/semesters', semesterRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/coaching', coachingRoutes);
+app.use('/api/batches', batchRoutes);
+app.use('/api/tutors', tutorRoutes);
+app.use('/api/clubs', clubRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/uniforms', uniformRoutes);
+app.use('/api/education-fees', educationFeeRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {
