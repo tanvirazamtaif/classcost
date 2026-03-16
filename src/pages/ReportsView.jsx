@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
+import { useEducationFees } from '../contexts/EducationFeeContext';
 import { GCard, GCardContent } from '../components/ui';
 import { ExpenseChart } from '../components/feature';
 import { pageTransition } from '../lib/animations';
@@ -8,6 +9,7 @@ import { makeFmt } from '../utils/format';
 
 export const ReportsView = () => {
   const { expenses, user, theme } = useApp();
+  const { getTotalPaidAllTime, getTotalPaidThisMonth } = useEducationFees();
   const d = theme === 'dark';
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || 'BDT');
@@ -21,14 +23,23 @@ export const ReportsView = () => {
   const filteredExpenses = includeHistorical ? expenses : expenses.filter(e => !e.isHistorical);
 
   const totals = useMemo(() => {
-    const all = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const expenseAll = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthly = filteredExpenses
+    const expenseMonthly = filteredExpenses
       .filter(e => e.date?.startsWith(thisMonth))
       .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-    return { all, monthly };
-  }, [filteredExpenses]);
+
+    const eduAll = getTotalPaidAllTime || 0;
+    const eduMonthly = getTotalPaidThisMonth || 0;
+
+    return {
+      all: expenseAll + eduAll,
+      monthly: expenseMonthly + eduMonthly,
+      expenseOnly: expenseAll,
+      eduOnly: eduAll,
+    };
+  }, [filteredExpenses, getTotalPaidAllTime, getTotalPaidThisMonth]);
 
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
@@ -44,7 +55,7 @@ export const ReportsView = () => {
     hostel: '🏠 Housing', books: '📚 Books', uniform: '👔 Uniform'
   };
 
-  if (expenses.length === 0) {
+  if (expenses.length === 0 && !getTotalPaidAllTime) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
         <span className="text-5xl mb-4">📊</span>
@@ -133,6 +144,18 @@ export const ReportsView = () => {
             {fmt(totals.all)}
           </p>
           <p className={`text-xs mt-1 ${d ? 'text-surface-500' : 'text-surface-400'}`}>Since you started tracking</p>
+          {totals.eduOnly > 0 && totals.expenseOnly > 0 && (
+            <div className={`mt-4 pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'} flex justify-center gap-6 text-xs`}>
+              <div>
+                <p className={d ? 'text-surface-500' : 'text-surface-400'}>Expenses</p>
+                <p className={`font-semibold ${d ? 'text-surface-300' : 'text-surface-700'}`}>{fmt(totals.expenseOnly)}</p>
+              </div>
+              <div>
+                <p className={d ? 'text-surface-500' : 'text-surface-400'}>Education Fees</p>
+                <p className={`font-semibold ${d ? 'text-surface-300' : 'text-surface-700'}`}>{fmt(totals.eduOnly)}</p>
+              </div>
+            </div>
+          )}
         </GCardContent>
       </GCard>
     </motion.div>

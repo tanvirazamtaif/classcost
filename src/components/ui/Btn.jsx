@@ -3,7 +3,7 @@ import React from 'react';
 const VARIANTS = {
   primary: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
   parent: "bg-teal-600 hover:bg-teal-700 text-white shadow-lg shadow-teal-200",
-  secondary: "bg-white hover:bg-slate-50 text-indigo-700 border-2 border-indigo-100 shadow-sm",
+  secondary: "bg-white dark:bg-surface-800 hover:bg-slate-50 dark:hover:bg-surface-700 text-indigo-700 dark:text-indigo-400 border-2 border-indigo-100 dark:border-indigo-800 shadow-sm",
   ghost: "bg-transparent hover:bg-indigo-50 text-indigo-600",
   danger: "bg-red-500 hover:bg-red-600 text-white shadow-md",
   success: "bg-emerald-500 hover:bg-emerald-600 text-white shadow-md",
