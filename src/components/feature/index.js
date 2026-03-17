@@ -8,6 +8,7 @@ export { SetupDot, SetupProgress, SetupHint } from './SetupGuide';
 export { HamburgerMenu } from './HamburgerMenu';
 export { FloatingAddButton } from './FloatingAddButton';
 export { AddPaymentSheet } from './AddPaymentSheet';
+export { ExpenseDetailSheet } from './ExpenseDetailSheet';
 export { PaymentCard } from './PaymentCard';
 export { ExpenseChart } from './ExpenseChart';
 export { QuickEntrySheet } from './QuickEntrySheet';

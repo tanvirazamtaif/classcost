@@ -4,7 +4,7 @@ import { Check, AlertCircle, CreditCard } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { Header, LayoutBottomNav, Sidebar } from '../components/layout';
 import { FAB, GCard, GCardContent, GButton } from '../components/ui';
-import { AddPaymentSheet, PaymentCard, QuickEntrySheet } from '../components/feature';
+import { AddPaymentSheet, ExpenseDetailSheet, PaymentCard, QuickEntrySheet } from '../components/feature';
 import { stagger, fadeInUp } from '../lib/animations';
 import { makeFmt } from '../utils/format';
 import { useEducationFees } from '../contexts/EducationFeeContext';
@@ -21,6 +21,7 @@ export const DashboardView = () => {
   const [selectedEduPayment, setSelectedEduPayment] = useState(null);
   const [showMarkPaid, setShowMarkPaid] = useState(false);
   const [showSkipSheet, setShowSkipSheet] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
   const d = theme === 'dark';
 
   const { getUpcomingPayments: eduUpcoming, getOverduePayments: overduePayments, getTotalPaidThisMonth: eduMonthly } = useEducationFees();
@@ -328,7 +329,7 @@ export const DashboardView = () => {
                   <div key={day} className={i > 0 ? `mt-4 pt-4 border-t ${d ? 'border-surface-800' : 'border-surface-100'}` : ''}>
                     <p className={`text-xs mb-2 ${d ? 'text-surface-400' : 'text-surface-500'}`}>{formatDayLabel(day)}</p>
                     {groupedByDay[day].map((payment) => (
-                      <PaymentCard key={payment.id || `${payment.date}-${payment.amount}`} payment={payment} currencySymbol={currencySymbol} />
+                      <PaymentCard key={payment.id || `${payment.date}-${payment.amount}`} payment={payment} currencySymbol={currencySymbol} onClick={() => setSelectedExpense(payment)} />
                     ))}
                   </div>
                 ))}
@@ -359,6 +360,11 @@ export const DashboardView = () => {
         isOpen={showSkipSheet}
         onClose={() => { setShowSkipSheet(false); setSelectedEduPayment(null); }}
         upcomingPayment={selectedEduPayment}
+      />
+      <ExpenseDetailSheet
+        isOpen={!!selectedExpense}
+        onClose={() => setSelectedExpense(null)}
+        expense={selectedExpense}
       />
     </div>
   );

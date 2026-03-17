@@ -248,11 +248,24 @@ export const AppProvider = ({ children }) => {
     }
   }, [user?.id]);
 
+  // Helper: edit expense and sync to server
+  const editExpense = useCallback(async (expenseId, updates) => {
+    setExpensesLocal(prev => prev.map(e => e.id === expenseId ? { ...e, ...updates } : e));
+    try {
+      const { details, label, ...rest } = updates;
+      await api.updateExpense(expenseId, {
+        ...rest,
+        note: details || rest.note || null,
+        meta: { label: label || null, ...(rest.meta || {}) },
+      });
+    } catch (e) { console.error('Failed to update expense:', e); throw e; }
+  }, []);
+
   // Helper: delete expense and sync to server
   const removeExpense = useCallback(async (expenseId) => {
     setExpensesLocal(prev => prev.filter(e => e.id !== expenseId));
     try { await api.deleteExpense(expenseId); }
-    catch (e) { console.error('Failed to delete expense:', e); }
+    catch (e) { console.error('Failed to delete expense:', e); throw e; }
   }, []);
 
   // Helper: add semester and sync
@@ -413,7 +426,7 @@ export const AppProvider = ({ children }) => {
     signupMethod, setSignupMethod,
     routeParams,
     // Server-synced helpers
-    addExpense, removeExpense,
+    addExpense, editExpense, removeExpense,
     addSemester, editSemester,
     addLoan, addLoanPayment,
     loadUserData,
