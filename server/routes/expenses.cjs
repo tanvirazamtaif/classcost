@@ -21,6 +21,12 @@ router.post('/', async (req, res) => {
     if (!userId || !type || amount === undefined) {
       return res.status(400).json({ error: 'userId, type, and amount are required' });
     }
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+    if (amount > 10000000) {
+      return res.status(400).json({ error: 'Amount exceeds maximum limit' });
+    }
     const expense = await prisma.expense.create({
       data: {
         userId, type, amount,

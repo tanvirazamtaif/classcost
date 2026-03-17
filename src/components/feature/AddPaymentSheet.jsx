@@ -37,6 +37,7 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
   const [category, setCategory] = useState(preselectedCategory || '');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
   // Recurring setup state
   const [dueDay, setDueDay] = useState(10);
@@ -51,7 +52,17 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
   }, [preselectedCategory]);
 
   const handleSave = async () => {
-    if (!amount || !category) return;
+    const newErrors = {};
+    const numAmount = Number(amount);
+    if (!amount || numAmount <= 0) newErrors.amount = 'Amount must be greater than 0';
+    if (numAmount > 10000000) newErrors.amount = 'Amount exceeds maximum limit';
+    if (!category) newErrors.category = 'Please select a category';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      haptics.error();
+      return;
+    }
+    setErrors({});
     haptics.medium();
     setSaving(true);
 
@@ -116,6 +127,7 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
     setAmount('');
     setCategory(preselectedCategory || '');
     setNote('');
+    setErrors({});
     setDueDay(10);
     setReminderDays(2);
     onClose();
@@ -131,15 +143,24 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
               <span className="text-2xl text-surface-500 mr-2">{currencySymbol}</span>
               <input
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
+                min="1"
                 placeholder="0"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                  setAmount(val);
+                  if (val && Number(val) > 0) setErrors(prev => ({ ...prev, amount: undefined }));
+                }}
                 className="text-3xl font-semibold bg-transparent outline-none w-full text-surface-900 dark:text-white"
                 autoFocus
               />
             </div>
-            <p className="text-xs text-surface-500 mt-2">Enter amount</p>
+            {errors.amount ? (
+              <p className="text-xs text-red-500 mt-2">{errors.amount}</p>
+            ) : (
+              <p className="text-xs text-surface-500 mt-2">Enter amount</p>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-3 mb-6">
@@ -147,7 +168,7 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
               <motion.button
                 key={cat.id}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => { haptics.light(); setCategory(cat.id); }}
+                onClick={() => { haptics.light(); setCategory(cat.id); setErrors(prev => ({ ...prev, category: undefined })); }}
                 className={`p-4 rounded-2xl text-center transition-all ${cat.color} ${
                   category === cat.id
                     ? 'ring-2 ring-primary-600 ring-offset-2 dark:ring-offset-surface-900'
@@ -161,6 +182,9 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
               </motion.button>
             ))}
           </div>
+          {errors.category && (
+            <p className="text-xs text-red-500 -mt-4 mb-4">{errors.category}</p>
+          )}
 
           <div className="mb-6">
             <input
@@ -173,7 +197,7 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
             />
           </div>
 
-          <GButton fullWidth size="lg" onClick={handleSave} loading={saving} disabled={!amount || !category}>
+          <GButton fullWidth size="lg" onClick={handleSave} loading={saving}>
             Save payment
           </GButton>
         </>
