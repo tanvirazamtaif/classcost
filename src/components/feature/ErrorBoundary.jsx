@@ -12,6 +12,24 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ClassCost Error:', error, errorInfo);
+
+    // Auto-reload on stale chunk errors (happens after deploys)
+    const msg = error?.message || '';
+    if (
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading CSS chunk') ||
+      msg.includes('Importing a module script failed')
+    ) {
+      const reloadKey = 'classcost_chunk_reload';
+      const lastReload = sessionStorage.getItem(reloadKey);
+      // Only auto-reload once per session to avoid infinite loops
+      if (!lastReload) {
+        sessionStorage.setItem(reloadKey, Date.now().toString());
+        window.location.reload();
+        return;
+      }
+    }
   }
 
   handleReset = () => {
