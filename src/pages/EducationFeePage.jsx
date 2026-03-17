@@ -234,7 +234,78 @@ export const EducationFeePage = () => {
           </div>
         )}
 
-        {!activeMultiEntryType && <p className="text-sm text-surface-500 mb-4">What did you pay for?</p>}
+        {/* ═══ INTENT CARDS (Primary Actions) ═══ */}
+        {!activeMultiEntryType && (
+          <>
+            <p className={`text-sm font-medium mb-3 ${d ? 'text-surface-300' : 'text-surface-700'}`}>Add a payment</p>
+            <div className="space-y-2 mb-6">
+              {/* Semester Payment — Primary */}
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => { haptics.light(); navigate('semester-payment'); }}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition ${
+                  d ? 'bg-primary-900/20 border-primary-800/50 hover:border-primary-600' : 'bg-primary-50 border-primary-200 hover:border-primary-400'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${d ? 'bg-primary-600/20' : 'bg-primary-100'}`}>🎓</div>
+                <div className="text-left flex-1">
+                  <p className={`font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Semester Payment</p>
+                  <p className="text-xs text-surface-500">Record a semester payment with optional breakdown</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-surface-400" />
+              </motion.button>
+
+              {/* Admission / Registration */}
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  haptics.light();
+                  const admType = relevantTypes.find(t => t.id === 'admission_fee') || { id: 'admission_fee', icon: '📋', label: 'Admission Fee', desc: 'One-time admission payment', defaultPattern: 'one_time', fields: ['name', 'amount', 'dueDate'] };
+                  navigate('education-fee-form', { params: { feeType: admType } });
+                }}
+                className={`w-full flex items-center gap-4 p-3.5 rounded-xl border transition ${
+                  d ? 'bg-surface-900 border-surface-800 hover:border-surface-600' : 'bg-white border-surface-200 hover:border-surface-300'
+                }`}
+              >
+                <span className="text-2xl w-10 text-center">📋</span>
+                <div className="text-left flex-1">
+                  <p className={`font-medium text-sm ${d ? 'text-white' : 'text-surface-900'}`}>Admission / Registration</p>
+                  <p className="text-xs text-surface-500">One-time enrollment costs</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-surface-400" />
+              </motion.button>
+
+              {/* Recurring Cost */}
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  haptics.light();
+                  const recurringTypes = relevantTypes.filter(t => t.defaultPattern === 'recurring' || t.id === 'coaching' || t.id === 'private_tutor');
+                  if (recurringTypes.length > 0) {
+                    handleSelectType(recurringTypes[0]);
+                  }
+                }}
+                className={`w-full flex items-center gap-4 p-3.5 rounded-xl border transition ${
+                  d ? 'bg-surface-900 border-surface-800 hover:border-surface-600' : 'bg-white border-surface-200 hover:border-surface-300'
+                }`}
+              >
+                <span className="text-2xl w-10 text-center">🔄</span>
+                <div className="text-left flex-1">
+                  <p className={`font-medium text-sm ${d ? 'text-white' : 'text-surface-900'}`}>Recurring Cost</p>
+                  <p className="text-xs text-surface-500">Coaching, tutor, monthly fees</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-surface-400" />
+              </motion.button>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`flex-1 h-px ${d ? 'bg-surface-800' : 'bg-surface-200'}`} />
+              <span className="text-xs text-surface-400">or browse all fee types</span>
+              <div className={`flex-1 h-px ${d ? 'bg-surface-800' : 'bg-surface-200'}`} />
+            </div>
+          </>
+        )}
 
         {/* Fee Type Groups */}
         {!activeMultiEntryType && Object.entries(groups).map(([key, group]) => {

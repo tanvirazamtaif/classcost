@@ -27,6 +27,7 @@ const HousingEntryPage = lazy(() => import('./pages/HousingEntryPage'));
 const BooksEntryPage = lazy(() => import('./pages/BooksEntryPage'));
 const EducationFeePage = lazy(() => import('./pages/EducationFeePage'));
 const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
+const SemesterPaymentPage = lazy(() => import('./pages/SemesterPaymentPage'));
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ const ViewRouter = () => {
         {view === "books-entry" && <BooksEntryPage />}
         {view === "education-fees" && <EducationFeePage />}
         {view === "education-fee-form" && <EducationFeeFormPage />}
+        {view === "semester-payment" && <SemesterPaymentPage />}
         {["semester", "reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
           <InnerPage />
         )}
