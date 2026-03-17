@@ -75,6 +75,7 @@ export const EDUCATION_FEE_TYPES = [
     fields: ['name', 'semesterName', 'amount', 'dueDate', 'perCredit', 'installments'],
     supportsPerCredit: true,
     supportsInstallments: true,
+    isMultiEntry: true,
   },
   {
     id: 'exam_fee_semester',

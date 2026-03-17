@@ -15,6 +15,7 @@ import { GButton, BottomSheet } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 import { ListAddView } from '../components/education/ListAddView';
+import { SemesterDetailSheet } from '../components/education/SemesterDetailSheet';
 import { LayoutBottomNav } from '../components/layout';
 
 // Map EDU group values to fee filter categories
@@ -39,6 +40,7 @@ export const EducationFeePage = () => {
   const [customIcon, setCustomIcon] = useState('📌');
   const [customPattern, setCustomPattern] = useState(PAYMENT_PATTERNS.RECURRING);
   const [activeMultiEntryType, setActiveMultiEntryType] = useState(null);
+  const [selectedSemesterFee, setSelectedSemesterFee] = useState(null);
 
   // Derive fee filter from profile (eduType is the group: school/college/university)
   // or from the detailed profile.educationLevel (EDU key like "secondary", "hsc", etc.)
@@ -102,13 +104,29 @@ export const EducationFeePage = () => {
   // Render item for multi-entry list
   const renderMultiEntryItem = (fee) => {
     const amount = fee.recurring?.amount || fee.oneTime?.amount || fee.yearly?.amount || fee.semester?.totalAmount || 0;
+    const isSemester = fee.feeType === 'semester_fee';
+    const totalPaid = isSemester ? (fee.payments?.reduce((s, p) => s + (p.isRefund ? -p.amount : p.amount), 0) || 0) : 0;
+    const progressPct = isSemester && amount > 0 ? Math.min((totalPaid / amount) * 100, 100) : 0;
+    const installments = fee.semester?.installments || [];
+    const paidCount = installments.filter(i => i.status === 'paid').length;
+
     return (
       <>
-        <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{fee.name || fee.customTypeName || fee.feeType}</p>
+        <p className={`font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
+          {fee.semesterName || fee.name || fee.customTypeName || fee.feeType}
+        </p>
         {fee.feeType === 'private_tutor' && fee.name && (
           <p className="text-xs text-surface-500">{fee.name}</p>
         )}
         <p className="text-sm text-surface-500">৳{amount.toLocaleString()}{fee.recurring ? '/month' : ''}</p>
+        {isSemester && installments.length > 0 && (
+          <div className="mt-1.5">
+            <div className={`h-1.5 rounded-full ${d ? 'bg-surface-700' : 'bg-surface-200'} overflow-hidden`}>
+              <div className={`h-full rounded-full ${progressPct >= 100 ? 'bg-emerald-500' : 'bg-primary-600'}`} style={{ width: `${progressPct}%` }} />
+            </div>
+            <p className="text-xs text-surface-500 mt-0.5">{paidCount}/{installments.length} installments paid</p>
+          </div>
+        )}
       </>
     );
   };
@@ -207,6 +225,7 @@ export const EducationFeePage = () => {
               onAdd={() => navigate('education-fee-form', { params: { feeType: activeMultiEntryType } })}
               onEdit={(fee) => navigate('education-fee-form', { params: { feeType: activeMultiEntryType, editFee: fee } })}
               onDelete={(feeId) => deleteFee(feeId)}
+              onView={activeMultiEntryType.id === 'semester_fee' ? (fee) => setSelectedSemesterFee(fee) : undefined}
               renderItem={renderMultiEntryItem}
               emptyMessage={`No ${activeMultiEntryType.label.toLowerCase()} added yet`}
               addButtonText={`Add ${activeMultiEntryType.label}`}
@@ -478,6 +497,11 @@ export const EducationFeePage = () => {
           </>
         )}
       </AnimatePresence>
+      <SemesterDetailSheet
+        isOpen={!!selectedSemesterFee}
+        onClose={() => setSelectedSemesterFee(null)}
+        fee={selectedSemesterFee}
+      />
       <LayoutBottomNav />
     </motion.div>
   );

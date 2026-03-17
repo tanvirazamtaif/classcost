@@ -8,6 +8,7 @@ export function ListAddView({
   onAdd,
   onEdit,
   onDelete,
+  onView,
   renderItem,
   emptyMessage = "No items yet",
   addButtonText = "Add New",
@@ -52,7 +53,7 @@ export function ListAddView({
               animate={{ opacity: 1, y: 0 }}
               className={`p-4 rounded-2xl border flex justify-between items-start ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-100'}`}
             >
-              <div className="flex-1 min-w-0">
+              <div className={`flex-1 min-w-0 ${onView ? 'cursor-pointer' : ''}`} onClick={onView ? () => onView(item) : undefined}>
                 {renderItem(item)}
               </div>
               <div className="flex gap-1 ml-3 shrink-0">
