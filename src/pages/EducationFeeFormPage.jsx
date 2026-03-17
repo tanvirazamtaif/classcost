@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Bell, Calculator, Plus, Check, AlertCircle, Info } from 'lucide-react';
+import { ArrowLeft, Calendar, Bell, Calculator, Plus, Check, AlertCircle, Info, Camera, Loader2 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -88,6 +88,84 @@ export const EducationFeeFormPage = () => {
 
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // OCR scan state
+  const [scanning, setScanning] = useState(false);
+  const [scanPreview, setScanPreview] = useState(null);
+  const fileInputRef = React.useRef(null);
+
+  const handleScanReceipt = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Show preview
+    const previewUrl = URL.createObjectURL(file);
+    setScanPreview(previewUrl);
+    setScanning(true);
+    haptics.light();
+
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng+ben');
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+
+      // Extract amounts from OCR text
+      const amounts = [];
+      // Match patterns: ৳5,500 or 5500 or 5,500.00 or BDT 5500 or Tk 5,500 or Tk. 5,500
+      const patterns = [
+        /(?:৳|BDT|Tk\.?\s*)[\s]*([\d,]+(?:\.\d{1,2})?)/gi,
+        /(?:total|amount|fee|tuition|semester|credit|payable|due|grand\s*total)[:\s]*(?:৳|BDT|Tk\.?\s*)?\s*([\d,]+(?:\.\d{1,2})?)/gi,
+        /(?:[\d,]+(?:\.\d{1,2})?)\s*(?:৳|BDT|Tk)/gi,
+      ];
+
+      for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+          const numStr = (match[1] || match[0]).replace(/[৳BDTTk.\s]/gi, '').replace(/,/g, '');
+          const num = Number(numStr);
+          if (num > 0 && num < 10000000) amounts.push(num);
+        }
+      }
+
+      // Also find standalone large numbers (likely fee amounts)
+      const numberPattern = /\b([\d,]{4,}(?:\.\d{1,2})?)\b/g;
+      let numMatch;
+      while ((numMatch = numberPattern.exec(text)) !== null) {
+        const num = Number(numMatch[1].replace(/,/g, ''));
+        if (num >= 100 && num < 10000000 && !amounts.includes(num)) {
+          amounts.push(num);
+        }
+      }
+
+      if (amounts.length > 0) {
+        // Use the largest amount (likely the total)
+        const bestAmount = Math.max(...amounts);
+        if (usePerCredit) {
+          // Try to find per-credit rate (smaller number) and credits
+          const sorted = [...new Set(amounts)].sort((a, b) => a - b);
+          if (sorted.length >= 2) {
+            setRegularRate(String(sorted[0]));
+            setRegularCredits(String(Math.round(bestAmount / sorted[0])));
+          }
+        } else {
+          setAmount(String(bestAmount));
+        }
+        haptics.success();
+        addToast(`Found amount: ৳${bestAmount.toLocaleString()}`, 'success');
+      } else {
+        haptics.error();
+        addToast('Could not find amounts in image. Try a clearer photo.', 'error');
+      }
+    } catch (err) {
+      console.error('OCR failed:', err);
+      haptics.error();
+      addToast('Scan failed. Please enter amount manually.', 'error');
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // ═══════════════════════════════════════════════════════════════
   // COMPUTED
@@ -380,6 +458,55 @@ export const EducationFeeFormPage = () => {
             >
               {SEMESTER_NAMES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+          </div>
+        )}
+
+        {/* ═══ SCAN RECEIPT ═══ */}
+        {isSemester && (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleScanReceipt}
+              className="hidden"
+            />
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={scanning}
+              className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed transition ${
+                scanning
+                  ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20'
+                  : d ? 'border-surface-700 bg-surface-800 hover:border-primary-600' : 'border-surface-300 bg-surface-50 hover:border-primary-400'
+              }`}
+            >
+              {scanning ? (
+                <Loader2 className="w-5 h-5 text-primary-600 animate-spin" />
+              ) : (
+                <Camera className={`w-5 h-5 ${d ? 'text-surface-400' : 'text-surface-500'}`} />
+              )}
+              <div className="text-left flex-1">
+                <p className={`text-sm font-medium ${scanning ? 'text-primary-700 dark:text-primary-300' : d ? 'text-surface-300' : 'text-surface-700'}`}>
+                  {scanning ? 'Scanning receipt...' : 'Scan fee receipt'}
+                </p>
+                <p className="text-xs text-surface-500">
+                  {scanning ? 'Extracting amounts from image' : 'Upload or take a photo to auto-fill amount'}
+                </p>
+              </div>
+            </motion.button>
+
+            {/* Scan preview */}
+            {scanPreview && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mt-2 rounded-xl overflow-hidden border border-surface-200 dark:border-surface-700"
+              >
+                <img src={scanPreview} alt="Scanned receipt" className="w-full max-h-48 object-cover" />
+              </motion.div>
+            )}
           </div>
         )}
 
