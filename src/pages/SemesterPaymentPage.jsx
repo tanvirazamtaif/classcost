@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Check, ChevronDown, ChevronUp, AlertCircle, Camera } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Check, AlertCircle, Camera } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -12,179 +12,126 @@ import { pageTransition } from '../lib/animations';
 import { ReceiptScanner, isMobileDevice } from '../components/education/ReceiptScanner';
 
 // ═══════════════════════════════════════════════════════════════
-// BREAKDOWN COMPONENTS
+// CONSTANTS
 // ═══════════════════════════════════════════════════════════════
 
-const BREAKDOWN_ITEMS = [
-  { key: 'tuition', label: 'Tuition' },
-  { key: 'lab', label: 'Lab' },
-  { key: 'exam', label: 'Exam' },
-  { key: 'library', label: 'Library' },
-  { key: 'development', label: 'Development' },
-  { key: 'session', label: 'Session' },
-  { key: 'other', label: 'Other' },
-  { key: 'fine', label: 'Fine' },
-  { key: 'scholarship', label: 'Scholarship / Waiver', isNegative: true },
+const FEE_COMPONENTS = [
+  { key: 'tuition', label: 'Tuition', icon: '📘' },
+  { key: 'lab', label: 'Lab', icon: '🔬' },
+  { key: 'exam', label: 'Exam', icon: '📝' },
+  { key: 'library', label: 'Library', icon: '📚' },
+  { key: 'development', label: 'Development', icon: '🏗️' },
+  { key: 'session', label: 'Session', icon: '📅' },
+  { key: 'other', label: 'Other', icon: '📦' },
+  { key: 'fine', label: 'Fine', icon: '⚠️' },
+  { key: 'scholarship', label: 'Scholarship / Waiver', icon: '🎓', isNegative: true },
 ];
 
 const PAYMENT_STYLES = [
-  { id: 'full', label: 'Full Payment', desc: 'Pay entire semester at once' },
-  { id: 'installment', label: 'Installment', desc: 'Split into 2-4 parts' },
-  { id: 'partial', label: 'Partial', desc: 'Pay what you can now' },
+  { id: 'full', label: 'Full Payment', desc: 'Pay entire semester' },
+  { id: 'installment', label: 'Installment', desc: 'Split into parts' },
+  { id: 'partial', label: 'Partial', desc: 'Pay what you can' },
 ];
 
 // ═══════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-function sanitizeAmount(value) {
+function sanitize(value) {
   return value.replace(/[^0-9.]/g, '');
 }
 
-function parseAmount(value) {
-  const num = parseFloat(value);
-  return isNaN(num) ? 0 : num;
+function toNum(value) {
+  const n = parseFloat(value);
+  return isNaN(n) ? 0 : n;
 }
 
 function getAutoSemester() {
-  const month = new Date().getMonth() + 1;
-  const year = new Date().getFullYear();
-  if (month >= 1 && month <= 4) return `Spring ${year}`;
-  if (month >= 5 && month <= 8) return `Summer ${year}`;
-  return `Fall ${year}`;
+  const m = new Date().getMonth() + 1;
+  const y = new Date().getFullYear();
+  if (m >= 1 && m <= 4) return `Spring ${y}`;
+  if (m >= 5 && m <= 8) return `Summer ${y}`;
+  return `Fall ${y}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MAIN COMPONENT
+// COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
 export const SemesterPaymentPage = () => {
   const { navigate, addToast, theme } = useApp();
   const { institutionName } = useUserProfile();
-  const { addSemesterFee, addFee, activeFees } = useEducationFees();
+  const { addSemesterFee, activeFees } = useEducationFees();
   const d = theme === 'dark';
   const isMobile = isMobileDevice();
 
-  // ═══════════════════════════════════════════════════════════════
-  // FORM STATE
-  // ═══════════════════════════════════════════════════════════════
+  // ── State ──────────────────────────────────────────────────
 
-  // Section A: Context
+  // Context
   const [universityName, setUniversityName] = useState(institutionName || '');
   const [semesterName, setSemesterName] = useState(getAutoSemester);
 
-  // Section B: Payment Style
+  // Payment style
   const [paymentStyle, setPaymentStyle] = useState('full');
 
-  // Section C: Payment Info
+  // ENTRY MODE — the core of this redesign
+  const [entryMode, setEntryMode] = useState('total'); // 'total' | 'breakdown'
+
+  // Total mode state
   const [amountPaid, setAmountPaid] = useState('');
+  const [includedTags, setIncludedTags] = useState(new Set());
+
+  // Breakdown mode state
+  const [selectedComponents, setSelectedComponents] = useState(new Set());
+  const [componentAmounts, setComponentAmounts] = useState({});
+
+  // Shared
   const [dueDate, setDueDate] = useState('');
   const [note, setNote] = useState('');
-
-  // Installment
   const [installmentCount, setInstallmentCount] = useState(3);
   const [installments, setInstallments] = useState([]);
-
-  // Section D: Breakdown (chip-select + progressive input)
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  const [selectedComponents, setSelectedComponents] = useState(new Set());
-  const [breakdown, setBreakdown] = useState(() =>
-    Object.fromEntries(BREAKDOWN_ITEMS.map(item => [item.key, '']))
-  );
-
-  // Section E: Duplicate detection
   const [duplicateDismissed, setDuplicateDismissed] = useState(false);
-
-  // Receipt scanner
   const [showScanner, setShowScanner] = useState(false);
-
-  // Save state
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // ═══════════════════════════════════════════════════════════════
-  // EFFECTS
-  // ═══════════════════════════════════════════════════════════════
+  // ── Derived ────────────────────────────────────────────────
 
-  // Sync institution name when profile loads
-  useEffect(() => {
-    if (institutionName && !universityName) setUniversityName(institutionName);
-  }, [institutionName]);
-
-  // Generate installment schedule
-  useEffect(() => {
-    if (paymentStyle !== 'installment') return;
-    const total = parseAmount(amountPaid);
-    if (total <= 0) {
-      setInstallments([]);
-      return;
-    }
-
-    const equalAmount = Math.floor(total / installmentCount);
-    const remainder = total - (equalAmount * installmentCount);
-
-    const semester = SEMESTERS.find(s => semesterName?.toLowerCase().includes(s.label.toLowerCase()));
-    const baseYear = new Date().getFullYear();
-
-    const newInstallments = Array.from({ length: installmentCount }, (_, i) => {
-      let instDate;
-      if (semester && semester.defaultMonths[i]) {
-        instDate = new Date(baseYear, semester.defaultMonths[i] - 1, 15);
-      } else if (dueDate) {
-        instDate = new Date(dueDate);
-        instDate.setMonth(instDate.getMonth() + i);
-      } else {
-        instDate = new Date();
-        instDate.setMonth(instDate.getMonth() + i);
-      }
-      return {
-        part: i + 1,
-        amount: equalAmount + (i === 0 ? remainder : 0),
-        dueDate: instDate.toISOString().split('T')[0],
-        isPaid: false,
-      };
-    });
-    setInstallments(newInstallments);
-  }, [paymentStyle, installmentCount, amountPaid, dueDate, semesterName]);
-
-  // ═══════════════════════════════════════════════════════════════
-  // COMPUTED
-  // ═══════════════════════════════════════════════════════════════
-
-  const finalAmount = useMemo(() => parseAmount(amountPaid), [amountPaid]);
-
-  const breakdownSum = useMemo(() => {
-    return BREAKDOWN_ITEMS.reduce((sum, item) => {
-      const val = parseAmount(breakdown[item.key]);
+  // The final amount depends on entry mode
+  const finalAmount = useMemo(() => {
+    if (entryMode === 'total') return toNum(amountPaid);
+    // Breakdown mode: sum selected component amounts
+    return FEE_COMPONENTS.reduce((sum, item) => {
+      if (!selectedComponents.has(item.key)) return sum;
+      const val = toNum(componentAmounts[item.key] || '');
       return item.isNegative ? sum - val : sum + val;
     }, 0);
-  }, [breakdown]);
-
-  const hasBreakdownValues = useMemo(() => {
-    return BREAKDOWN_ITEMS.some(item => parseAmount(breakdown[item.key]) > 0);
-  }, [breakdown]);
+  }, [entryMode, amountPaid, selectedComponents, componentAmounts]);
 
   const breakdownItems = useMemo(() => {
-    return BREAKDOWN_ITEMS
-      .filter(item => parseAmount(breakdown[item.key]) > 0)
+    if (entryMode === 'total') {
+      // Tags only, no amounts
+      return Array.from(includedTags).map(key => ({
+        component: key,
+        amount: null,
+        isNegative: FEE_COMPONENTS.find(c => c.key === key)?.isNegative || false,
+      }));
+    }
+    // Breakdown mode: include amounts
+    return FEE_COMPONENTS
+      .filter(item => selectedComponents.has(item.key) && toNum(componentAmounts[item.key] || '') > 0)
       .map(item => ({
         component: item.key,
-        amount: parseAmount(breakdown[item.key]),
+        amount: toNum(componentAmounts[item.key] || ''),
         isNegative: item.isNegative || false,
       }));
-  }, [breakdown]);
+  }, [entryMode, includedTags, selectedComponents, componentAmounts]);
 
   const installmentsTotal = useMemo(() => {
     return installments.reduce((sum, inst) => sum + (Number(inst.amount) || 0), 0);
   }, [installments]);
 
-  const installmentsMismatch = useMemo(() => {
-    if (paymentStyle !== 'installment' || installments.length === 0 || finalAmount <= 0) return false;
-    return Math.abs(installmentsTotal - finalAmount) > CONSTANTS.INSTALLMENT_TOLERANCE;
-  }, [paymentStyle, installments, installmentsTotal, finalAmount]);
-
-  // Section E: Duplicate detection
   const existingPayment = useMemo(() => {
     if (!semesterName || duplicateDismissed) return null;
     return activeFees.find(fee =>
@@ -193,22 +140,65 @@ export const SemesterPaymentPage = () => {
     );
   }, [activeFees, semesterName, duplicateDismissed]);
 
-  // ═══════════════════════════════════════════════════════════════
-  // HANDLERS
-  // ═══════════════════════════════════════════════════════════════
+  // ── Effects ────────────────────────────────────────────────
 
-  const handleAmountChange = (value) => {
-    setAmountPaid(sanitizeAmount(value));
-    if (errors.amount) setErrors(prev => ({ ...prev, amount: null }));
+  useEffect(() => {
+    if (institutionName && !universityName) setUniversityName(institutionName);
+  }, [institutionName]);
+
+  // Generate installment schedule from finalAmount
+  useEffect(() => {
+    if (paymentStyle !== 'installment' || finalAmount <= 0) {
+      setInstallments([]);
+      return;
+    }
+    const eq = Math.floor(finalAmount / installmentCount);
+    const rem = finalAmount - (eq * installmentCount);
+    const sem = SEMESTERS.find(s => semesterName?.toLowerCase().includes(s.label.toLowerCase()));
+    const yr = new Date().getFullYear();
+
+    setInstallments(Array.from({ length: installmentCount }, (_, i) => {
+      let dt;
+      if (sem && sem.defaultMonths[i]) dt = new Date(yr, sem.defaultMonths[i] - 1, 15);
+      else if (dueDate) { dt = new Date(dueDate); dt.setMonth(dt.getMonth() + i); }
+      else { dt = new Date(); dt.setMonth(dt.getMonth() + i); }
+      return { part: i + 1, amount: eq + (i === 0 ? rem : 0), dueDate: dt.toISOString().split('T')[0], isPaid: false };
+    }));
+  }, [paymentStyle, installmentCount, finalAmount, dueDate, semesterName]);
+
+  // ── Handlers ───────────────────────────────────────────────
+
+  const switchEntryMode = (mode) => {
+    if (mode === entryMode) return;
+    haptics.medium();
+    setEntryMode(mode);
+    setErrors({});
+    // Clean reset when switching to prevent stale data
+    if (mode === 'total') {
+      setSelectedComponents(new Set());
+      setComponentAmounts({});
+    } else {
+      setAmountPaid('');
+      setIncludedTags(new Set());
+    }
   };
 
-  const toggleComponent = (key) => {
+  const toggleIncludedTag = (key) => {
+    haptics.light();
+    setIncludedTags(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const toggleBreakdownComponent = (key) => {
     haptics.light();
     setSelectedComponents(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
         next.delete(key);
-        setBreakdown(b => ({ ...b, [key]: '' }));
+        setComponentAmounts(a => { const { [key]: _, ...rest } = a; return rest; });
       } else {
         next.add(key);
       }
@@ -216,40 +206,29 @@ export const SemesterPaymentPage = () => {
     });
   };
 
-  const handleBreakdownChange = (key, value) => {
-    setBreakdown(prev => ({ ...prev, [key]: sanitizeAmount(value) }));
-  };
-
   const validate = () => {
-    const newErrors = {};
-
-    if (finalAmount <= 0) {
-      newErrors.amount = 'Amount is required';
-    } else if (finalAmount > 50000000) {
-      newErrors.amount = 'Amount seems too high';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const errs = {};
+    if (finalAmount <= 0) errs.amount = 'Enter a payment amount';
+    else if (finalAmount > 50000000) errs.amount = 'Amount seems too high';
+    if (entryMode === 'breakdown' && selectedComponents.size === 0) errs.amount = 'Select at least one component';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validate()) {
-      haptics.error();
-      return;
-    }
+    if (!validate()) { haptics.error(); return; }
     haptics.medium();
     setSaving(true);
-
     try {
-      const feeData = {
+      addSemesterFee({
         feeType: 'semester_fee',
         paymentIntent: 'semester_payment',
         name: universityName || 'Semester Payment',
-        icon: '\uD83C\uDF93',
+        icon: '🎓',
         semesterName,
         paymentPattern: paymentStyle === 'installment' ? 'installment' : 'semester',
         paymentStyle,
+        entryMode,
         amount: finalAmount,
         totalExpectedAmount: finalAmount,
         dueDate: dueDate || null,
@@ -259,18 +238,12 @@ export const SemesterPaymentPage = () => {
         installmentData: paymentStyle === 'installment' ? installments : null,
         isPaid: paymentStyle === 'full',
         paidAt: paymentStyle === 'full' ? new Date().toISOString() : null,
-        initialPayment: paymentStyle !== 'installment' ? {
-          amount: finalAmount,
-          method: null,
-          paidAt: new Date().toISOString(),
-        } : null,
-      };
-
-      addSemesterFee(feeData);
+        initialPayment: paymentStyle !== 'installment' ? { amount: finalAmount, method: null, paidAt: new Date().toISOString() } : null,
+      });
       haptics.success();
       setSaved(true);
-    } catch (error) {
-      console.error('Failed to save payment:', error);
+    } catch (e) {
+      console.error('Failed to save:', e);
       haptics.error();
       addToast('Failed to save payment', 'error');
     } finally {
@@ -279,80 +252,52 @@ export const SemesterPaymentPage = () => {
   };
 
   const handleReset = () => {
-    setAmountPaid('');
-    setDueDate('');
-    setNote('');
-    setPaymentStyle('full');
-    setInstallmentCount(3);
-    setInstallments([]);
-    setShowBreakdown(false);
-    setSelectedComponents(new Set());
-    setBreakdown(Object.fromEntries(BREAKDOWN_ITEMS.map(item => [item.key, ''])));
-    setDuplicateDismissed(false);
-    setErrors({});
-    setSaved(false);
+    setAmountPaid(''); setDueDate(''); setNote('');
+    setPaymentStyle('full'); setEntryMode('total');
+    setIncludedTags(new Set()); setSelectedComponents(new Set()); setComponentAmounts({});
+    setInstallmentCount(3); setInstallments([]);
+    setDuplicateDismissed(false); setErrors({}); setSaved(false);
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // RENDER: SUCCESS STATE
-  // ═══════════════════════════════════════════════════════════════
+  // ── Shared styles ──────────────────────────────────────────
+
+  const inputCls = `w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
+    d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
+  }`;
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER: SUCCESS
+  // ══════════════════════════════════════════════════════════════
 
   if (saved) {
     return (
       <motion.div {...pageTransition} className={`min-h-screen flex flex-col items-center justify-center px-6 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="text-center"
-        >
-          <div className="flex justify-center mb-6">
-            <SuccessCheck size={80} />
-          </div>
-          <h2 className={`text-xl font-bold mb-2 ${d ? 'text-white' : 'text-surface-900'}`}>
-            Payment added to {semesterName}
-          </h2>
-          <p className="text-surface-500 text-sm mb-8">
-            {'\u09F3'}{finalAmount.toLocaleString()} recorded successfully
-          </p>
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
+          <div className="flex justify-center mb-6"><SuccessCheck size={80} /></div>
+          <h2 className={`text-xl font-bold mb-2 ${d ? 'text-white' : 'text-surface-900'}`}>Payment added to {semesterName}</h2>
+          <p className="text-surface-500 text-sm mb-8">৳{finalAmount.toLocaleString()} recorded successfully</p>
           <div className="flex gap-3 w-full max-w-xs mx-auto">
-            <GButton
-              variant="secondary"
-              fullWidth
-              onClick={() => navigate('education-fees')}
-            >
-              View payment
-            </GButton>
-            <GButton
-              fullWidth
-              onClick={handleReset}
-            >
-              Add another
-            </GButton>
+            <GButton variant="secondary" fullWidth onClick={() => navigate('education-fees')}>View payment</GButton>
+            <GButton fullWidth onClick={handleReset}>Add another</GButton>
           </div>
         </motion.div>
       </motion.div>
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   // RENDER: FORM
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   return (
     <motion.div {...pageTransition} className={`min-h-screen pb-28 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button
-            onClick={() => { haptics.light(); navigate('education-fees'); }}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition"
-          >
+          <button onClick={() => { haptics.light(); navigate('education-fees'); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>
-          <h1 className={`text-lg font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>
-            Semester Payment
-          </h1>
+          <h1 className={`text-lg font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Semester Payment</h1>
         </div>
       </header>
 
@@ -363,389 +308,277 @@ export const SemesterPaymentPage = () => {
           <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
               University Name
-              {institutionName ? (
-                <span className="text-surface-400 font-normal ml-1">(from profile)</span>
-              ) : (
-                <span className="text-surface-400 font-normal ml-1">(optional)</span>
-              )}
+              {institutionName
+                ? <span className="text-surface-400 font-normal ml-1">(from profile)</span>
+                : <span className="text-surface-400 font-normal ml-1">(optional)</span>
+              }
             </label>
-            <input
-              type="text"
-              placeholder="e.g., North South University"
-              value={universityName}
-              onChange={(e) => setUniversityName(e.target.value)}
-              className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
-                d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-              }`}
-            />
+            <input type="text" placeholder="e.g., North South University" value={universityName} onChange={(e) => setUniversityName(e.target.value)} className={inputCls} />
           </div>
-
           <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Semester</label>
-            <select
-              value={semesterName}
-              onChange={(e) => { haptics.light(); setSemesterName(e.target.value); }}
-              className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 ${
-                d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-              }`}
-            >
+            <select value={semesterName} onChange={(e) => { haptics.light(); setSemesterName(e.target.value); }} className={inputCls}>
               {SEMESTER_NAMES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         </div>
 
         {/* ═══ RECEIPT SCANNER (mobile only) ═══ */}
-        {isMobile && (
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowScanner(true)}
+        {isMobile && entryMode === 'total' && (
+          <motion.button whileTap={{ scale: 0.98 }} onClick={() => setShowScanner(true)}
             className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
               d ? 'bg-gradient-to-r from-primary-900/40 to-surface-800 border border-primary-800/50' : 'bg-gradient-to-r from-primary-50 to-surface-50 border border-primary-200'
-            }`}
-          >
+            }`}>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${d ? 'bg-primary-600/20' : 'bg-primary-100'}`}>
               <Camera className="w-5 h-5 text-primary-600" />
             </div>
             <div className="text-left flex-1">
-              <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
-                Scan fee receipt
-              </p>
-              <p className="text-xs text-surface-500">
-                Take a photo to auto-fill amount
-              </p>
+              <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Scan fee receipt</p>
+              <p className="text-xs text-surface-500">Take a photo to auto-fill amount</p>
             </div>
           </motion.button>
         )}
 
-        {/* ═══ SECTION B: PAYMENT STYLE ═══ */}
+        {/* ═══ PAYMENT STYLE ═══ */}
         <div>
           <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Payment Style</label>
           <div className="grid grid-cols-3 gap-2">
-            {PAYMENT_STYLES.map(style => {
-              const isSelected = paymentStyle === style.id;
+            {PAYMENT_STYLES.map(s => {
+              const sel = paymentStyle === s.id;
               return (
-                <motion.button
-                  key={style.id}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => { haptics.light(); setPaymentStyle(style.id); }}
-                  className={`relative p-3 rounded-xl text-center transition-all ${
-                    isSelected
-                      ? 'ring-2 ring-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : `${d ? 'bg-surface-800 hover:bg-surface-750' : 'bg-surface-100 hover:bg-surface-150'}`
-                  }`}
-                >
-                  <p className={`text-xs font-semibold leading-tight ${
-                    isSelected
-                      ? 'text-primary-700 dark:text-primary-300'
-                      : d ? 'text-surface-300' : 'text-surface-700'
-                  }`}>
-                    {style.label}
-                  </p>
-                  <p className={`text-[10px] mt-1 leading-tight ${
-                    isSelected ? 'text-primary-500 dark:text-primary-400' : 'text-surface-400'
-                  }`}>
-                    {style.desc}
-                  </p>
-                  {isSelected && (
-                    <motion.div
-                      layoutId="paymentStyleIndicator"
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center"
-                    >
-                      <Check className="w-3 h-3 text-white" />
-                    </motion.div>
-                  )}
+                <motion.button key={s.id} whileTap={{ scale: 0.95 }} onClick={() => { haptics.light(); setPaymentStyle(s.id); }}
+                  className={`relative p-3 rounded-xl text-center transition-all ${sel ? 'ring-2 ring-primary-500 bg-primary-50 dark:bg-primary-900/20' : d ? 'bg-surface-800' : 'bg-surface-100'}`}>
+                  <p className={`text-xs font-semibold leading-tight ${sel ? 'text-primary-700 dark:text-primary-300' : d ? 'text-surface-300' : 'text-surface-700'}`}>{s.label}</p>
+                  <p className={`text-[10px] mt-1 leading-tight ${sel ? 'text-primary-500 dark:text-primary-400' : 'text-surface-400'}`}>{s.desc}</p>
+                  {sel && <motion.div layoutId="psInd" className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center"><Check className="w-3 h-3 text-white" /></motion.div>}
                 </motion.button>
               );
             })}
           </div>
         </div>
 
-        {/* ═══ SECTION E: DUPLICATE DETECTION ═══ */}
+        {/* ═══ DUPLICATE DETECTION ═══ */}
         {existingPayment && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`p-3.5 rounded-xl border flex items-start gap-3 ${
-              d ? 'bg-amber-900/15 border-amber-800/40' : 'bg-amber-50 border-amber-200'
-            }`}
-          >
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            className={`p-3.5 rounded-xl border flex items-start gap-3 ${d ? 'bg-amber-900/15 border-amber-800/40' : 'bg-amber-50 border-amber-200'}`}>
             <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className={`text-sm ${d ? 'text-amber-300' : 'text-amber-800'}`}>
-                You may already have a payment for {semesterName}
-              </p>
+              <p className={`text-sm ${d ? 'text-amber-300' : 'text-amber-800'}`}>You may already have a payment for {semesterName}</p>
               <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => navigate('education-fees')}
-                  className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-                >
-                  View previous
-                </button>
+                <button onClick={() => navigate('education-fees')} className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">View previous</button>
                 <span className="text-surface-400">|</span>
-                <button
-                  onClick={() => setDuplicateDismissed(true)}
-                  className="text-xs font-medium text-surface-500 hover:underline"
-                >
-                  Continue anyway
-                </button>
+                <button onClick={() => setDuplicateDismissed(true)} className="text-xs font-medium text-surface-500 hover:underline">Continue anyway</button>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* ═══ SECTION C: PAYMENT INFO ═══ */}
-        <div className="space-y-4">
-          {/* Amount Paid — single source of truth */}
-          <div>
-            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-              Amount Paid *
-            </label>
-            <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${
-              errors.amount ? 'border-danger-500' : `${d ? 'border-surface-800' : 'border-surface-200'} focus-within:border-primary-500`
-            } ${d ? 'bg-surface-900' : 'bg-white'}`}>
-              <span className="text-xl text-surface-400 mr-2">{'\u09F3'}</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="0"
-                value={amountPaid}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
-              />
-            </div>
-            {errors.amount && (
-              <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />{errors.amount}
-              </p>
-            )}
-          </div>
-
-          {/* Due Date (single block for all payment styles) */}
-          <div>
-            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-              Due Date
-              <span className="text-surface-400 font-normal ml-1">(optional)</span>
-            </label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className={`w-full p-3.5 border rounded-xl text-sm outline-none transition focus:border-primary-500 ${
-                d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-              }`}
-            />
-          </div>
-
-          {/* Note */}
-          <div>
-            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-              Note
-              <span className="text-surface-400 font-normal ml-1">(optional)</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g., Paid via bKash"
-              maxLength={100}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className={`w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
-                d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-              }`}
-            />
-            {note.length > 80 && (
-              <p className="text-xs text-surface-400 mt-1 text-right">{note.length}/100</p>
-            )}
+        {/* ═══════════════════════════════════════════════════════
+             ENTRY MODE SELECTOR — the core UX redesign
+             ═══════════════════════════════════════════════════════ */}
+        <div>
+          <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>How do you want to enter?</label>
+          <div className={`flex rounded-xl overflow-hidden border ${d ? 'border-surface-700' : 'border-surface-200'}`}>
+            {[
+              { id: 'total', label: 'Total Amount', desc: 'Enter one amount' },
+              { id: 'breakdown', label: 'Detailed Breakdown', desc: 'Enter per component' },
+            ].map(mode => {
+              const sel = entryMode === mode.id;
+              return (
+                <button key={mode.id} onClick={() => switchEntryMode(mode.id)}
+                  className={`flex-1 py-3.5 px-3 text-center transition-all relative ${
+                    sel
+                      ? d ? 'bg-primary-600 text-white' : 'bg-primary-600 text-white'
+                      : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-750' : 'bg-surface-50 text-surface-600 hover:bg-surface-100'
+                  }`}>
+                  <p className="text-xs font-semibold">{mode.label}</p>
+                  <p className={`text-[10px] mt-0.5 ${sel ? 'text-white/70' : 'text-surface-400'}`}>{mode.desc}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* ═══ INSTALLMENT SCHEDULE ═══ */}
-        {paymentStyle === 'installment' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className={`p-4 rounded-xl border space-y-4 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}
-          >
-            <div className="flex items-center justify-between">
-              <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Number of parts</p>
-              <div className="flex gap-2">
-                {[2, 3, 4].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => { haptics.light(); setInstallmentCount(n); }}
-                    className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
-                      installmentCount === n ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {installments.length > 0 && (
-              <div className="space-y-3">
-                {installments.map((inst, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs text-surface-500 w-14">Part {inst.part}</span>
-                    <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
-                      <span className="text-surface-400 mr-1 text-sm">{'\u09F3'}</span>
-                      <input
-                        type="number"
-                        value={inst.amount}
-                        readOnly
-                        className={`w-full bg-transparent outline-none text-sm text-surface-400 ${d ? 'text-surface-400' : 'text-surface-500'}`}
-                      />
-                    </div>
-                    <input
-                      type="date"
-                      value={inst.dueDate}
-                      readOnly
-                      className={`w-28 border rounded-lg px-2 py-2 text-xs ${d ? 'border-surface-700 bg-surface-800 text-white' : 'border-surface-200 bg-surface-50 text-surface-900'}`}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {installments.length > 0 && (
-              <div className={`pt-3 border-t ${installmentsMismatch ? 'border-danger-200' : d ? 'border-surface-800' : 'border-surface-200'}`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-surface-500">Total</span>
-                  <span className={`font-medium ${installmentsMismatch ? 'text-danger-500' : d ? 'text-white' : 'text-surface-900'}`}>
-                    {'\u09F3'}{installmentsTotal.toLocaleString()}
-                  </span>
-                </div>
-                {installmentsMismatch && (
-                  <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> Installment total differs from amount paid
-                  </p>
-                )}
-                {!installmentsMismatch && installments.length > 0 && (
-                  <p className="text-xs text-success-500 mt-1 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Amounts match
-                  </p>
-                )}
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {/* ═══ SECTION D: BREAKDOWN (chip-select + progressive input) ═══ */}
-        <div>
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => { haptics.light(); setShowBreakdown(!showBreakdown); }}
-            className={`w-full flex items-center justify-between p-4 rounded-xl transition ${
-              showBreakdown
-                ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-200 dark:ring-primary-800'
-                : d ? 'bg-surface-800' : 'bg-surface-100'
-            }`}
-          >
-            <div>
-              <span className={`text-sm font-medium ${showBreakdown ? 'text-primary-700 dark:text-primary-300' : d ? 'text-surface-300' : 'text-surface-700'}`}>
-                Add details
-              </span>
-              <span className="text-xs text-surface-400 ml-1.5">(optional)</span>
-            </div>
-            {showBreakdown ? (
-              <ChevronUp className="w-4 h-4 text-surface-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-surface-400" />
-            )}
-          </motion.button>
-
-          {showBreakdown && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="mt-3 space-y-4"
-            >
-              {/* Component chips */}
+        {/* ═══════════════════════════════════════════════════════
+             TOTAL ENTRY MODE
+             ═══════════════════════════════════════════════════════ */}
+        {entryMode === 'total' && (
+          <AnimatePresence mode="wait">
+            <motion.div key="total-mode" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-5">
+              {/* Amount input */}
               <div>
-                <p className={`text-xs text-surface-500 mb-2`}>Tap to select what's included</p>
+                <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Amount Paid *</label>
+                <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${
+                  errors.amount ? 'border-danger-500' : `${d ? 'border-surface-800' : 'border-surface-200'} focus-within:border-primary-500`
+                } ${d ? 'bg-surface-900' : 'bg-white'}`}>
+                  <span className="text-xl text-surface-400 mr-2">৳</span>
+                  <input type="text" inputMode="decimal" placeholder="0" value={amountPaid}
+                    onChange={(e) => { setAmountPaid(sanitize(e.target.value)); if (errors.amount) setErrors({}); }}
+                    className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} />
+                </div>
+                {errors.amount && <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>}
+              </div>
+
+              {/* What's included — tags only, no amount inputs */}
+              <div>
+                <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                  What's included in this payment?
+                  <span className="text-surface-400 font-normal ml-1">(optional)</span>
+                </label>
                 <div className="flex flex-wrap gap-2">
-                  {BREAKDOWN_ITEMS.map(item => {
-                    const isActive = selectedComponents.has(item.key);
+                  {FEE_COMPONENTS.map(item => {
+                    const active = includedTags.has(item.key);
                     return (
-                      <motion.button
-                        key={item.key}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => toggleComponent(item.key)}
-                        className={`px-3.5 py-2 rounded-full text-xs font-medium transition-all ${
-                          isActive
+                      <motion.button key={item.key} whileTap={{ scale: 0.95 }} onClick={() => toggleIncludedTag(item.key)}
+                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                          active
                             ? item.isNegative
-                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-300 dark:ring-emerald-700'
-                              : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-1 ring-primary-300 dark:ring-primary-700'
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-400 dark:ring-emerald-600'
+                              : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-2 ring-primary-400 dark:ring-primary-600'
                             : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
-                        }`}
-                      >
-                        {isActive && <Check className="w-3 h-3 inline mr-1 -mt-0.5" />}
-                        {item.isNegative ? `- ${item.label}` : item.label}
+                        }`}>
+                        {active && <Check className="w-3.5 h-3.5" />}
+                        <span>{item.icon}</span>
+                        <span>{item.label}</span>
                       </motion.button>
                     );
                   })}
                 </div>
+                {includedTags.size > 0 && (
+                  <p className="text-xs text-surface-400 mt-2">{includedTags.size} component{includedTags.size > 1 ? 's' : ''} included</p>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════
+             BREAKDOWN ENTRY MODE
+             ═══════════════════════════════════════════════════════ */}
+        {entryMode === 'breakdown' && (
+          <AnimatePresence mode="wait">
+            <motion.div key="breakdown-mode" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-5">
+              {/* Component selector */}
+              <div>
+                <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                  Select fee components
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {FEE_COMPONENTS.map(item => {
+                    const active = selectedComponents.has(item.key);
+                    return (
+                      <motion.button key={item.key} whileTap={{ scale: 0.95 }} onClick={() => toggleBreakdownComponent(item.key)}
+                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                          active
+                            ? item.isNegative
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-400 dark:ring-emerald-600'
+                              : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-2 ring-primary-400 dark:ring-primary-600'
+                            : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                        }`}>
+                        {active && <Check className="w-3.5 h-3.5" />}
+                        <span>{item.icon}</span>
+                        <span>{item.label}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                {errors.amount && selectedComponents.size === 0 && (
+                  <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>
+                )}
               </div>
 
-              {/* Amount inputs for selected components only */}
-              {selectedComponents.size > 0 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`p-4 rounded-xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}
-                >
-                  {BREAKDOWN_ITEMS.filter(item => selectedComponents.has(item.key)).map(item => (
-                    <div key={item.key} className="flex items-center gap-3">
-                      <label className={`text-sm w-28 shrink-0 ${
-                        item.isNegative ? 'text-emerald-600 dark:text-emerald-400' : d ? 'text-surface-300' : 'text-surface-700'
-                      }`}>
-                        {item.isNegative ? '−' : ''} {item.label}
-                      </label>
-                      <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
-                        <span className="text-surface-400 mr-1 text-sm">{'\u09F3'}</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="0"
-                          value={breakdown[item.key]}
-                          onChange={(e) => handleBreakdownChange(item.key, e.target.value)}
-                          className={`w-full bg-transparent outline-none text-sm ${d ? 'text-white' : 'text-surface-900'}`}
-                          autoFocus={selectedComponents.size === 1}
-                        />
+              {/* Amount inputs for selected components */}
+              <AnimatePresence>
+                {selectedComponents.size > 0 && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                    className={`p-4 rounded-xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+                    {FEE_COMPONENTS.filter(item => selectedComponents.has(item.key)).map(item => (
+                      <div key={item.key} className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 w-28 shrink-0">
+                          <span className="text-sm">{item.icon}</span>
+                          <label className={`text-sm ${item.isNegative ? 'text-emerald-600 dark:text-emerald-400' : d ? 'text-surface-300' : 'text-surface-700'}`}>
+                            {item.label}
+                          </label>
+                        </div>
+                        <div className={`flex-1 flex items-center border rounded-lg px-3 py-2.5 transition focus-within:border-primary-500 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
+                          <span className="text-surface-400 mr-1 text-sm">৳</span>
+                          <input type="text" inputMode="decimal" placeholder="0"
+                            value={componentAmounts[item.key] || ''}
+                            onChange={(e) => { setComponentAmounts(prev => ({ ...prev, [item.key]: sanitize(e.target.value) })); if (errors.amount) setErrors({}); }}
+                            className={`w-full bg-transparent outline-none text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {/* Breakdown summary */}
-                  {hasBreakdownValues && (
-                    <div className={`pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
+                    {/* Auto-calculated total */}
+                    <div className={`pt-3 border-t ${d ? 'border-surface-700' : 'border-surface-200'}`}>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-surface-500">Breakdown total</span>
-                        <span className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>
-                          {'\u09F3'}{breakdownSum.toLocaleString()}
+                        <span className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Total</span>
+                        <span className={`text-xl font-bold ${finalAmount > 0 ? 'text-primary-600' : 'text-surface-400'}`}>
+                          ৳{finalAmount.toLocaleString()}
                         </span>
                       </div>
-                      {/* Soft mismatch hint — not blocking */}
-                      {finalAmount > 0 && Math.abs(breakdownSum - finalAmount) > 1 && (
-                        <p className="text-xs text-surface-400 mt-1.5">
-                          {breakdownSum > finalAmount
-                            ? `Breakdown exceeds amount paid by \u09F3${(breakdownSum - finalAmount).toLocaleString()}`
-                            : `\u09F3${(finalAmount - breakdownSum).toLocaleString()} not accounted for in breakdown`
-                          }
-                        </p>
-                      )}
-                      {finalAmount > 0 && Math.abs(breakdownSum - finalAmount) <= 1 && (
-                        <p className="text-xs text-emerald-500 mt-1.5 flex items-center gap-1">
-                          <Check className="w-3 h-3" /> Matches amount paid
-                        </p>
-                      )}
+                      <p className="text-xs text-surface-400 mt-1">This total will be saved as your payment amount</p>
                     </div>
-                  )}
-                </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {errors.amount && selectedComponents.size > 0 && finalAmount <= 0 && (
+                <p className="text-xs text-danger-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>
               )}
             </motion.div>
-          )}
+          </AnimatePresence>
+        )}
+
+        {/* ═══ SHARED: Due Date + Note ═══ */}
+        <div className="space-y-4">
+          <div>
+            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+              Due Date <span className="text-surface-400 font-normal ml-1">(optional)</span>
+            </label>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+              Note <span className="text-surface-400 font-normal ml-1">(optional)</span>
+            </label>
+            <input type="text" placeholder="e.g., Paid via bKash" maxLength={100} value={note} onChange={(e) => setNote(e.target.value)} className={inputCls} />
+            {note.length > 80 && <p className="text-xs text-surface-400 mt-1 text-right">{note.length}/100</p>}
+          </div>
         </div>
+
+        {/* ═══ INSTALLMENT SCHEDULE ═══ */}
+        {paymentStyle === 'installment' && finalAmount > 0 && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+            className={`p-4 rounded-xl border space-y-4 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+            <div className="flex items-center justify-between">
+              <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Installment parts</p>
+              <div className="flex gap-2">
+                {[2, 3, 4].map(n => (
+                  <button key={n} onClick={() => { haptics.light(); setInstallmentCount(n); }}
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition ${installmentCount === n ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'}`}>{n}</button>
+                ))}
+              </div>
+            </div>
+            {installments.length > 0 && (
+              <div className="space-y-2">
+                {installments.map((inst, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-surface-500 w-14">Part {inst.part}</span>
+                    <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
+                      <span className="text-surface-400 mr-1 text-sm">৳</span>
+                      <span className={`text-sm ${d ? 'text-surface-300' : 'text-surface-600'}`}>{inst.amount.toLocaleString()}</span>
+                    </div>
+                    <span className={`text-xs w-24 text-right ${d ? 'text-surface-400' : 'text-surface-500'}`}>
+                      {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
       </main>
 
       {/* ═══ SAVE BUTTON ═══ */}
@@ -754,33 +587,21 @@ export const SemesterPaymentPage = () => {
           {finalAmount > 0 && (
             <div className="flex items-center justify-between mb-3 px-1">
               <span className="text-sm text-surface-500">
-                {paymentStyle === 'full' ? 'Full Payment' : paymentStyle === 'installment' ? 'Installment' : 'Partial Payment'}
+                {entryMode === 'breakdown' ? 'Breakdown Total' : paymentStyle === 'full' ? 'Full Payment' : paymentStyle === 'installment' ? 'Installment' : 'Partial Payment'}
               </span>
-              <span className="text-lg font-bold text-primary-600">{'\u09F3'}{finalAmount.toLocaleString()}</span>
+              <span className="text-lg font-bold text-primary-600">৳{finalAmount.toLocaleString()}</span>
             </div>
           )}
-          <GButton
-            fullWidth
-            size="lg"
-            onClick={handleSave}
-            loading={saving}
-            disabled={saving || finalAmount <= 0}
-          >
+          <GButton fullWidth size="lg" onClick={handleSave} loading={saving} disabled={saving || finalAmount <= 0}>
             Save Payment
           </GButton>
         </div>
       </div>
 
-      {/* Receipt Scanner (mobile only) */}
+      {/* Receipt Scanner */}
       {isMobile && (
-        <ReceiptScanner
-          isOpen={showScanner}
-          onClose={() => setShowScanner(false)}
-          onAmountSelect={(amt) => {
-            setAmountPaid(String(amt));
-            addToast(`Amount set: \u09F3${amt.toLocaleString()}`, 'success');
-          }}
-        />
+        <ReceiptScanner isOpen={showScanner} onClose={() => setShowScanner(false)}
+          onAmountSelect={(amt) => { setAmountPaid(String(amt)); addToast(`Amount set: ৳${amt.toLocaleString()}`, 'success'); }} />
       )}
     </motion.div>
   );
