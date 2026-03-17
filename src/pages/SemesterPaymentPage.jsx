@@ -531,6 +531,59 @@ export const SemesterPaymentPage = () => {
           </AnimatePresence>
         )}
 
+        {/* ═══ INSTALLMENT CONFIG ═══ */}
+        {paymentStyle === 'installment' && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+            className={`p-4 rounded-2xl border space-y-4 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Split into installments</p>
+                <p className="text-xs text-surface-500 mt-0.5">Choose number of parts</p>
+              </div>
+              <div className="flex gap-2">
+                {[2, 3, 4].map(n => (
+                  <button key={n} onClick={() => { haptics.light(); setInstallmentCount(n); }}
+                    className={`w-11 h-11 rounded-xl text-sm font-semibold transition ${installmentCount === n ? 'bg-primary-600 text-white shadow-md shadow-primary-600/30' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'}`}>{n}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Installment schedule — shows when amount is entered */}
+            {installments.length > 0 && (
+              <>
+                <div className={`h-px ${d ? 'bg-surface-800' : 'bg-surface-200'}`} />
+                <div className="space-y-2.5">
+                  {installments.map((inst, i) => (
+                    <div key={i} className={`flex items-center gap-3 p-2.5 rounded-xl ${d ? 'bg-surface-800/50' : 'bg-surface-50'}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${d ? 'bg-surface-700 text-surface-300' : 'bg-surface-200 text-surface-600'}`}>
+                        {inst.part}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>৳{inst.amount.toLocaleString()}</p>
+                        <p className="text-xs text-surface-500">
+                          Due {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className={`pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-surface-500">Total across parts</span>
+                    <span className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>৳{installmentsTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {finalAmount <= 0 && (
+              <p className={`text-xs text-center py-2 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
+                Enter amount above to see installment schedule
+              </p>
+            )}
+          </motion.div>
+        )}
+
         {/* ═══ SHARED: Due Date + Note ═══ */}
         <div className="space-y-4">
           <div>
@@ -547,38 +600,6 @@ export const SemesterPaymentPage = () => {
             {note.length > 80 && <p className="text-xs text-surface-400 mt-1 text-right">{note.length}/100</p>}
           </div>
         </div>
-
-        {/* ═══ INSTALLMENT SCHEDULE ═══ */}
-        {paymentStyle === 'installment' && finalAmount > 0 && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-            className={`p-4 rounded-xl border space-y-4 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
-            <div className="flex items-center justify-between">
-              <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Installment parts</p>
-              <div className="flex gap-2">
-                {[2, 3, 4].map(n => (
-                  <button key={n} onClick={() => { haptics.light(); setInstallmentCount(n); }}
-                    className={`w-10 h-10 rounded-lg text-sm font-medium transition ${installmentCount === n ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-700'}`}>{n}</button>
-                ))}
-              </div>
-            </div>
-            {installments.length > 0 && (
-              <div className="space-y-2">
-                {installments.map((inst, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs text-surface-500 w-14">Part {inst.part}</span>
-                    <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
-                      <span className="text-surface-400 mr-1 text-sm">৳</span>
-                      <span className={`text-sm ${d ? 'text-surface-300' : 'text-surface-600'}`}>{inst.amount.toLocaleString()}</span>
-                    </div>
-                    <span className={`text-xs w-24 text-right ${d ? 'text-surface-400' : 'text-surface-500'}`}>
-                      {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
       </main>
 
       {/* ═══ SAVE BUTTON ═══ */}
