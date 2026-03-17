@@ -405,9 +405,26 @@ export const OnboardingWizard = () => {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-4 flex gap-3">
-        {step > 0 && <Btn variant="secondary" onClick={() => setStep((s) => s - 1)} className="flex-1">← Back</Btn>}
+        {step > 0 && <Btn variant="secondary" onClick={() => {
+          // Auto-skip step 2 (Institution Type) going back if it has no variants
+          const prevStep = step - 1;
+          if (prevStep === 2 && (!mod?.variants || mod.variants.length === 0)) {
+            setStep(1);
+          } else {
+            setStep(prevStep);
+          }
+        }} className="flex-1">← Back</Btn>}
         {step < 7
-          ? <Btn onClick={() => { if (canProceed()) setStep((s) => s + 1); else addToast("Please complete this step", "error"); }} className="flex-1" size="lg">Continue →</Btn>
+          ? <Btn onClick={() => {
+              if (!canProceed()) { addToast("Please complete this step", "error"); return; }
+              let nextStep = step + 1;
+              // Auto-skip step 2 (Institution Type) if no variants for selected level
+              if (nextStep === 2) {
+                const selectedMod = EDU[form.educationLevel];
+                if (!selectedMod?.variants || selectedMod.variants.length === 0) nextStep = 3;
+              }
+              setStep(nextStep);
+            }} className="flex-1" size="lg">Continue →</Btn>
           : <Btn variant="success" onClick={handleFinish} className="flex-1" size="lg">Start Tracking!</Btn>}
       </div>
     </div>

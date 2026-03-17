@@ -13,7 +13,7 @@ const GROUP_TO_FILTER = { early: 'school', school: 'school', college: 'college',
 
 const SettingsView = () => {
   useEffect(() => { document.title = "Settings — ClassCost"; }, []);
-  const { user, setUser, notifications, setNotifications, navigate, addToast, generateInviteCode, educationLevel, setEducationLevel } = useApp();
+  const { user, setUser, notifications, setNotifications, navigate, addToast, educationLevel, setEducationLevel } = useApp();
   const { institutionName } = useUserProfile();
   const profile = user?.profile;
   const mod = EDU[profile?.educationLevel||"undergrad_private"];
@@ -24,7 +24,6 @@ const SettingsView = () => {
 
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
   const isPremium = user?.premiumUntil && new Date(user.premiumUntil) > new Date();
   const premDays = isPremium ? Math.ceil((new Date(user.premiumUntil) - new Date()) / 86400000) : 0;
 
@@ -203,63 +202,6 @@ const SettingsView = () => {
         </button>
       </Card>
 
-      {user?.accountType === 'student' && (
-        <Card className="p-5">
-          <h3 className="text-sm font-bold text-slate-700 mb-1">👨‍👩‍👧 Share with Parent</h3>
-          <p className="text-xs text-slate-400 mb-4">Let your parent monitor your expenses</p>
-
-          {user?.inviteCode && user?.inviteCodeExpiresAt && new Date(user.inviteCodeExpiresAt) > new Date() ? (
-            <div className="flex flex-col gap-3">
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-center">
-                <p className="text-xs text-slate-400 mb-1">Your Invite Code</p>
-                <p className="text-3xl font-bold text-indigo-600 tracking-[0.3em] font-mono">{user.inviteCode}</p>
-                <p className="text-xs text-slate-400 mt-2">
-                  Expires {new Date(user.inviteCodeExpiresAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Btn
-                  onClick={() => {
-                    try {
-                      navigator.clipboard.writeText(user.inviteCode);
-                      setCodeCopied(true);
-                      addToast('Code copied!', 'success');
-                      setTimeout(() => setCodeCopied(false), 2000);
-                    } catch { addToast('Failed to copy', 'error'); }
-                  }}
-                  className="flex-1"
-                  size="sm"
-                  variant={codeCopied ? 'success' : 'secondary'}
-                >
-                  {codeCopied ? 'Copied!' : 'Copy Code'}
-                </Btn>
-                <Btn
-                  onClick={() => { generateInviteCode(); addToast('New code generated!', 'success'); }}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Regenerate
-                </Btn>
-              </div>
-            </div>
-          ) : (
-            <Btn
-              onClick={() => { generateInviteCode(); addToast('Invite code generated!', 'success'); }}
-              className="w-full"
-              size="sm"
-            >
-              Generate Invite Code
-            </Btn>
-          )}
-
-          {user?.parentId && (
-            <div className="mt-3 flex items-center gap-2 p-3 rounded-2xl bg-emerald-50 border border-emerald-100">
-              <span className="text-lg">✓</span>
-              <p className="text-xs font-semibold text-emerald-700">Parent account linked</p>
-            </div>
-          )}
-        </Card>
-      )}
 
       <Card className="p-5">
         <h3 className="text-sm font-bold text-slate-700 mb-3">🎫 Promo Code</h3>

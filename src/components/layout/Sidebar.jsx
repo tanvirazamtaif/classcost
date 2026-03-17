@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Home, CreditCard, PieChart, Settings, HelpCircle, LogOut } from 'lucide-react';
+import { X, Home, GraduationCap, CreditCard, PieChart, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { haptics } from '../../lib/haptics';
 
 const menuItems = [
   { icon: Home, label: 'Home', page: 'dashboard' },
+  { icon: GraduationCap, label: 'Fees', page: 'education-fees' },
   { icon: CreditCard, label: 'Loans', page: 'loans' },
   { icon: PieChart, label: 'Reports', page: 'reports' },
   { divider: true },
