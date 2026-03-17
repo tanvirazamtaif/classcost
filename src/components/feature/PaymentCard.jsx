@@ -35,10 +35,12 @@ export const PaymentCard = ({ payment, currencySymbol = '৳', onClick }) => {
         <span className="text-xl">{icon}</span>
         <div>
           <p className="text-sm font-medium text-surface-900 dark:text-white">
-            {payment.label || categoryLabels[payment.type] || payment.type || 'Payment'}
+            {payment.details || payment.label || categoryLabels[payment.type] || payment.type || 'Payment'}
           </p>
           {payment.details && (
-            <p className="text-xs text-surface-500 truncate max-w-[150px]">{payment.details}</p>
+            <p className="text-xs text-surface-500 truncate max-w-[150px]">
+              {payment.label || categoryLabels[payment.type] || payment.type}
+            </p>
           )}
         </div>
       </div>
