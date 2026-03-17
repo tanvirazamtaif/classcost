@@ -291,7 +291,7 @@ export const EducationFeePage = () => {
         )}
 
         {/* Show More Section */}
-        {hiddenTypes.length > 0 && effectiveLevel && (
+        {!activeMultiEntryType && hiddenTypes.length > 0 && effectiveLevel && (
           <div className="mt-4">
             <button
               onClick={() => { haptics.light(); setShowMore(!showMore); }}
@@ -352,7 +352,7 @@ export const EducationFeePage = () => {
         )}
 
         {/* Add Custom */}
-        <motion.button
+        {!activeMultiEntryType && <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setShowCustomSheet(true)}
           className={`w-full flex items-center justify-between p-4 rounded-xl border-2 border-dashed transition mt-4 ${
@@ -367,7 +367,7 @@ export const EducationFeePage = () => {
             </div>
           </div>
           <Plus className="w-5 h-5 text-surface-400" />
-        </motion.button>
+        </motion.button>}
       </main>
 
       {/* Custom Type Sheet */}

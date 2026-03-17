@@ -35,13 +35,6 @@ export function ListAddView({
       {items.length === 0 ? (
         <div className={`text-center py-10 rounded-2xl border-2 border-dashed ${d ? 'border-surface-700 text-surface-500' : 'border-surface-200 text-surface-400'}`}>
           <p className="text-sm">{emptyMessage}</p>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={onAdd}
-            className="mt-3 text-primary-600 text-sm font-medium"
-          >
-            + {addButtonText}
-          </motion.button>
         </div>
       ) : (
         <div className="space-y-3">
