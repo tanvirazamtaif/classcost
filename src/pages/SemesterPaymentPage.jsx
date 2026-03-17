@@ -538,7 +538,12 @@ export const SemesterPaymentPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Split into installments</p>
-                <p className="text-xs text-surface-500 mt-0.5">Choose number of parts</p>
+                <p className="text-xs text-surface-500 mt-0.5">
+                  {finalAmount > 0
+                    ? `Splitting ৳${finalAmount.toLocaleString()} from ${entryMode === 'breakdown' ? 'breakdown total' : 'amount paid'}`
+                    : entryMode === 'breakdown' ? 'Add breakdown amounts first' : 'Enter amount first'
+                  }
+                </p>
               </div>
               <div className="flex gap-2">
                 {[2, 3, 4].map(n => (
@@ -578,7 +583,10 @@ export const SemesterPaymentPage = () => {
 
             {finalAmount <= 0 && (
               <p className={`text-xs text-center py-2 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                Enter amount above to see installment schedule
+                {entryMode === 'breakdown'
+                  ? 'Select components and enter amounts to generate schedule'
+                  : 'Enter payment amount above to generate schedule'
+                }
               </p>
             )}
           </motion.div>
@@ -607,9 +615,14 @@ export const SemesterPaymentPage = () => {
         <div className="max-w-md mx-auto">
           {finalAmount > 0 && (
             <div className="flex items-center justify-between mb-3 px-1">
-              <span className="text-sm text-surface-500">
-                {entryMode === 'breakdown' ? 'Breakdown Total' : paymentStyle === 'full' ? 'Full Payment' : paymentStyle === 'installment' ? 'Installment' : 'Partial Payment'}
-              </span>
+              <div>
+                <span className="text-sm text-surface-500">
+                  {paymentStyle === 'full' ? 'Full Payment' : paymentStyle === 'installment' ? `Installment (${installmentCount} parts)` : 'Partial Payment'}
+                </span>
+                <span className="text-xs text-surface-400 ml-1.5">
+                  · {entryMode === 'breakdown' ? 'from breakdown' : 'total'}
+                </span>
+              </div>
               <span className="text-lg font-bold text-primary-600">৳{finalAmount.toLocaleString()}</span>
             </div>
           )}
