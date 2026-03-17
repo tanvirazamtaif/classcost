@@ -56,7 +56,10 @@ export const EducationFeeProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [savedCreditRates, setSavedCreditRates] = useState({
     regular: CONSTANTS.DEFAULT_CREDIT_RATE,
+    regularCredits: '',
     lab: CONSTANTS.DEFAULT_LAB_RATE,
+    labCredits: '',
+    hadLab: false,
   });
   const syncTimeoutRef = useRef(null);
   const isInitialLoad = useRef(true);

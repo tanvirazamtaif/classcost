@@ -66,10 +66,10 @@ export const EducationFeeFormPage = () => {
   // Per-credit
   const [usePerCredit, setUsePerCredit] = useState(false);
   const [regularRate, setRegularRate] = useState(String(savedCreditRates.regular || CONSTANTS.DEFAULT_CREDIT_RATE));
-  const [regularCredits, setRegularCredits] = useState('');
+  const [regularCredits, setRegularCredits] = useState(String(savedCreditRates.regularCredits || ''));
   const [labRate, setLabRate] = useState(String(savedCreditRates.lab || CONSTANTS.DEFAULT_LAB_RATE));
-  const [labCredits, setLabCredits] = useState('');
-  const [showLabCredits, setShowLabCredits] = useState(false);
+  const [labCredits, setLabCredits] = useState(String(savedCreditRates.labCredits || ''));
+  const [showLabCredits, setShowLabCredits] = useState(savedCreditRates.hadLab || false);
 
   // Installments
   const [useInstallments, setUseInstallments] = useState(false);
@@ -224,7 +224,13 @@ export const EducationFeeFormPage = () => {
     setSaving(true);
 
     try {
-      if (usePerCredit) setSavedCreditRates({ regular: Number(regularRate), lab: Number(labRate) });
+      if (usePerCredit) setSavedCreditRates({
+        regular: Number(regularRate),
+        regularCredits: regularCredits,
+        lab: Number(labRate),
+        labCredits: showLabCredits ? labCredits : '',
+        hadLab: showLabCredits,
+      });
 
       let paymentPattern = typeConfig.defaultPattern;
       if (paymentMode === 'per_class') paymentPattern = PAYMENT_PATTERNS.PER_CLASS;
@@ -526,8 +532,14 @@ export const EducationFeeFormPage = () => {
                 <span className="text-xl font-bold text-primary-600">৳{perCreditTotal.toLocaleString()}</span>
               </div>
               <p className="text-xs text-surface-500 mt-1 flex items-center gap-1">
-                <Info className="w-3 h-3" /> Rates saved for next semester
+                <Info className="w-3 h-3" /> Rates & credits auto-saved for next semester
               </p>
+              {savedCreditRates.regularCredits && (
+                <p className="text-xs text-primary-500 mt-1">
+                  Last semester: {savedCreditRates.regularCredits} credits @ ৳{savedCreditRates.regular?.toLocaleString()}/cr
+                  {savedCreditRates.hadLab && savedCreditRates.labCredits ? ` + ${savedCreditRates.labCredits} lab @ ৳${savedCreditRates.lab?.toLocaleString()}/cr` : ''}
+                </p>
+              )}
             </div>
           </motion.div>
         )}
