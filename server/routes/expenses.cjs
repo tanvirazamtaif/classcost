@@ -45,6 +45,9 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { type, amount, note, date, meta } = req.body;
+    if (amount !== undefined && (typeof amount !== 'number' || amount <= 0)) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
     const data = {};
     if (type !== undefined) data.type = type;
     if (amount !== undefined) data.amount = amount;

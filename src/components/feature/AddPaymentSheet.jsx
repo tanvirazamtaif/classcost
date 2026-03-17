@@ -142,9 +142,8 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
             <div className="flex items-center border-b-2 border-primary-600 pb-2">
               <span className="text-2xl text-surface-500 mr-2">{currencySymbol}</span>
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                min="1"
                 placeholder="0"
                 value={amount}
                 onChange={(e) => {

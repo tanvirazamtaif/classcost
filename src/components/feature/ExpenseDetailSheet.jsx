@@ -53,13 +53,13 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
         label: cat.label,
         details: note,
       });
+      setSaving(false);
       addToast('Expense updated', 'success');
       handleClose();
     } catch (e) {
+      setSaving(false);
       haptics.error();
       addToast('Failed to update expense', 'error');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -68,13 +68,13 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
     setSaving(true);
     try {
       await removeExpense(expense.id);
+      setSaving(false);
       addToast('Expense deleted', 'success');
       handleClose();
     } catch (e) {
+      setSaving(false);
       haptics.error();
       addToast('Failed to delete expense', 'error');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -134,9 +134,8 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
             <div className="flex items-center border-b-2 border-primary-600 pb-2">
               <span className="text-2xl text-surface-500 mr-2">{currencySymbol}</span>
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                min="1"
                 placeholder="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
