@@ -78,7 +78,6 @@ export const SemesterPaymentPage = () => {
 
   // Section C: Payment Info
   const [amountPaid, setAmountPaid] = useState('');
-  const [totalCost, setTotalCost] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [note, setNote] = useState('');
 
@@ -86,8 +85,9 @@ export const SemesterPaymentPage = () => {
   const [installmentCount, setInstallmentCount] = useState(3);
   const [installments, setInstallments] = useState([]);
 
-  // Section D: Breakdown
+  // Section D: Breakdown (chip-select + progressive input)
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [selectedComponents, setSelectedComponents] = useState(new Set());
   const [breakdown, setBreakdown] = useState(() =>
     Object.fromEntries(BREAKDOWN_ITEMS.map(item => [item.key, '']))
   );
@@ -202,6 +202,20 @@ export const SemesterPaymentPage = () => {
     if (errors.amount) setErrors(prev => ({ ...prev, amount: null }));
   };
 
+  const toggleComponent = (key) => {
+    haptics.light();
+    setSelectedComponents(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+        setBreakdown(b => ({ ...b, [key]: '' }));
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   const handleBreakdownChange = (key, value) => {
     setBreakdown(prev => ({ ...prev, [key]: sanitizeAmount(value) }));
   };
@@ -237,7 +251,7 @@ export const SemesterPaymentPage = () => {
         paymentPattern: paymentStyle === 'installment' ? 'installment' : 'semester',
         paymentStyle,
         amount: finalAmount,
-        totalExpectedAmount: parseAmount(totalCost) || finalAmount,
+        totalExpectedAmount: finalAmount,
         dueDate: dueDate || null,
         note: note || null,
         breakdown: breakdownItems.length > 0 ? breakdownItems : null,
@@ -266,13 +280,13 @@ export const SemesterPaymentPage = () => {
 
   const handleReset = () => {
     setAmountPaid('');
-    setTotalCost('');
     setDueDate('');
     setNote('');
     setPaymentStyle('full');
     setInstallmentCount(3);
     setInstallments([]);
     setShowBreakdown(false);
+    setSelectedComponents(new Set());
     setBreakdown(Object.fromEntries(BREAKDOWN_ITEMS.map(item => [item.key, ''])));
     setDuplicateDismissed(false);
     setErrors({});
@@ -481,7 +495,7 @@ export const SemesterPaymentPage = () => {
 
         {/* ═══ SECTION C: PAYMENT INFO ═══ */}
         <div className="space-y-4">
-          {/* Amount Paid */}
+          {/* Amount Paid — single source of truth */}
           <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
               Amount Paid *
@@ -506,68 +520,21 @@ export const SemesterPaymentPage = () => {
             )}
           </div>
 
-          {/* Total Semester Cost (for installment & partial) */}
-          {(paymentStyle === 'installment' || paymentStyle === 'partial') && (
-            <div>
-              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-                Total Semester Cost
-                <span className="text-surface-400 font-normal ml-1">(optional)</span>
-              </label>
-              <div className={`flex items-center border rounded-xl px-4 py-2.5 transition ${
-                d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
-              } focus-within:border-primary-500`}>
-                <span className="text-surface-400 mr-2">{'\u09F3'}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={totalCost}
-                  onChange={(e) => setTotalCost(sanitizeAmount(e.target.value))}
-                  className={`bg-transparent outline-none w-full text-sm ${d ? 'text-white' : 'text-surface-900'}`}
-                />
-              </div>
-              {parseAmount(totalCost) > 0 && finalAmount > 0 && (
-                <p className="text-xs text-surface-500 mt-1.5">
-                  Remaining: {'\u09F3'}{Math.max(0, parseAmount(totalCost) - finalAmount).toLocaleString()}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Due Date */}
-          {(paymentStyle === 'installment' || paymentStyle === 'partial') && (
-            <div>
-              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-                Due Date
-                <span className="text-surface-400 font-normal ml-1">(optional)</span>
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className={`w-full p-3.5 border rounded-xl text-sm outline-none transition focus:border-primary-500 ${
-                  d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-                }`}
-              />
-            </div>
-          )}
-
-          {paymentStyle === 'full' && (
-            <div>
-              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-                Due Date
-                <span className="text-surface-400 font-normal ml-1">(optional)</span>
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className={`w-full p-3.5 border rounded-xl text-sm outline-none transition focus:border-primary-500 ${
-                  d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-                }`}
-              />
-            </div>
-          )}
+          {/* Due Date (single block for all payment styles) */}
+          <div>
+            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+              Due Date
+              <span className="text-surface-400 font-normal ml-1">(optional)</span>
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className={`w-full p-3.5 border rounded-xl text-sm outline-none transition focus:border-primary-500 ${
+                d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
+              }`}
+            />
+          </div>
 
           {/* Note */}
           <div>
@@ -663,18 +630,23 @@ export const SemesterPaymentPage = () => {
           </motion.div>
         )}
 
-        {/* ═══ SECTION D: BREAKDOWN ═══ */}
+        {/* ═══ SECTION D: BREAKDOWN (chip-select + progressive input) ═══ */}
         <div>
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => { haptics.light(); setShowBreakdown(!showBreakdown); }}
             className={`w-full flex items-center justify-between p-4 rounded-xl transition ${
-              d ? 'bg-surface-800' : 'bg-surface-100'
+              showBreakdown
+                ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-200 dark:ring-primary-800'
+                : d ? 'bg-surface-800' : 'bg-surface-100'
             }`}
           >
-            <span className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-              Add breakdown (optional)
-            </span>
+            <div>
+              <span className={`text-sm font-medium ${showBreakdown ? 'text-primary-700 dark:text-primary-300' : d ? 'text-surface-300' : 'text-surface-700'}`}>
+                Add details
+              </span>
+              <span className="text-xs text-surface-400 ml-1.5">(optional)</span>
+            </div>
             {showBreakdown ? (
               <ChevronUp className="w-4 h-4 text-surface-400" />
             ) : (
@@ -686,40 +658,90 @@ export const SemesterPaymentPage = () => {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className={`mt-2 p-4 rounded-xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}
+              className="mt-3 space-y-4"
             >
-              {BREAKDOWN_ITEMS.map(item => (
-                <div key={item.key} className="flex items-center gap-3">
-                  <label className={`text-sm w-28 shrink-0 ${
-                    item.isNegative
-                      ? 'text-success-600 dark:text-success-400'
-                      : d ? 'text-surface-300' : 'text-surface-700'
-                  }`}>
-                    {item.isNegative ? '- ' : ''}{item.label}
-                  </label>
-                  <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
-                    <span className="text-surface-400 mr-1 text-sm">{'\u09F3'}</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={breakdown[item.key]}
-                      onChange={(e) => handleBreakdownChange(item.key, e.target.value)}
-                      className={`w-full bg-transparent outline-none text-sm ${d ? 'text-white' : 'text-surface-900'}`}
-                    />
-                  </div>
+              {/* Component chips */}
+              <div>
+                <p className={`text-xs text-surface-500 mb-2`}>Tap to select what's included</p>
+                <div className="flex flex-wrap gap-2">
+                  {BREAKDOWN_ITEMS.map(item => {
+                    const isActive = selectedComponents.has(item.key);
+                    return (
+                      <motion.button
+                        key={item.key}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => toggleComponent(item.key)}
+                        className={`px-3.5 py-2 rounded-full text-xs font-medium transition-all ${
+                          isActive
+                            ? item.isNegative
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-300 dark:ring-emerald-700'
+                              : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-1 ring-primary-300 dark:ring-primary-700'
+                            : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                        }`}
+                      >
+                        {isActive && <Check className="w-3 h-3 inline mr-1 -mt-0.5" />}
+                        {item.isNegative ? `- ${item.label}` : item.label}
+                      </motion.button>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
 
-              {hasBreakdownValues && (
-                <div className={`pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-surface-500">Breakdown Total</span>
-                    <span className={`font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>
-                      {'\u09F3'}{breakdownSum.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+              {/* Amount inputs for selected components only */}
+              {selectedComponents.size > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`p-4 rounded-xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}
+                >
+                  {BREAKDOWN_ITEMS.filter(item => selectedComponents.has(item.key)).map(item => (
+                    <div key={item.key} className="flex items-center gap-3">
+                      <label className={`text-sm w-28 shrink-0 ${
+                        item.isNegative ? 'text-emerald-600 dark:text-emerald-400' : d ? 'text-surface-300' : 'text-surface-700'
+                      }`}>
+                        {item.isNegative ? '−' : ''} {item.label}
+                      </label>
+                      <div className={`flex-1 flex items-center border rounded-lg px-3 py-2 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
+                        <span className="text-surface-400 mr-1 text-sm">{'\u09F3'}</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={breakdown[item.key]}
+                          onChange={(e) => handleBreakdownChange(item.key, e.target.value)}
+                          className={`w-full bg-transparent outline-none text-sm ${d ? 'text-white' : 'text-surface-900'}`}
+                          autoFocus={selectedComponents.size === 1}
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Breakdown summary */}
+                  {hasBreakdownValues && (
+                    <div className={`pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-surface-500">Breakdown total</span>
+                        <span className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>
+                          {'\u09F3'}{breakdownSum.toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Soft mismatch hint — not blocking */}
+                      {finalAmount > 0 && Math.abs(breakdownSum - finalAmount) > 1 && (
+                        <p className="text-xs text-surface-400 mt-1.5">
+                          {breakdownSum > finalAmount
+                            ? `Breakdown exceeds amount paid by \u09F3${(breakdownSum - finalAmount).toLocaleString()}`
+                            : `\u09F3${(finalAmount - breakdownSum).toLocaleString()} not accounted for in breakdown`
+                          }
+                        </p>
+                      )}
+                      {finalAmount > 0 && Math.abs(breakdownSum - finalAmount) <= 1 && (
+                        <p className="text-xs text-emerald-500 mt-1.5 flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Matches amount paid
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
               )}
             </motion.div>
           )}
