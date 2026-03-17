@@ -147,7 +147,12 @@ export const AppProvider = ({ children }) => {
         api.getLoans(userId),
         api.getSettings(userId),
       ]);
-      setExpensesLocal(expData);
+      // Map DB fields back to frontend fields: note→details, meta.label→label
+      setExpensesLocal((expData || []).map(exp => ({
+        ...exp,
+        details: exp.details || exp.note || '',
+        label: exp.label || exp.meta?.label || '',
+      })));
       setSemestersLocal(semData);
       setLoansLocal(loanData);
       if (setData?.notifications) setNotificationsLocal(setData.notifications);
@@ -231,7 +236,14 @@ export const AppProvider = ({ children }) => {
     setExpensesLocal(prev => [...prev, expense]);
     if (user?.id) {
       try {
-        await api.createExpense({ ...expense, userId: user.id });
+        // Map frontend fields to DB fields: details→note, label/extra→meta
+        const { details, label, ...rest } = expense;
+        await api.createExpense({
+          ...rest,
+          userId: user.id,
+          note: details || rest.note || null,
+          meta: { label: label || null, ...(rest.meta || {}) },
+        });
       } catch (e) { console.error('Failed to sync expense:', e); }
     }
   }, [user?.id]);

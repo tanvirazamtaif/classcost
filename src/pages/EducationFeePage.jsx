@@ -15,6 +15,7 @@ import { GButton, BottomSheet } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 import { ListAddView } from '../components/education/ListAddView';
+import { LayoutBottomNav } from '../components/layout';
 
 // Map EDU group values to fee filter categories
 const GROUP_TO_FILTER = {
@@ -477,6 +478,7 @@ export const EducationFeePage = () => {
           </>
         )}
       </AnimatePresence>
+      <LayoutBottomNav />
     </motion.div>
   );
 };
