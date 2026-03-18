@@ -5,7 +5,7 @@ import { haptics } from '../../lib/haptics';
 
 const navItems = [
   { id: 'dashboard', icon: Home, label: 'Home' },
-  { id: 'education-fees', icon: GraduationCap, label: 'Fees' },
+  { id: 'education-home', icon: GraduationCap, label: 'Education' },
   { id: 'loans', icon: CreditCard, label: 'Loans' },
   { id: 'reports', icon: PieChart, label: 'Reports' },
   { id: 'settings', icon: Settings, label: 'Settings' },

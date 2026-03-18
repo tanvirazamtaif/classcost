@@ -70,7 +70,7 @@ export const DashboardView = () => {
   };
 
   const handleOpenForm = (categoryId) => {
-    if (categoryId === 'education') return navigate('education-fees');
+    if (categoryId === 'education') return navigate('education-home');
     if (categoryId === 'hostel') return navigate('housing-entry');
     if (categoryId === 'books') return navigate('books-entry');
     if (categoryId === 'transport' || categoryId === 'canteen') {
