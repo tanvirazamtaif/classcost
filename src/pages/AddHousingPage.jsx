@@ -299,11 +299,23 @@ export const AddHousingPage = () => {
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
                 Rent Due Day <span className="text-surface-400 font-normal">(optional)</span>
               </label>
-              <select value={dueDay} onChange={(e) => setDueDay(e.target.value)} className={inputCls}>
-                {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
-                  <option key={day} value={day}>{day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of each month</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-7 gap-1.5">
+                {Array.from({ length: 28 }, (_, i) => i + 1).map(day => {
+                  const sel = parseInt(dueDay) === day;
+                  return (
+                    <button key={day} type="button"
+                      onClick={() => { haptics.light(); setDueDay(String(day)); }}
+                      className={`py-2 rounded-lg text-xs font-medium transition ${
+                        sel ? 'bg-primary-600 text-white shadow-sm' : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                      }`}>
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className={`text-xs mt-1.5 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
+                Rent due on the {parseInt(dueDay)}{parseInt(dueDay) === 1 ? 'st' : parseInt(dueDay) === 2 ? 'nd' : parseInt(dueDay) === 3 ? 'rd' : 'th'} of each month
+              </p>
             </div>
 
             {/* Shifting Cost */}
