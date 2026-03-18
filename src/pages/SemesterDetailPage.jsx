@@ -77,6 +77,11 @@ export const SemesterDetailPage = () => {
     return () => document.removeEventListener('click', close, true);
   }, [reminderPopoverFor]);
 
+  // ── Derived ────────────────────────────────────────────────
+
+  const isInstallment = fee?.paymentStyle === 'installment' || fee?.paymentPattern === 'installment';
+  const installments = fee?.semester?.installments || [];
+
   // RULE: When installment is marked paid, clear its reminder
   useEffect(() => {
     installments.forEach(inst => {
@@ -85,11 +90,6 @@ export const SemesterDetailPage = () => {
       }
     });
   }, [installments]);
-
-  // ── Derived ────────────────────────────────────────────────
-
-  const isInstallment = fee?.paymentStyle === 'installment' || fee?.paymentPattern === 'installment';
-  const installments = fee?.semester?.installments || [];
 
   const totalPaid = useMemo(() => {
     if (!fee) return 0;
