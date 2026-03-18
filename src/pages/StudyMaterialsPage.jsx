@@ -1,17 +1,20 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, ChevronRight, Pencil, Check, X, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { GButton } from '../components/ui';
 import { LayoutBottomNav } from '../components/layout';
+import { TransactionCard } from '../components/shared/TransactionCard';
+import { AmountInput } from '../components/shared/AmountInput';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { createTransaction, getByCategory, getTotalSpent, validateAmount, formatTransactionDate } from '../core/transactions';
 
 // ═══════════════════════════════════════════════════════════════
-// CATEGORIES
+// ITEM TYPES
 // ═══════════════════════════════════════════════════════════════
 
-// Stationery & supplies — quick add, amount + date only
+// Stationery — fast add, amount + date only (Quick Add friendly)
 const SUPPLY_ITEMS = [
   { id: 'books_general', icon: '📚', label: 'Books' },
   { id: 'notebook', icon: '📓', label: 'Notebook' },
@@ -25,7 +28,7 @@ const SUPPLY_ITEMS = [
   { id: 'custom_supply', icon: '📦', label: 'Custom', isCustom: true },
 ];
 
-// Books sub-categories — can have book name, subjects
+// Books — optional book name + subjects (less frequent, larger purchases)
 const BOOK_TYPES = [
   { id: 'test_paper', icon: '📝', label: 'Test Paper', desc: 'Practice test papers' },
   { id: 'academic_book', icon: '📘', label: 'Academic Book', desc: 'Textbooks, references' },
@@ -43,157 +46,113 @@ export const StudyMaterialsPage = () => {
   const { navigate, theme, expenses, addExpense, editExpense, removeExpense, addToast } = useApp();
   const d = theme === 'dark';
 
-  // Navigation flow
-  const [view, setView] = useState('home'); // home | supplies | books | add-supply | add-book | edit
+  // Flow: home | supplies | books | add-supply | add-book | edit
+  const [view, setView] = useState('home');
   const [selectedItem, setSelectedItem] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
 
-  // Add supply form
-  const [supplyAmount, setSupplyAmount] = useState('');
-  const [supplyDate, setSupplyDate] = useState(new Date().toISOString().split('T')[0]);
-  const [customSupplyName, setCustomSupplyName] = useState('');
-
-  // Add book form
-  const [bookAmount, setBookAmount] = useState('');
-  const [bookDate, setBookDate] = useState(new Date().toISOString().split('T')[0]);
+  // Form state
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customName, setCustomName] = useState('');
   const [bookName, setBookName] = useState('');
   const [bookSubjects, setBookSubjects] = useState('');
-  const [customBookName, setCustomBookName] = useState('');
-
-  // Edit form
   const [editAmount, setEditAmount] = useState('');
-
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
-  // ── Data ────────────────────────────────────────────────────
+  // ── Data (shared helpers) ───────────────────────────────────
 
-  const allItems = useMemo(() => {
-    return (expenses || [])
-      .filter(e => e.type === 'books')
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  }, [expenses]);
+  const allItems = useMemo(() => getByCategory(expenses, 'books'), [expenses]);
+  const totalSpent = useMemo(() => getTotalSpent(expenses, 'books'), [expenses]);
 
-  const totalSpent = useMemo(() => allItems.reduce((s, e) => s + (Number(e.amount) || 0), 0), [allItems]);
-
-  // ── Handlers ────────────────────────────────────────────────
+  // ── Navigation ──────────────────────────────────────────────
 
   const handleBack = () => {
     haptics.light();
     if (view === 'add-supply' || view === 'add-book') setView(view === 'add-supply' ? 'supplies' : 'books');
     else if (view === 'supplies' || view === 'books' || view === 'edit') setView('home');
     else navigate('dashboard');
+    resetForm();
+  };
+
+  const resetForm = () => {
     setSelectedItem(null);
     setEditingExpense(null);
-  };
-
-  const handleSelectSupply = (item) => {
-    haptics.light();
-    setSelectedItem(item);
-    setSupplyAmount('');
-    setSupplyDate(new Date().toISOString().split('T')[0]);
-    setCustomSupplyName('');
-    setView('add-supply');
-  };
-
-  const handleSelectBook = (item) => {
-    haptics.light();
-    setSelectedItem(item);
-    setBookAmount('');
-    setBookDate(new Date().toISOString().split('T')[0]);
+    setAmount('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setCustomName('');
     setBookName('');
     setBookSubjects('');
-    setCustomBookName('');
-    setView('add-book');
+    setEditAmount('');
+    setErrors({});
   };
 
+  // ── Save handlers (use createTransaction) ───────────────────
+
   const handleSaveSupply = async () => {
-    const amt = parseFloat(supplyAmount);
-    if (!amt || amt <= 0) { haptics.error(); addToast('Enter amount', 'error'); return; }
+    const v = validateAmount(parseFloat(amount));
+    if (!v.valid) { setErrors({ amount: v.error }); haptics.error(); return; }
     setSaving(true);
     haptics.medium();
     try {
-      const label = selectedItem.isCustom ? (customSupplyName || 'Custom Item') : selectedItem.label;
-      await addExpense({
+      const label = selectedItem.isCustom ? (customName || 'Custom Item') : selectedItem.label;
+      await addExpense(createTransaction({
         type: 'books',
-        amount: amt,
-        label: 'Study Materials',
+        amount: parseFloat(amount),
         details: label,
-        date: supplyDate,
+        date,
         meta: { category: 'supply', subType: selectedItem.id, label, icon: selectedItem.icon },
-      });
+      }));
       haptics.success();
-      addToast(`${label} · ৳${amt.toLocaleString()} saved`, 'success');
+      addToast(`${label} · ৳${parseFloat(amount).toLocaleString()} saved`, 'success');
       setView('home');
-      setSelectedItem(null);
+      resetForm();
     } catch { haptics.error(); addToast('Failed', 'error'); }
     finally { setSaving(false); }
   };
 
   const handleSaveBook = async () => {
-    const amt = parseFloat(bookAmount);
-    if (!amt || amt <= 0) { haptics.error(); addToast('Enter amount', 'error'); return; }
+    const v = validateAmount(parseFloat(amount));
+    if (!v.valid) { setErrors({ amount: v.error }); haptics.error(); return; }
     setSaving(true);
     haptics.medium();
     try {
-      const typeLabel = selectedItem.isCustom ? (customBookName || 'Book') : selectedItem.label;
+      const typeLabel = selectedItem.isCustom ? (customName || 'Book') : selectedItem.label;
       const subjects = bookSubjects.trim();
       const fullLabel = [typeLabel, bookName, subjects ? `(${subjects})` : ''].filter(Boolean).join(' — ');
-      await addExpense({
+      await addExpense(createTransaction({
         type: 'books',
-        amount: amt,
-        label: 'Study Materials',
+        amount: parseFloat(amount),
         details: fullLabel || typeLabel,
-        date: bookDate,
+        date,
         meta: {
           category: 'book', subType: selectedItem.id, label: fullLabel || typeLabel,
           icon: selectedItem.icon, bookName: bookName || null, subjects: subjects || null,
         },
-      });
+      }));
       haptics.success();
-      addToast(`${typeLabel} · ৳${amt.toLocaleString()} saved`, 'success');
+      addToast(`${typeLabel} · ৳${parseFloat(amount).toLocaleString()} saved`, 'success');
       setView('home');
-      setSelectedItem(null);
+      resetForm();
     } catch { haptics.error(); addToast('Failed', 'error'); }
     finally { setSaving(false); }
   };
 
-  const handleStartEdit = (exp) => {
-    haptics.light();
-    setEditingExpense(exp);
-    setEditAmount(String(exp.amount || ''));
-    setView('edit');
-  };
-
   const handleSaveEdit = async () => {
-    const amt = parseFloat(editAmount);
-    if (!amt || amt <= 0) { haptics.error(); return; }
+    const v = validateAmount(parseFloat(editAmount));
+    if (!v.valid) { haptics.error(); return; }
     haptics.medium();
     try {
-      await editExpense(editingExpense.id, { amount: amt });
+      await editExpense(editingExpense.id, { amount: parseFloat(editAmount) });
       haptics.success();
       addToast('Updated', 'success');
       setView('home');
-      setEditingExpense(null);
+      resetForm();
     } catch { haptics.error(); addToast('Failed', 'error'); }
   };
 
-  const handleDelete = async (expId) => {
-    haptics.medium();
-    try {
-      await removeExpense(expId);
-      addToast('Removed', 'success');
-    } catch { haptics.error(); }
-  };
-
-  // ── Shared styles ───────────────────────────────────────────
-
-  const cardCls = `w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left ${
-    d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
-  }`;
-
-  const inputCls = `w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
-    d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-  }`;
+  // ── Helpers ─────────────────────────────────────────────────
 
   const getTitle = () => {
     if (view === 'supplies') return 'Stationery & Supplies';
@@ -203,6 +162,10 @@ export const StudyMaterialsPage = () => {
     if (view === 'edit') return 'Edit';
     return 'Study Materials';
   };
+
+  const inputCls = `w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
+    d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
+  }`;
 
   // ══════════════════════════════════════════════════════════════
   // RENDER
@@ -226,73 +189,59 @@ export const StudyMaterialsPage = () => {
         {/* ═══ HOME ═══ */}
         {view === 'home' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
-            {/* Two main sections */}
+            {/* Section cards */}
             <div className="space-y-2.5">
-              <motion.button whileTap={{ scale: 0.98 }} onClick={() => { haptics.light(); setView('supplies'); }}
-                className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border transition-all text-left ${
-                  d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
-                }`}>
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${d ? 'bg-amber-900/30' : 'bg-amber-50'}`}>✏️</div>
-                <div className="flex-1">
-                  <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Stationery & Supplies</p>
-                  <p className={`text-xs ${d ? 'text-surface-400' : 'text-surface-500'}`}>Pen, pencil, notebook, geometry box...</p>
-                </div>
-                <ChevronRight className={`w-4 h-4 ${d ? 'text-surface-600' : 'text-surface-400'}`} />
-              </motion.button>
-
-              <motion.button whileTap={{ scale: 0.98 }} onClick={() => { haptics.light(); setView('books'); }}
-                className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border transition-all text-left ${
-                  d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
-                }`}>
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${d ? 'bg-amber-900/30' : 'bg-amber-50'}`}>📚</div>
-                <div className="flex-1">
-                  <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Books & Papers</p>
-                  <p className={`text-xs ${d ? 'text-surface-400' : 'text-surface-500'}`}>Test papers, academic books, guides...</p>
-                </div>
-                <ChevronRight className={`w-4 h-4 ${d ? 'text-surface-600' : 'text-surface-400'}`} />
-              </motion.button>
+              {[
+                { key: 'supplies', icon: '✏️', label: 'Stationery & Supplies', desc: 'Pen, pencil, notebook, geometry box...' },
+                { key: 'books', icon: '📚', label: 'Books & Papers', desc: 'Test papers, academic books, guides...' },
+              ].map(section => (
+                <motion.button key={section.key} whileTap={{ scale: 0.98 }}
+                  onClick={() => { haptics.light(); setView(section.key); }}
+                  className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border transition-all text-left ${
+                    d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
+                  }`}>
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${d ? 'bg-amber-900/30' : 'bg-amber-50'}`}>{section.icon}</div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>{section.label}</p>
+                    <p className={`text-xs ${d ? 'text-surface-400' : 'text-surface-500'}`}>{section.desc}</p>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 ${d ? 'text-surface-600' : 'text-surface-400'}`} />
+                </motion.button>
+              ))}
             </div>
 
             {/* Summary */}
             {totalSpent > 0 && (
               <div className={`p-4 rounded-2xl border ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
-                <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Total Spent</p>
-                <p className={`text-2xl font-bold ${d ? 'text-white' : 'text-surface-900'}`}>৳{totalSpent.toLocaleString()}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Total Spent</p>
+                    <p className={`text-2xl font-bold ${d ? 'text-white' : 'text-surface-900'}`}>৳{totalSpent.toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Items</p>
+                    <p className={`text-lg font-semibold ${d ? 'text-surface-300' : 'text-surface-700'}`}>{allItems.length}</p>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Recent items */}
+            {/* Recent — shared TransactionCard */}
             {allItems.length > 0 && (
               <div>
                 <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>Recent</h2>
                 <div className="space-y-2">
-                  {allItems.slice(0, 15).map((exp, i) => {
-                    const meta = exp.meta || {};
-                    return (
-                      <motion.div key={exp.id || i}
-                        initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                        className={`flex items-center justify-between p-3 rounded-xl border ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
-                        <button onClick={() => handleStartEdit(exp)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
-                          <span className="text-base">{meta.icon || '📚'}</span>
-                          <div className="min-w-0">
-                            <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-surface-900'}`}>
-                              {exp.details || meta.label || 'Study Material'}
-                            </p>
-                            <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                              {exp.date ? new Date(exp.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''}
-                            </p>
-                          </div>
-                        </button>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>৳{(Number(exp.amount) || 0).toLocaleString()}</p>
-                          <button onClick={() => handleDelete(exp.id)}
-                            className={`p-1.5 rounded-lg ${d ? 'hover:bg-surface-800' : 'hover:bg-surface-100'}`}>
-                            <Trash2 className="w-3.5 h-3.5 text-danger-500" />
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                  {allItems.slice(0, 15).map((exp, i) => (
+                    <TransactionCard
+                      key={exp.id || i}
+                      transaction={exp}
+                      dark={d}
+                      icon={exp.meta?.icon}
+                      animationDelay={i * 0.02}
+                      onEdit={() => { haptics.light(); setEditingExpense(exp); setEditAmount(String(exp.amount || '')); setView('edit'); }}
+                      onDelete={() => { haptics.medium(); removeExpense(exp.id); addToast('Removed', 'success'); }}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -312,7 +261,8 @@ export const StudyMaterialsPage = () => {
             <p className={`text-sm mb-3 ${d ? 'text-surface-400' : 'text-surface-500'}`}>What did you buy?</p>
             <div className="grid grid-cols-3 gap-2">
               {SUPPLY_ITEMS.map(item => (
-                <motion.button key={item.id} whileTap={{ scale: 0.95 }} onClick={() => handleSelectSupply(item)}
+                <motion.button key={item.id} whileTap={{ scale: 0.95 }}
+                  onClick={() => { haptics.light(); setSelectedItem(item); setAmount(''); setDate(new Date().toISOString().split('T')[0]); setCustomName(''); setView('add-supply'); }}
                   className={`flex flex-col items-center gap-1.5 p-3.5 rounded-xl border transition ${
                     d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
                   }`}>
@@ -330,8 +280,11 @@ export const StudyMaterialsPage = () => {
             <p className={`text-sm mb-3 ${d ? 'text-surface-400' : 'text-surface-500'}`}>What type of book?</p>
             <div className="space-y-2">
               {BOOK_TYPES.map(item => (
-                <motion.button key={item.id} whileTap={{ scale: 0.98 }} onClick={() => handleSelectBook(item)}
-                  className={cardCls}>
+                <motion.button key={item.id} whileTap={{ scale: 0.98 }}
+                  onClick={() => { haptics.light(); setSelectedItem(item); setAmount(''); setDate(new Date().toISOString().split('T')[0]); setBookName(''); setBookSubjects(''); setCustomName(''); setView('add-book'); }}
+                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left ${
+                    d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
+                  }`}>
                   <span className="text-xl w-8 text-center">{item.icon}</span>
                   <div className="flex-1">
                     <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>{item.label}</p>
@@ -344,7 +297,7 @@ export const StudyMaterialsPage = () => {
           </motion.div>
         )}
 
-        {/* ═══ ADD SUPPLY FORM (amount + date only) ═══ */}
+        {/* ═══ ADD SUPPLY (amount + date) ═══ */}
         {view === 'add-supply' && selectedItem && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${d ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-100 text-amber-700'}`}>
@@ -354,34 +307,27 @@ export const StudyMaterialsPage = () => {
             {selectedItem.isCustom && (
               <div>
                 <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Item Name</label>
-                <input type="text" placeholder="e.g., Highlighter, Ruler" value={customSupplyName}
-                  onChange={(e) => setCustomSupplyName(e.target.value)} className={inputCls} autoFocus />
+                <input type="text" placeholder="e.g., Highlighter, Ruler" value={customName}
+                  onChange={(e) => setCustomName(e.target.value)} className={inputCls} autoFocus />
               </div>
             )}
 
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Amount *</label>
-              <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${d ? 'border-surface-800 bg-surface-900' : 'border-surface-200 bg-white'} focus-within:border-primary-500`}>
-                <span className="text-xl text-surface-400 mr-2">৳</span>
-                <input type="text" inputMode="decimal" placeholder="0" value={supplyAmount}
-                  onChange={(e) => setSupplyAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                  className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
-                  autoFocus={!selectedItem.isCustom} />
-              </div>
+              <AmountInput value={amount} onChange={(v) => { setAmount(v); if (errors.amount) setErrors({}); }}
+                dark={d} error={errors.amount} autoFocus={!selectedItem.isCustom} />
             </div>
 
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Date</label>
-              <input type="date" value={supplyDate} onChange={(e) => setSupplyDate(e.target.value)} className={inputCls} />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
             </div>
 
-            <GButton fullWidth size="lg" onClick={handleSaveSupply} loading={saving} disabled={saving || parseFloat(supplyAmount) <= 0}>
-              Save
-            </GButton>
+            <GButton fullWidth size="lg" onClick={handleSaveSupply} loading={saving} disabled={saving || parseFloat(amount) <= 0}>Save</GButton>
           </motion.div>
         )}
 
-        {/* ═══ ADD BOOK FORM (amount + date + optional name/subjects) ═══ */}
+        {/* ═══ ADD BOOK (amount + optional name/subjects + date) ═══ */}
         {view === 'add-book' && selectedItem && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${d ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-100 text-amber-700'}`}>
@@ -391,22 +337,17 @@ export const StudyMaterialsPage = () => {
             {selectedItem.isCustom && (
               <div>
                 <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Type Name</label>
-                <input type="text" placeholder="e.g., Reference Book" value={customBookName}
-                  onChange={(e) => setCustomBookName(e.target.value)} className={inputCls} />
+                <input type="text" placeholder="e.g., Reference Book" value={customName}
+                  onChange={(e) => setCustomName(e.target.value)} className={inputCls} />
               </div>
             )}
 
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Amount *</label>
-              <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${d ? 'border-surface-800 bg-surface-900' : 'border-surface-200 bg-white'} focus-within:border-primary-500`}>
-                <span className="text-xl text-surface-400 mr-2">৳</span>
-                <input type="text" inputMode="decimal" placeholder="0" value={bookAmount}
-                  onChange={(e) => setBookAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                  className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} autoFocus />
-              </div>
+              <AmountInput value={amount} onChange={(v) => { setAmount(v); if (errors.amount) setErrors({}); }}
+                dark={d} error={errors.amount} autoFocus />
             </div>
 
-            {/* Book name — optional */}
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
                 Book Name <span className="text-surface-400 font-normal">(optional)</span>
@@ -415,7 +356,6 @@ export const StudyMaterialsPage = () => {
                 onChange={(e) => setBookName(e.target.value)} className={inputCls} />
             </div>
 
-            {/* Subjects — optional, can be many */}
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
                 Subject(s) <span className="text-surface-400 font-normal">(optional — separate with commas)</span>
@@ -433,15 +373,12 @@ export const StudyMaterialsPage = () => {
               )}
             </div>
 
-            {/* Date */}
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Date</label>
-              <input type="date" value={bookDate} onChange={(e) => setBookDate(e.target.value)} className={inputCls} />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
             </div>
 
-            <GButton fullWidth size="lg" onClick={handleSaveBook} loading={saving} disabled={saving || parseFloat(bookAmount) <= 0}>
-              Save
-            </GButton>
+            <GButton fullWidth size="lg" onClick={handleSaveBook} loading={saving} disabled={saving || parseFloat(amount) <= 0}>Save</GButton>
           </motion.div>
         )}
 
@@ -453,23 +390,16 @@ export const StudyMaterialsPage = () => {
                 {editingExpense.details || editingExpense.meta?.label || 'Study Material'}
               </p>
               <p className={`text-xs mt-1 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                {editingExpense.date ? new Date(editingExpense.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                {formatTransactionDate(editingExpense.date, { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             </div>
 
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Amount</label>
-              <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${d ? 'border-surface-800 bg-surface-900' : 'border-surface-200 bg-white'} focus-within:border-primary-500`}>
-                <span className="text-xl text-surface-400 mr-2">৳</span>
-                <input type="text" inputMode="decimal" value={editAmount}
-                  onChange={(e) => setEditAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                  className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} autoFocus />
-              </div>
+              <AmountInput value={editAmount} onChange={setEditAmount} dark={d} autoFocus />
             </div>
 
-            <GButton fullWidth size="lg" onClick={handleSaveEdit} disabled={parseFloat(editAmount) <= 0}>
-              Update
-            </GButton>
+            <GButton fullWidth size="lg" onClick={handleSaveEdit} disabled={parseFloat(editAmount) <= 0}>Update</GButton>
           </motion.div>
         )}
 
