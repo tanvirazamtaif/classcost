@@ -127,7 +127,7 @@ export const AddSemesterPage = () => {
           paidAt: i === 0 ? new Date().toISOString() : null,
         }));
 
-        addSemesterFee({
+        const created = addSemesterFee({
           feeType: 'semester_fee',
           paymentIntent: 'semester_payment',
           name: universityName || 'Semester Payment',
@@ -143,9 +143,10 @@ export const AddSemesterPage = () => {
           initialPayment: { amount: firstAmount, method: null, paidAt: new Date().toISOString() },
           note: note || null,
         });
+        if (created?.id) setCreatedFeeId(created.id);
       } else {
         const finalAmount = toNum(amount);
-        addSemesterFee({
+        const created = addSemesterFee({
           feeType: 'semester_fee',
           paymentIntent: 'semester_payment',
           name: universityName || 'Semester Payment',
@@ -160,6 +161,7 @@ export const AddSemesterPage = () => {
           initialPayment: { amount: finalAmount, method: null, paidAt: new Date().toISOString() },
           note: note || null,
         });
+        if (created?.id) setCreatedFeeId(created.id);
       }
       haptics.success();
       setStep('success');
@@ -195,7 +197,7 @@ export const AddSemesterPage = () => {
               fullWidth
               onClick={() => {
                 haptics.light();
-                navigate('semester-detail', { semesterId: createdFeeId });
+                navigate('semester-detail', { params: { semesterId: createdFeeId } });
               }}
             >
               View Semester

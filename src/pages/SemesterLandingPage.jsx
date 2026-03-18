@@ -98,7 +98,7 @@ export const SemesterLandingPage = () => {
       <motion.button
         key={fee.id}
         whileTap={{ scale: 0.98 }}
-        onClick={() => { haptics.light(); navigate('semester-detail', { semesterId: fee.id }); }}
+        onClick={() => { haptics.light(); navigate('semester-detail', { params: { semesterId: fee.id } }); }}
         className={`w-full text-left p-4 rounded-2xl border transition-all ${
           d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
         }`}
