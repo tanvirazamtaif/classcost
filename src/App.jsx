@@ -32,6 +32,7 @@ const SemesterLandingPage = lazy(() => import('./pages/SemesterLandingPage'));
 const AddSemesterPage = lazy(() => import('./pages/AddSemesterPage'));
 const SemesterDetailPage = lazy(() => import('./pages/SemesterDetailPage'));
 const TransportPage = lazy(() => import('./pages/TransportPage'));
+const StudyMaterialsPage = lazy(() => import('./pages/StudyMaterialsPage'));
 const HousingLandingPage = lazy(() => import('./pages/HousingLandingPage'));
 const AddHousingPage = lazy(() => import('./pages/AddHousingPage'));
 const HousingDetailPage = lazy(() => import('./pages/HousingDetailPage'));
@@ -116,6 +117,7 @@ const ViewRouter = () => {
         {view === "add-semester" && <AddSemesterPage />}
         {view === "semester-detail" && <SemesterDetailPage />}
         {view === "transport" && <TransportPage />}
+        {view === "study-materials" && <StudyMaterialsPage />}
         {view === "housing-landing" && <HousingLandingPage />}
         {view === "add-housing" && <AddHousingPage />}
         {view === "housing-detail" && <HousingDetailPage />}
