@@ -6,17 +6,22 @@ import { GButton } from '../ui/GButton';
 import { SuccessCheck } from '../ui/SuccessCheck';
 import { useApp } from '../../contexts/AppContext';
 import { haptics } from '../../lib/haptics';
+import { CATEGORIES, createTransaction, sanitizeAmount } from '../../core/transactions';
 
-// Map to existing backend type IDs
-const categories = [
-  { id: 'education', icon: '🎓', label: 'Education', color: 'bg-purple-100 dark:bg-purple-900/30' },
-  { id: 'transport', icon: '🚌', label: 'Transport', color: 'bg-blue-100 dark:bg-blue-900/30' },
-  { id: 'canteen', icon: '🍽️', label: 'Food', color: 'bg-orange-100 dark:bg-orange-900/30' },
-  { id: 'hostel', icon: '🏠', label: 'Housing', color: 'bg-green-100 dark:bg-green-900/30' },
-  { id: 'books', icon: '📚', label: 'Study Materials', color: 'bg-amber-100 dark:bg-amber-900/30' },
-];
+// Build category list for the grid from shared registry
+const CATEGORY_COLORS = {
+  education: 'bg-purple-100 dark:bg-purple-900/30',
+  transport: 'bg-blue-100 dark:bg-blue-900/30',
+  canteen: 'bg-orange-100 dark:bg-orange-900/30',
+  hostel: 'bg-green-100 dark:bg-green-900/30',
+  books: 'bg-amber-100 dark:bg-amber-900/30',
+  uniform: 'bg-slate-100 dark:bg-slate-900/30',
+};
 
-const uniformCategory = { id: 'uniform', icon: '👔', label: 'Uniform', color: 'bg-slate-100 dark:bg-slate-900/30' };
+const BASE_CATEGORIES = ['education', 'transport', 'canteen', 'hostel', 'books']
+  .map(id => ({ ...CATEGORIES[id], color: CATEGORY_COLORS[id] }));
+
+const UNIFORM_CATEGORY = { ...CATEGORIES.uniform, color: CATEGORY_COLORS.uniform };
 
 function getDaySuffix(day) {
   if (day >= 11 && day <= 13) return 'th';
@@ -44,7 +49,7 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
   const [reminderDays, setReminderDays] = useState(2);
 
   const showUniform = ['school', 'college'].includes(profile?.educationLevel);
-  const allCategories = showUniform ? [...categories, uniformCategory] : categories;
+  const allCategories = showUniform ? [...BASE_CATEGORIES, UNIFORM_CATEGORY] : BASE_CATEGORIES;
   const currencySymbol = profile?.currency === 'USD' ? '$' : profile?.currency === 'INR' ? '₹' : '৳';
 
   React.useEffect(() => {
@@ -67,13 +72,11 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
     setSaving(true);
 
     try {
-      await addExpense({
+      await addExpense(createTransaction({
         type: category,
         amount: Number(amount),
-        label: allCategories.find(c => c.id === category)?.label || category,
-        details: note,
-        date: new Date().toISOString().split('T')[0],
-      });
+        details: note || undefined,
+      }));
 
       // Prompt for recurring if >=500 AND (Education OR Housing)
       const shouldPromptRecurring = Number(amount) >= 500 && ['education', 'hostel'].includes(category);
@@ -147,7 +150,7 @@ export const AddPaymentSheet = ({ isOpen, onClose, preselectedCategory }) => {
                 placeholder="0"
                 value={amount}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                  const val = sanitizeAmount(e.target.value);
                   setAmount(val);
                   if (val && Number(val) > 0) setErrors(prev => ({ ...prev, amount: undefined }));
                 }}

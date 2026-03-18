@@ -5,17 +5,20 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { GButton } from '../ui/GButton';
 import { useApp } from '../../contexts/AppContext';
 import { haptics } from '../../lib/haptics';
+import { CATEGORIES, getCategory, getTransactionLabel, sanitizeAmount, formatTransactionDate } from '../../core/transactions';
 
-const categories = [
-  { id: 'education', icon: '🎓', label: 'Education', color: 'bg-purple-100 dark:bg-purple-900/30' },
-  { id: 'transport', icon: '🚌', label: 'Transport', color: 'bg-blue-100 dark:bg-blue-900/30' },
-  { id: 'canteen', icon: '🍽️', label: 'Food', color: 'bg-orange-100 dark:bg-orange-900/30' },
-  { id: 'hostel', icon: '🏠', label: 'Housing', color: 'bg-green-100 dark:bg-green-900/30' },
-  { id: 'books', icon: '📚', label: 'Books', color: 'bg-amber-100 dark:bg-amber-900/30' },
-  { id: 'uniform', icon: '👔', label: 'Uniform', color: 'bg-slate-100 dark:bg-slate-900/30' },
-];
+// Category grid for edit mode (with colors for visual selection)
+const CATEGORY_COLORS = {
+  education: 'bg-purple-100 dark:bg-purple-900/30',
+  transport: 'bg-blue-100 dark:bg-blue-900/30',
+  canteen: 'bg-orange-100 dark:bg-orange-900/30',
+  hostel: 'bg-green-100 dark:bg-green-900/30',
+  books: 'bg-amber-100 dark:bg-amber-900/30',
+  uniform: 'bg-slate-100 dark:bg-slate-900/30',
+};
 
-const getCat = (type) => categories.find(c => c.id === type) || { icon: '📦', label: type || 'Other', color: 'bg-surface-100 dark:bg-surface-800' };
+const editCategories = ['education', 'transport', 'canteen', 'hostel', 'books', 'uniform']
+  .map(id => ({ ...CATEGORIES[id], color: CATEGORY_COLORS[id] || 'bg-surface-100 dark:bg-surface-800' }));
 
 export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
   const { editExpense, removeExpense, addToast } = useApp();
@@ -46,11 +49,11 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
     haptics.medium();
     setSaving(true);
     try {
-      const cat = getCat(category);
+      const editCat = getCategory(category);
       await editExpense(expense.id, {
         type: category,
         amount: numAmount,
-        label: cat.label,
+        label: editCat.label,
         details: note,
       });
       setSaving(false);
@@ -86,11 +89,10 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
 
   if (!expense) return null;
 
-  const cat = getCat(expense.type);
+  const cat = getCategory(expense.type);
+  const catColor = CATEGORY_COLORS[expense.type] || 'bg-surface-100 dark:bg-surface-800';
   const amt = Number(expense.amount) || 0;
-  const dateStr = expense.date
-    ? new Date(expense.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-    : '';
+  const dateStr = formatTransactionDate(expense.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
     <BottomSheet isOpen={isOpen} onClose={handleClose} title={
@@ -101,7 +103,7 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
       {mode === 'detail' && (
         <div>
           <div className="flex flex-col items-center py-4">
-            <div className={`w-16 h-16 rounded-2xl ${cat.color} flex items-center justify-center text-3xl mb-3`}>
+            <div className={`w-16 h-16 rounded-2xl ${catColor} flex items-center justify-center text-3xl mb-3`}>
               {cat.icon}
             </div>
             <p className="text-sm text-surface-500">{cat.label}</p>
@@ -138,7 +140,7 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
                 inputMode="decimal"
                 placeholder="0"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                onChange={(e) => setAmount(sanitizeAmount(e.target.value))}
                 className="text-3xl font-semibold bg-transparent outline-none w-full text-surface-900 dark:text-white"
                 autoFocus
               />
@@ -146,7 +148,7 @@ export const ExpenseDetailSheet = ({ isOpen, onClose, expense }) => {
           </div>
 
           <div className="grid grid-cols-3 gap-3 mb-5">
-            {categories.map((c) => (
+            {editCategories.map((c) => (
               <motion.button
                 key={c.id}
                 whileTap={{ scale: 0.95 }}
