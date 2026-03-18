@@ -86,7 +86,7 @@ export const SemesterPaymentPage = () => {
   const [componentAmounts, setComponentAmounts] = useState({});
 
   // Shared
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [installmentCount, setInstallmentCount] = useState(3);
   const [installments, setInstallments] = useState([]);
