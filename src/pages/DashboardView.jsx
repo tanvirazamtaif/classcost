@@ -86,7 +86,7 @@ export const DashboardView = () => {
     { id: 'transport', icon: '🚌', label: 'Transport', bg: 'bg-blue-100 dark:bg-blue-900/30' },
     { id: 'canteen', icon: '🍽️', label: 'Food', bg: 'bg-orange-100 dark:bg-orange-900/30' },
     { id: 'hostel', icon: '🏠', label: 'Housing', bg: 'bg-green-100 dark:bg-green-900/30' },
-    { id: 'books', icon: '📚', label: 'Books', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+    { id: 'books', icon: '📚', label: 'Study Materials', bg: 'bg-amber-100 dark:bg-amber-900/30' },
   ];
 
   return (

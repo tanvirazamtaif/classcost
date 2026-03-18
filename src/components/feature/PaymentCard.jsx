@@ -16,7 +16,7 @@ const categoryLabels = {
   transport: 'Transport',
   canteen: 'Food',
   hostel: 'Housing',
-  books: 'Books',
+  books: 'Study Materials',
   uniform: 'Uniform',
   other: 'Other',
 };

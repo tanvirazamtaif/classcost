@@ -17,8 +17,6 @@ const GENERAL_COST_TYPES = [
   { id: 'admission_test', icon: '📝', label: 'Admission Test Fee', desc: 'Exam fees across universities' },
   { id: 'application_fee', icon: '📋', label: 'Application Fee', desc: 'Form purchase, prospectus' },
   { id: 'document_processing', icon: '📄', label: 'Document / Processing', desc: 'Photocopy, courier, certificates' },
-  { id: 'exam_travel', icon: '🚌', label: 'Exam Travel', desc: 'Transport for exams' },
-  { id: 'study_materials', icon: '📚', label: 'Study Materials', desc: 'General books, guides, notes' },
   { id: 'other_general', icon: '📦', label: 'Other Education Cost', desc: 'Any other education expense' },
 ];
 
