@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Check, Calendar, AlertTriangle, LogOut, Pencil } from 'lucide-react';
+import { ArrowLeft, Plus, Check, AlertTriangle, LogOut, Pencil } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { GButton } from '../components/ui';
+import { TransactionCard } from '../components/shared/TransactionCard';
+import { AmountInput } from '../components/shared/AmountInput';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { createTransaction, sanitizeAmount, formatTransactionDate, validateAmount } from '../core/transactions';
 import { getHousingSetups, updateHousingSetup } from './HousingLandingPage';
 
 // ═══════════════════════════════════════════════════════════════
-// HELPERS
+// HOUSING TYPE META
 // ═══════════════════════════════════════════════════════════════
 
 const TYPE_META = {
@@ -19,12 +22,6 @@ const TYPE_META = {
   dorm: { icon: '🛏️', label: 'Dorm' },
   other: { icon: '🏠', label: 'Other' },
 };
-
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  try { return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
-  catch { return dateStr; }
-}
 
 // ═══════════════════════════════════════════════════════════════
 // COMPONENT
@@ -37,41 +34,121 @@ export const HousingDetailPage = () => {
   const { housingId } = routeParams || {};
   const [setup, setSetup] = useState(() => getHousingSetups().find(h => h.id === housingId));
 
-  // Rent payment form
-  const [showPayRent, setShowPayRent] = useState(false);
-  const [rentAmount, setRentAmount] = useState('');
-  const [rentMonth, setRentMonth] = useState(() => {
+  // Forms
+  const [activeForm, setActiveForm] = useState(null); // null | 'rent' | 'cost' | 'deposit' | 'moveout'
+  const [amount, setAmount] = useState('');
+  const [month, setMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [rentNote, setRentNote] = useState('');
-
-  // Move out
-  const [showMoveOut, setShowMoveOut] = useState(false);
-  const [moveOutDate, setMoveOutDate] = useState(new Date().toISOString().split('T')[0]);
-  const [moveShiftCost, setMoveShiftCost] = useState('');
-  const [useDepositForFinal, setUseDepositForFinal] = useState(false);
-
-  // Add cost
-  const [showAddCost, setShowAddCost] = useState(false);
   const [costLabel, setCostLabel] = useState('');
-  const [costAmount, setCostAmount] = useState('');
-
-  // Edit rent
+  const [moveOutDate, setMoveOutDate] = useState(new Date().toISOString().split('T')[0]);
+  const [useDepositForFinal, setUseDepositForFinal] = useState(false);
   const [editingRent, setEditingRent] = useState(false);
   const [newRent, setNewRent] = useState('');
-
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
-  // Housing-related expenses
-  const housingExpenses = useMemo(() => {
+  const inputCls = `w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
+    d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
+  }`;
+
+  // ── Data (from real transactions only) ──────────────────────
+
+  const allHousingExpenses = useMemo(() => {
     return (expenses || [])
       .filter(e => e.type === 'hostel' && e.meta?.housingId === housingId)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }, [expenses, housingId]);
 
-  const totalPaid = useMemo(() => housingExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0), [housingExpenses]);
-  const rentPayments = useMemo(() => housingExpenses.filter(e => e.meta?.housingType === 'rent'), [housingExpenses]);
+  // FINANCIAL SEPARATION: rent vs deposit vs other
+  const rentPayments = useMemo(() => allHousingExpenses.filter(e => e.meta?.housingType === 'rent'), [allHousingExpenses]);
+  const depositPayments = useMemo(() => allHousingExpenses.filter(e => e.meta?.housingType === 'deposit'), [allHousingExpenses]);
+  const otherCosts = useMemo(() => allHousingExpenses.filter(e => e.meta?.housingType !== 'rent' && e.meta?.housingType !== 'deposit'), [allHousingExpenses]);
+
+  const totalRentPaid = useMemo(() => rentPayments.reduce((s, e) => s + (Number(e.amount) || 0), 0), [rentPayments]);
+  const totalDeposit = useMemo(() => depositPayments.reduce((s, e) => s + (Number(e.amount) || 0), 0), [depositPayments]);
+  const totalOther = useMemo(() => otherCosts.reduce((s, e) => s + (Number(e.amount) || 0), 0), [otherCosts]);
+  const totalAllSpent = totalRentPaid + totalDeposit + totalOther;
+
+  // ── Form helpers ────────────────────────────────────────────
+
+  const openForm = (form) => {
+    haptics.light();
+    setActiveForm(form);
+    setAmount(form === 'rent' ? String(setup?.monthlyRent || '') : '');
+    setCostLabel('');
+    setErrors({});
+  };
+
+  const closeForm = () => {
+    setActiveForm(null);
+    setAmount('');
+    setCostLabel('');
+    setErrors({});
+  };
+
+  // ── Handlers ────────────────────────────────────────────────
+
+  const handlePayRent = async () => {
+    const v = validateAmount(parseFloat(amount));
+    if (!v.valid) { setErrors({ amount: v.error }); haptics.error(); return; }
+    setSaving(true);
+    try {
+      await addExpense(createTransaction({
+        type: 'hostel',
+        amount: parseFloat(amount),
+        details: `Rent — ${setup.name}`,
+        date: `${month}-01`,
+        meta: { housingId, housingType: 'rent', month, label: `Rent — ${setup.name}` },
+      }));
+      haptics.success();
+      addToast(`Rent ৳${parseFloat(amount).toLocaleString()} recorded`, 'success');
+      closeForm();
+    } catch { haptics.error(); addToast('Failed', 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const handleAddDeposit = async () => {
+    const v = validateAmount(parseFloat(amount));
+    if (!v.valid) { setErrors({ amount: v.error }); haptics.error(); return; }
+    setSaving(true);
+    try {
+      const amt = parseFloat(amount);
+      await addExpense(createTransaction({
+        type: 'hostel',
+        amount: amt,
+        details: `Deposit / Advance — ${setup.name}`,
+        meta: { housingId, housingType: 'deposit', label: `Deposit — ${setup.name}` },
+      }));
+      // Update setup's deposit total
+      const newDeposit = (setup.deposit || 0) + amt;
+      updateHousingSetup(housingId, { deposit: newDeposit });
+      setSetup(prev => ({ ...prev, deposit: newDeposit }));
+      haptics.success();
+      addToast(`Deposit ৳${amt.toLocaleString()} recorded`, 'success');
+      closeForm();
+    } catch { haptics.error(); addToast('Failed', 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const handleAddCost = async () => {
+    const v = validateAmount(parseFloat(amount));
+    if (!v.valid || !costLabel.trim()) { haptics.error(); return; }
+    setSaving(true);
+    try {
+      await addExpense(createTransaction({
+        type: 'hostel',
+        amount: parseFloat(amount),
+        details: `${costLabel.trim()} — ${setup.name}`,
+        meta: { housingId, housingType: 'misc', label: `${costLabel.trim()} — ${setup.name}` },
+      }));
+      haptics.success();
+      addToast('Cost added', 'success');
+      closeForm();
+    } catch { haptics.error(); }
+    finally { setSaving(false); }
+  };
 
   const handleUpdateRent = () => {
     const rent = parseFloat(newRent);
@@ -83,71 +160,21 @@ export const HousingDetailPage = () => {
     addToast(`Rent updated to ৳${rent.toLocaleString()}`, 'success');
   };
 
-  const inputCls = `w-full p-3.5 border rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition ${
-    d ? 'bg-surface-900 border-surface-800 text-white' : 'bg-white border-surface-200 text-surface-900'
-  }`;
-
-  // ── Handlers ────────────────────────────────────────────────
-
-  const handlePayRent = async () => {
-    const amt = parseFloat(rentAmount) || setup?.monthlyRent || 0;
-    if (amt <= 0) { haptics.error(); return; }
-    setSaving(true);
-    try {
-      await addExpense({
-        type: 'hostel', amount: amt, label: 'Housing',
-        details: `Rent — ${setup.name}`,
-        date: `${rentMonth}-01`,
-        meta: { housingId, housingType: 'rent', month: rentMonth, label: `Rent — ${setup.name}` },
-      });
-      haptics.success();
-      addToast(`Rent ৳${amt.toLocaleString()} recorded`, 'success');
-      setShowPayRent(false); setRentAmount(''); setRentNote('');
-    } catch { haptics.error(); addToast('Failed', 'error'); }
-    finally { setSaving(false); }
-  };
-
-  const handleAddCost = async () => {
-    const amt = parseFloat(costAmount);
-    if (!amt || amt <= 0 || !costLabel.trim()) { haptics.error(); return; }
-    setSaving(true);
-    try {
-      await addExpense({
-        type: 'hostel', amount: amt, label: 'Housing',
-        details: `${costLabel.trim()} — ${setup.name}`,
-        date: new Date().toISOString().split('T')[0],
-        meta: { housingId, housingType: 'misc', label: `${costLabel.trim()} — ${setup.name}` },
-      });
-      haptics.success();
-      addToast('Cost added', 'success');
-      setShowAddCost(false); setCostLabel(''); setCostAmount('');
-    } catch { haptics.error(); }
-    finally { setSaving(false); }
-  };
-
   const handleMoveOut = async () => {
     setSaving(true);
     haptics.medium();
     try {
-      const shiftCost = parseFloat(moveShiftCost) || 0;
-
-      // Record shifting cost
+      const shiftCost = parseFloat(amount) || 0;
       if (shiftCost > 0) {
-        await addExpense({
-          type: 'hostel', amount: shiftCost, label: 'Housing',
+        await addExpense(createTransaction({
+          type: 'hostel',
+          amount: shiftCost,
           details: `Moving Out Cost — ${setup.name}`,
           date: moveOutDate,
           meta: { housingId, housingType: 'shifting', label: `Moving Out — ${setup.name}` },
-        });
+        }));
       }
 
-      // If using deposit for final months
-      if (useDepositForFinal && setup.deposit > 0) {
-        // Record deposit adjustment (negative expense to offset)
-        addToast(`Deposit ৳${setup.deposit.toLocaleString()} applied to final rent`, 'success');
-      }
-
-      // Archive this housing
       updateHousingSetup(housingId, {
         status: 'inactive',
         moveOutDate,
@@ -156,9 +183,12 @@ export const HousingDetailPage = () => {
       });
       setSetup(prev => ({ ...prev, status: 'inactive', moveOutDate }));
 
+      if (useDepositForFinal && setup.deposit > 0) {
+        addToast(`Deposit ৳${setup.deposit.toLocaleString()} applied to final rent`, 'success');
+      }
       haptics.success();
       addToast('Moved out successfully', 'success');
-      setShowMoveOut(false);
+      closeForm();
     } catch { haptics.error(); addToast('Failed', 'error'); }
     finally { setSaving(false); }
   };
@@ -199,9 +229,10 @@ export const HousingDetailPage = () => {
 
       <main className="max-w-md mx-auto p-4 space-y-5">
 
-        {/* Summary */}
+        {/* ═══ PROFILE / OVERVIEW ═══ */}
         <div className={`p-4 rounded-2xl border ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
-          <div className="grid grid-cols-2 gap-4">
+          {/* Monthly Rent (editable) */}
+          <div className="flex items-center justify-between mb-3">
             <div>
               <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Monthly Rent</p>
               {!editingRent ? (
@@ -209,7 +240,7 @@ export const HousingDetailPage = () => {
                   <p className={`text-xl font-bold ${d ? 'text-white' : 'text-surface-900'}`}>৳{(setup.monthlyRent || 0).toLocaleString()}</p>
                   {isActive && (
                     <button onClick={() => { haptics.light(); setEditingRent(true); setNewRent(String(setup.monthlyRent || '')); }}
-                      className={`w-6 h-6 rounded-md flex items-center justify-center transition ${d ? 'hover:bg-surface-800 text-surface-500' : 'hover:bg-surface-100 text-surface-400'}`}>
+                      className={`w-6 h-6 rounded-md flex items-center justify-center ${d ? 'hover:bg-surface-800 text-surface-500' : 'hover:bg-surface-100 text-surface-400'}`}>
                       <Pencil className="w-3 h-3" />
                     </button>
                   )}
@@ -219,102 +250,122 @@ export const HousingDetailPage = () => {
                   <div className={`flex items-center border rounded-lg px-2 py-1.5 flex-1 ${d ? 'border-primary-600 bg-surface-800' : 'border-primary-500 bg-surface-50'}`}>
                     <span className="text-xs text-surface-400 mr-1">৳</span>
                     <input type="text" inputMode="decimal" value={newRent}
-                      onChange={(e) => setNewRent(e.target.value.replace(/[^0-9.]/g, ''))}
-                      className={`bg-transparent outline-none w-full text-sm font-bold ${d ? 'text-white' : 'text-surface-900'}`}
-                      autoFocus />
+                      onChange={(e) => setNewRent(sanitizeAmount(e.target.value))}
+                      className={`bg-transparent outline-none w-full text-sm font-bold ${d ? 'text-white' : 'text-surface-900'}`} autoFocus />
                   </div>
-                  <button onClick={handleUpdateRent}
-                    className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center shrink-0">
+                  <button onClick={handleUpdateRent} className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center shrink-0">
                     <Check className="w-3.5 h-3.5 text-white" />
                   </button>
                   <button onClick={() => setEditingRent(false)}
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${d ? 'bg-surface-800 text-surface-400' : 'bg-surface-200 text-surface-600'}`}>
-                    ✕
-                  </button>
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${d ? 'bg-surface-800 text-surface-400' : 'bg-surface-200 text-surface-600'}`}>✕</button>
                 </div>
               )}
             </div>
-            <div>
-              <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Total Paid</p>
-              <p className={`text-xl font-bold ${d ? 'text-emerald-400' : 'text-emerald-600'}`}>৳{totalPaid.toLocaleString()}</p>
+            <div className="text-right">
+              <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Since</p>
+              <p className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                {formatTransactionDate(setup.startDate, { month: 'short', year: 'numeric' })}
+              </p>
             </div>
           </div>
-          {setup.deposit > 0 && (
-            <div className={`mt-3 pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Deposit / Advance</span>
-                <span className={`text-sm font-semibold ${d ? 'text-amber-400' : 'text-amber-600'}`}>৳{setup.deposit.toLocaleString()}</span>
-              </div>
-            </div>
+
+          {setup.dueDay && (
+            <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>
+              Due on the {setup.dueDay}{setup.dueDay === 1 ? 'st' : setup.dueDay === 2 ? 'nd' : setup.dueDay === 3 ? 'rd' : 'th'} of each month
+            </p>
           )}
-          <p className={`text-xs mt-2 flex items-center gap-1 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-            <Calendar className="w-3 h-3" /> Since {formatDate(setup.startDate)}
-            {setup.dueDay && ` · Due on ${setup.dueDay}${setup.dueDay === 1 ? 'st' : setup.dueDay === 2 ? 'nd' : setup.dueDay === 3 ? 'rd' : 'th'}`}
-          </p>
         </div>
 
-        {/* Actions */}
-        {isActive && (
-          <div className="grid grid-cols-2 gap-2">
-            <GButton fullWidth icon={Plus} onClick={() => { haptics.light(); setShowPayRent(true); setRentAmount(String(setup.monthlyRent || '')); }}>
-              Pay Rent
-            </GButton>
-            <GButton fullWidth variant="secondary" onClick={() => { haptics.light(); setShowAddCost(true); }}>
-              Add Cost
-            </GButton>
+        {/* ═══ FINANCIAL SUMMARY (separated, trustworthy) ═══ */}
+        <div className={`p-4 rounded-2xl border ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Rent Paid</p>
+              <p className={`text-lg font-bold ${d ? 'text-emerald-400' : 'text-emerald-600'}`}>৳{totalRentPaid.toLocaleString()}</p>
+              <p className={`text-[10px] ${d ? 'text-surface-600' : 'text-surface-400'}`}>{rentPayments.length} payment{rentPayments.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div>
+              <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Deposit</p>
+              <p className={`text-lg font-bold ${d ? 'text-amber-400' : 'text-amber-600'}`}>৳{totalDeposit.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Other</p>
+              <p className={`text-lg font-bold ${d ? 'text-surface-300' : 'text-surface-700'}`}>৳{totalOther.toLocaleString()}</p>
+            </div>
+          </div>
+          {totalAllSpent > 0 && (
+            <div className={`mt-3 pt-3 border-t text-center ${d ? 'border-surface-800' : 'border-surface-200'}`}>
+              <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Total Housing Spent</p>
+              <p className={`text-xl font-bold ${d ? 'text-white' : 'text-surface-900'}`}>৳{totalAllSpent.toLocaleString()}</p>
+            </div>
+          )}
+        </div>
+
+        {/* ═══ ACTIONS ═══ */}
+        {isActive && !activeForm && (
+          <div className="grid grid-cols-3 gap-2">
+            <GButton fullWidth size="sm" onClick={() => openForm('rent')}>Pay Rent</GButton>
+            <GButton fullWidth size="sm" variant="secondary" onClick={() => openForm('deposit')}>Add Deposit</GButton>
+            <GButton fullWidth size="sm" variant="secondary" onClick={() => openForm('cost')}>Add Cost</GButton>
           </div>
         )}
 
-        {/* Pay Rent Form */}
+        {/* ═══ PAY RENT FORM ═══ */}
         <AnimatePresence>
-          {showPayRent && (
+          {activeForm === 'rent' && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
               className={`p-4 rounded-2xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
               <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Pay Rent</p>
-              <div className={`flex items-center border-2 rounded-xl px-3 py-2.5 ${d ? 'border-surface-800 bg-surface-800' : 'border-surface-200 bg-surface-50'} focus-within:border-primary-500`}>
-                <span className="text-lg text-surface-400 mr-2">৳</span>
-                <input type="text" inputMode="decimal" value={rentAmount}
-                  onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                  className={`text-lg font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} />
-              </div>
-              <input type="month" value={rentMonth} onChange={(e) => setRentMonth(e.target.value)} className={inputCls} />
+              <AmountInput value={amount} onChange={(v) => { setAmount(v); if (errors.amount) setErrors({}); }} dark={d} error={errors.amount} size="sm" />
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={inputCls} />
               <div className="flex gap-2">
-                <GButton variant="secondary" fullWidth onClick={() => setShowPayRent(false)}>Cancel</GButton>
+                <GButton variant="secondary" fullWidth onClick={closeForm}>Cancel</GButton>
                 <GButton fullWidth onClick={handlePayRent} loading={saving}>Save</GButton>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Add Cost Form */}
+        {/* ═══ ADD DEPOSIT FORM ═══ */}
         <AnimatePresence>
-          {showAddCost && (
+          {activeForm === 'deposit' && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              className={`p-4 rounded-2xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+              <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Add Deposit / Advance</p>
+              <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>Record a security deposit or advance payment</p>
+              <AmountInput value={amount} onChange={(v) => { setAmount(v); if (errors.amount) setErrors({}); }} dark={d} error={errors.amount} size="sm" />
+              <div className="flex gap-2">
+                <GButton variant="secondary" fullWidth onClick={closeForm}>Cancel</GButton>
+                <GButton fullWidth onClick={handleAddDeposit} loading={saving}>Save</GButton>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ═══ ADD COST FORM ═══ */}
+        <AnimatePresence>
+          {activeForm === 'cost' && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
               className={`p-4 rounded-2xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
               <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Add Housing Cost</p>
               <div className="flex flex-wrap gap-1.5">
-                {['Utility', 'Maintenance', 'Internet', 'Gas', 'Water', 'Other'].map(label => (
+                {['Utility', 'Maintenance', 'Internet', 'Gas', 'Water', 'Shifting', 'Other'].map(label => (
                   <button key={label} onClick={() => { haptics.light(); setCostLabel(label); }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
                       costLabel === label ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-400' : 'bg-surface-100 text-surface-600'
                     }`}>{label}</button>
                 ))}
               </div>
-              <div className={`flex items-center border rounded-xl px-3 py-2.5 ${d ? 'bg-surface-800 border-surface-700' : 'bg-surface-50 border-surface-200'} focus-within:border-primary-500`}>
-                <span className="text-surface-400 mr-2">৳</span>
-                <input type="text" inputMode="decimal" placeholder="Amount" value={costAmount}
-                  onChange={(e) => setCostAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                  className={`bg-transparent outline-none w-full text-sm ${d ? 'text-white' : 'text-surface-900'}`} />
-              </div>
+              <AmountInput value={amount} onChange={(v) => { setAmount(v); if (errors.amount) setErrors({}); }} dark={d} error={errors.amount} size="sm" />
               <div className="flex gap-2">
-                <GButton variant="secondary" fullWidth onClick={() => { setShowAddCost(false); setCostLabel(''); setCostAmount(''); }}>Cancel</GButton>
-                <GButton fullWidth onClick={handleAddCost} loading={saving} disabled={!costLabel || parseFloat(costAmount) <= 0}>Save</GButton>
+                <GButton variant="secondary" fullWidth onClick={closeForm}>Cancel</GButton>
+                <GButton fullWidth onClick={handleAddCost} loading={saving} disabled={!costLabel || parseFloat(amount) <= 0}>Save</GButton>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Rent History */}
+        {/* ═══ RENT PAYMENTS ═══ */}
         {rentPayments.length > 0 && (
           <div>
             <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>Rent Payments</h2>
@@ -326,7 +377,7 @@ export const HousingDetailPage = () => {
                     <div>
                       <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>৳{(p.amount || 0).toLocaleString()}</p>
                       <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                        {p.meta?.month ? new Date(p.meta.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : formatDate(p.date)}
+                        {p.meta?.month ? new Date(p.meta.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : formatTransactionDate(p.date)}
                       </p>
                     </div>
                   </div>
@@ -336,31 +387,35 @@ export const HousingDetailPage = () => {
           </div>
         )}
 
-        {/* All Transactions */}
-        {housingExpenses.length > 0 && housingExpenses.length !== rentPayments.length && (
+        {/* ═══ OTHER COSTS (shared TransactionCard) ═══ */}
+        {otherCosts.length > 0 && (
           <div>
-            <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>All Costs</h2>
+            <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>Other Costs</h2>
             <div className="space-y-2">
-              {housingExpenses.filter(e => e.meta?.housingType !== 'rent').map((exp, i) => (
-                <div key={exp.id || i} className={`flex items-center justify-between p-3 rounded-xl ${d ? 'bg-surface-900 border border-surface-800' : 'bg-white border border-surface-200'}`}>
-                  <div>
-                    <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>
-                      {exp.details || exp.meta?.label || 'Housing Cost'}
-                    </p>
-                    <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>{formatDate(exp.date)}</p>
-                  </div>
-                  <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>৳{(exp.amount || 0).toLocaleString()}</p>
-                </div>
+              {otherCosts.map((exp, i) => (
+                <TransactionCard key={exp.id || i} transaction={exp} dark={d} animationDelay={i * 0.03} />
               ))}
             </div>
           </div>
         )}
 
-        {/* Move Out (active housing only) */}
+        {/* ═══ DEPOSIT HISTORY ═══ */}
+        {depositPayments.length > 0 && (
+          <div>
+            <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>Deposits</h2>
+            <div className="space-y-2">
+              {depositPayments.map((exp, i) => (
+                <TransactionCard key={exp.id || i} transaction={exp} dark={d} icon="💰" animationDelay={i * 0.03} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ MOVE OUT ═══ */}
         {isActive && (
           <div>
-            {!showMoveOut ? (
-              <button onClick={() => { haptics.light(); setShowMoveOut(true); }}
+            {activeForm !== 'moveout' ? (
+              <button onClick={() => openForm('moveout')}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition ${
                   d ? 'text-amber-400 hover:bg-amber-900/10' : 'text-amber-600 hover:bg-amber-50'
                 }`}>
@@ -383,26 +438,21 @@ export const HousingDetailPage = () => {
                   <label className={`text-xs font-medium mb-1.5 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
                     Shifting Cost <span className="text-surface-400 font-normal">(optional)</span>
                   </label>
-                  <div className={`flex items-center border rounded-xl px-3 py-2 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'} focus-within:border-primary-500`}>
-                    <span className="text-surface-400 mr-1">৳</span>
-                    <input type="text" inputMode="decimal" placeholder="0" value={moveShiftCost}
-                      onChange={(e) => setMoveShiftCost(e.target.value.replace(/[^0-9.]/g, ''))}
-                      className={`bg-transparent outline-none w-full text-sm ${d ? 'text-white' : 'text-surface-900'}`} />
-                  </div>
+                  <AmountInput value={amount} onChange={setAmount} dark={d} size="sm" placeholder="0" />
                 </div>
 
-                {setup.deposit > 0 && (
+                {totalDeposit > 0 && (
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={useDepositForFinal} onChange={(e) => setUseDepositForFinal(e.target.checked)}
                       className="w-4 h-4 accent-primary-600 rounded" />
                     <span className={`text-xs ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-                      Use deposit (৳{setup.deposit.toLocaleString()}) for final rent
+                      Use deposit (৳{totalDeposit.toLocaleString()}) for final rent
                     </span>
                   </label>
                 )}
 
                 <div className="flex gap-2">
-                  <GButton variant="secondary" fullWidth onClick={() => setShowMoveOut(false)}>Cancel</GButton>
+                  <GButton variant="secondary" fullWidth onClick={closeForm}>Cancel</GButton>
                   <GButton fullWidth variant="danger" onClick={handleMoveOut} loading={saving}>Confirm Move Out</GButton>
                 </div>
               </motion.div>
