@@ -1,31 +1,13 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, Circle, Bell, BellOff, Edit2, Calendar, Plus, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, Bell, BellOff, Edit2, Calendar, Plus, AlertCircle } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import { GButton } from '../components/ui';
+import { AmountInput } from '../components/shared/AmountInput';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
-
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-function sanitize(value) {
-  return value.replace(/[^0-9.]/g, '');
-}
-
-function toNum(value) {
-  const n = parseFloat(value);
-  return isNaN(n) ? 0 : n;
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch { return dateStr; }
-}
+import { sanitizeAmount, parseAmount, formatTransactionDate } from '../core/transactions';
 
 function getPaymentStyleLabel(fee) {
   const style = fee.paymentStyle || fee.paymentPattern || 'full';
@@ -103,9 +85,30 @@ export const SemesterDetailPage = () => {
     return 0;
   }, [fee, installments, isInstallment]);
 
-  const totalExpected = fee?.totalExpectedAmount || fee?.amount || 0;
-  const progressPercent = totalExpected > 0 ? Math.min((totalPaid / totalExpected) * 100, 100) : 0;
+  // Derive totalExpected from actual installment amounts (not stale field)
+  // For non-installment fees, fall back to fee amount
+  const totalExpected = useMemo(() => {
+    if (isInstallment && installments.length > 0) {
+      const fromInstallments = installments.reduce((sum, i) => sum + (i.amount || 0), 0);
+      // If some installments still have amount 0, use totalExpectedAmount as minimum
+      return Math.max(fromInstallments, fee?.totalExpectedAmount || 0);
+    }
+    return fee?.totalExpectedAmount || fee?.amount || 0;
+  }, [fee, installments, isInstallment]);
+
   const paidCount = installments.filter(i => i.status === 'paid').length;
+  const totalCount = installments.length;
+  // Progress based on installment count (not amount) when some amounts are still 0
+  const hasEmptyInstallments = installments.some(i => !i.amount || i.amount === 0);
+  const progressPercent = useMemo(() => {
+    if (isInstallment && totalCount > 0) {
+      // Use count-based progress when some amounts are unknown
+      if (hasEmptyInstallments) return (paidCount / totalCount) * 100;
+      // Use amount-based progress when all amounts are known
+      return totalExpected > 0 ? Math.min((totalPaid / totalExpected) * 100, 100) : 0;
+    }
+    return totalExpected > 0 ? Math.min((totalPaid / totalExpected) * 100, 100) : 0;
+  }, [isInstallment, totalCount, paidCount, hasEmptyInstallments, totalPaid, totalExpected]);
 
   const hasUnsavedChanges = useMemo(() => {
     return Object.keys(editAmounts).length > 0 || Object.keys(editDates).length > 0;
@@ -117,11 +120,25 @@ export const SemesterDetailPage = () => {
     if (inst.status === 'paid') return; // Cannot unpay
     haptics.medium();
 
-    const amountToPay = toNum(editAmounts[inst.id] ?? inst.amount);
+    const amountToPay = parseAmount(editAmounts[inst.id] ?? inst.amount);
     if (amountToPay <= 0) {
       addToast('Enter an amount before marking as paid', 'error');
       haptics.error();
       return;
+    }
+
+    // If the installment was created with amount 0 (future installment),
+    // update the installment's defined amount in the tracker structure
+    // so totalExpectedAmount stays accurate
+    if ((!inst.amount || inst.amount === 0) && amountToPay > 0) {
+      const updatedInstallments = (fee.semester?.installments || []).map(i =>
+        i.id === inst.id ? { ...i, amount: amountToPay } : i
+      );
+      const newTotal = updatedInstallments.reduce((sum, i) => sum + (i.amount || 0), 0);
+      updateFee(fee.id, {
+        semester: { ...fee.semester, installments: updatedInstallments },
+        totalExpectedAmount: newTotal,
+      }, `Set installment ${inst.part} amount to ৳${amountToPay}`);
     }
 
     payInstallment(fee.id, inst.id, {
@@ -131,13 +148,15 @@ export const SemesterDetailPage = () => {
       note: null,
     });
 
-    // Clean up local edit state for this installment
+    // Clean up local edit state
     setEditAmounts(prev => { const { [inst.id]: _, ...rest } = prev; return rest; });
     setEditDates(prev => { const { [inst.id]: _, ...rest } = prev; return rest; });
+    // Clear reminder for paid installment
+    setReminders(prev => { const { [inst.id]: _, ...rest } = prev; return rest; });
 
     haptics.success();
-    addToast(`Installment ${inst.part} paid`, 'success');
-  }, [fee, editAmounts, payInstallment, addToast]);
+    addToast(`Installment ${inst.part} paid · ৳${amountToPay.toLocaleString()}`, 'success');
+  }, [fee, editAmounts, payInstallment, updateFee, addToast]);
 
   const handleReminderClick = useCallback((inst) => {
     const instId = inst.id;
@@ -186,7 +205,7 @@ export const SemesterDetailPage = () => {
 
     try {
       const updatedInstallments = installments.map(inst => {
-        const newAmount = editAmounts[inst.id] !== undefined ? toNum(editAmounts[inst.id]) : inst.amount;
+        const newAmount = editAmounts[inst.id] !== undefined ? parseAmount(editAmounts[inst.id]) : inst.amount;
         const newDate = editDates[inst.id] !== undefined ? editDates[inst.id] : inst.dueDate;
         return { ...inst, amount: newAmount, dueDate: newDate };
       });
@@ -213,7 +232,7 @@ export const SemesterDetailPage = () => {
   }, [fee, installments, editAmounts, editDates, hasUnsavedChanges, updateFee, addToast]);
 
   const handleRecordPayment = useCallback(() => {
-    const amt = toNum(recordAmount);
+    const amt = parseAmount(recordAmount);
     if (amt <= 0) return;
     haptics.medium();
 
@@ -303,7 +322,7 @@ export const SemesterDetailPage = () => {
                 type="text"
                 inputMode="decimal"
                 value={currentAmount}
-                onChange={(e) => setEditAmounts(prev => ({ ...prev, [inst.id]: sanitize(e.target.value) }))}
+                onChange={(e) => setEditAmounts(prev => ({ ...prev, [inst.id]: sanitizeAmount(e.target.value) }))}
                 placeholder="Enter amount"
                 className={`text-sm font-semibold bg-transparent outline-none w-24 ${d ? 'text-white placeholder:text-surface-600' : 'text-surface-900 placeholder:text-surface-400'}`}
               />
@@ -347,7 +366,7 @@ export const SemesterDetailPage = () => {
           ) : (
             inst.paidAt && (
               <p className={`text-xs mt-0.5 ${d ? 'text-surface-500' : 'text-surface-500'}`}>
-                Paid {formatDate(inst.paidAt)}
+                Paid {formatTransactionDate(inst.paidAt)}
               </p>
             )
           )}
@@ -499,7 +518,7 @@ export const SemesterDetailPage = () => {
                 ৳{totalPaid.toLocaleString()}
               </p>
             </div>
-            {totalExpected > 0 && (
+            {totalExpected > 0 && !hasEmptyInstallments && (
               <p className={`text-sm ${d ? 'text-surface-400' : 'text-surface-500'}`}>
                 of ৳{totalExpected.toLocaleString()}
               </p>
@@ -571,7 +590,7 @@ export const SemesterDetailPage = () => {
             {fee.paidAt && (
               <p className={`text-xs mt-2 ${d ? 'text-surface-500' : 'text-surface-500'}`}>
                 <Calendar className="w-3 h-3 inline mr-1" />
-                {formatDate(fee.paidAt)}
+                {formatTransactionDate(fee.paidAt)}
               </p>
             )}
           </div>
@@ -607,7 +626,7 @@ export const SemesterDetailPage = () => {
                     inputMode="decimal"
                     placeholder="0"
                     value={recordAmount}
-                    onChange={(e) => setRecordAmount(sanitize(e.target.value))}
+                    onChange={(e) => setRecordAmount(sanitizeAmount(e.target.value))}
                     className={`text-lg font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
                   />
                 </div>
@@ -630,7 +649,7 @@ export const SemesterDetailPage = () => {
                   <GButton
                     fullWidth
                     onClick={handleRecordPayment}
-                    disabled={toNum(recordAmount) <= 0}
+                    disabled={parseAmount(recordAmount) <= 0}
                   >
                     Save
                   </GButton>
@@ -659,7 +678,7 @@ export const SemesterDetailPage = () => {
                       ৳{(payment.amount || 0).toLocaleString()}
                     </p>
                     <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>
-                      {formatDate(payment.paidAt || payment.date)}
+                      {formatTransactionDate(payment.paidAt || payment.date)}
                     </p>
                   </div>
                   {payment.method && (
