@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, ChevronRight, Check, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, ChevronRight } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import { GButton } from '../components/ui';
+import { AmountInput } from '../components/shared/AmountInput';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { validateAmount } from '../core/transactions';
 
 // ═══════════════════════════════════════════════════════════════
 // COST CATEGORIES AVAILABLE INSIDE AN INSTITUTION
@@ -318,19 +320,7 @@ export const InstitutionDetailPage = () => {
                 </div>
 
                 {/* Amount */}
-                <div className={`flex items-center border-2 rounded-xl px-3 py-2.5 transition ${
-                  d ? 'border-surface-800 bg-surface-800' : 'border-surface-200 bg-surface-50'
-                } focus-within:border-primary-500`}>
-                  <span className="text-lg text-surface-400 mr-2">৳</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={quickAmount}
-                    onChange={(e) => setQuickAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                    className={`text-lg font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
-                  />
-                </div>
+                <AmountInput value={quickAmount} onChange={setQuickAmount} dark={d} size="sm" />
 
                 {/* Note */}
                 <input

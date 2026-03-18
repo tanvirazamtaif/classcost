@@ -200,7 +200,7 @@ export const DashboardView = () => {
               <h2 className={`text-sm font-semibold ${d ? 'text-surface-400' : 'text-surface-500'} uppercase tracking-wide`}>
                 Education Fees
               </h2>
-              <button onClick={() => navigate('education-fees')} className="text-xs text-primary-600 font-medium">
+              <button onClick={() => navigate('education-home')} className="text-xs text-primary-600 font-medium">
                 + Add Fee
               </button>
             </div>
@@ -293,7 +293,7 @@ export const DashboardView = () => {
             </div>
 
             {eduUpcoming.length > 5 && (
-              <button onClick={() => navigate('education-fees')} className="w-full mt-3 py-2 text-sm text-primary-600 font-medium">
+              <button onClick={() => navigate('education-home')} className="w-full mt-3 py-2 text-sm text-primary-600 font-medium">
                 View all {eduUpcoming.length} payments
               </button>
             )}
@@ -308,7 +308,7 @@ export const DashboardView = () => {
             <span className="text-4xl">🎓</span>
             <p className={`mt-2 font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>No education fees yet</p>
             <p className="text-sm text-surface-500 mt-1">Add your school, college, or tuition fees to start tracking</p>
-            <GButton onClick={() => navigate('education-fees')} className="mt-4">
+            <GButton onClick={() => navigate('education-home')} className="mt-4">
               Add Education Fee
             </GButton>
           </motion.div>

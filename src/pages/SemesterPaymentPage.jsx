@@ -277,7 +277,7 @@ export const SemesterPaymentPage = () => {
           <h2 className={`text-xl font-bold mb-2 ${d ? 'text-white' : 'text-surface-900'}`}>Payment added to {semesterName}</h2>
           <p className="text-surface-500 text-sm mb-8">৳{finalAmount.toLocaleString()} recorded successfully</p>
           <div className="flex gap-3 w-full max-w-xs mx-auto">
-            <GButton variant="secondary" fullWidth onClick={() => navigate('education-fees')}>View payment</GButton>
+            <GButton variant="secondary" fullWidth onClick={() => navigate('education-home')}>View payment</GButton>
             <GButton fullWidth onClick={handleReset}>Add another</GButton>
           </div>
         </motion.div>
@@ -294,7 +294,7 @@ export const SemesterPaymentPage = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => { haptics.light(); navigate('education-fees'); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
+          <button onClick={() => { haptics.light(); navigate('education-home'); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>
           <h1 className={`text-lg font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Semester Payment</h1>
@@ -333,7 +333,7 @@ export const SemesterPaymentPage = () => {
             <div className="flex-1 min-w-0">
               <p className={`text-sm ${d ? 'text-amber-300' : 'text-amber-800'}`}>You may already have a payment for {semesterName}</p>
               <div className="flex gap-2 mt-2">
-                <button onClick={() => navigate('education-fees')} className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">View previous</button>
+                <button onClick={() => navigate('education-home')} className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">View previous</button>
                 <span className="text-surface-400">|</span>
                 <button onClick={() => setDuplicateDismissed(true)} className="text-xs font-medium text-surface-500 hover:underline">Continue anyway</button>
               </div>

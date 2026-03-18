@@ -1,21 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Trash2, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import { GButton } from '../components/ui';
+import { TransactionCard } from '../components/shared/TransactionCard';
+import { AmountInput } from '../components/shared/AmountInput';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
-
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  try { return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
-  catch { return dateStr; }
-}
+import { validateAmount } from '../core/transactions';
 
 // ═══════════════════════════════════════════════════════════════
 // COMPONENT
@@ -171,20 +164,7 @@ export const GeneralCostTrackerPage = () => {
               <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>New Entry</p>
 
               {/* Amount */}
-              <div className={`flex items-center border-2 rounded-xl px-3 py-2.5 transition ${
-                d ? 'border-surface-800 bg-surface-800' : 'border-surface-200 bg-surface-50'
-              } focus-within:border-primary-500`}>
-                <span className="text-lg text-surface-400 mr-2">৳</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="Amount"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                  className={`text-lg font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
-                  autoFocus
-                />
-              </div>
+              <AmountInput value={amount} onChange={setAmount} dark={d} size="sm" autoFocus placeholder="Amount" />
 
               {/* Institution (optional text) */}
               <input
@@ -240,46 +220,32 @@ export const GeneralCostTrackerPage = () => {
           )}
         </AnimatePresence>
 
-        {/* Entries list */}
+        {/* Entries list — shared TransactionCard */}
         {entries.length > 0 && (
           <div>
             <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>Entries</h2>
             <div className="space-y-2">
-              {entries.map((entry, i) => (
-                <motion.div
-                  key={entry.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className={`flex items-start justify-between p-3.5 rounded-xl border ${
-                    d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
-                  }`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>
-                      ৳{(entry.amount || 0).toLocaleString()}
-                    </p>
-                    {(entry.name || entry.customTypeName) && (
-                      <p className={`text-xs mt-0.5 ${d ? 'text-surface-400' : 'text-surface-500'}`}>
-                        {entry.customTypeName ? `${entry.customTypeName}${entry.name ? ` · ${entry.name}` : ''}` : entry.name}
-                      </p>
-                    )}
-                    {entry.note && (
-                      <p className={`text-xs mt-0.5 ${d ? 'text-surface-500' : 'text-surface-400'}`}>{entry.note}</p>
-                    )}
-                    <p className={`text-xs mt-1 flex items-center gap-1 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                      <Calendar className="w-3 h-3" />
-                      {formatDate(entry.paidAt || entry.createdAt)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(entry.id)}
-                    className={`p-2 rounded-lg shrink-0 transition ${d ? 'hover:bg-danger-900/20' : 'hover:bg-danger-50'}`}
-                  >
-                    <Trash2 className="w-4 h-4 text-danger-500" />
-                  </button>
-                </motion.div>
-              ))}
+              {entries.map((entry, i) => {
+                // Map education fee shape to transaction card shape
+                const cardData = {
+                  ...entry,
+                  details: entry.customTypeName
+                    ? `${entry.customTypeName}${entry.name ? ` · ${entry.name}` : ''}`
+                    : entry.name || null,
+                  date: entry.paidAt || entry.createdAt,
+                  type: 'education',
+                };
+                return (
+                  <TransactionCard
+                    key={entry.id}
+                    transaction={cardData}
+                    dark={d}
+                    icon={costType.icon}
+                    animationDelay={i * 0.03}
+                    onDelete={() => handleDelete(entry.id)}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
