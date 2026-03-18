@@ -10,6 +10,7 @@ import { SuccessCheck } from '../components/ui/SuccessCheck';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 import { ReceiptScanner, isMobileDevice } from '../components/education/ReceiptScanner';
+import { sanitizeAmount, parseAmount } from '../core/transactions';
 
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -36,15 +37,6 @@ const PAYMENT_STYLES = [
 // ═══════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
-
-function sanitize(value) {
-  return value.replace(/[^0-9.]/g, '');
-}
-
-function toNum(value) {
-  const n = parseFloat(value);
-  return isNaN(n) ? 0 : n;
-}
 
 function getAutoSemester() {
   const m = new Date().getMonth() + 1;
@@ -100,11 +92,11 @@ export const SemesterPaymentPage = () => {
 
   // The final amount depends on entry mode
   const finalAmount = useMemo(() => {
-    if (entryMode === 'total') return toNum(amountPaid);
+    if (entryMode === 'total') return parseAmount(amountPaid);
     // Breakdown mode: sum selected component amounts
     return FEE_COMPONENTS.reduce((sum, item) => {
       if (!selectedComponents.has(item.key)) return sum;
-      const val = toNum(componentAmounts[item.key] || '');
+      const val = parseAmount(componentAmounts[item.key] || '');
       return item.isNegative ? sum - val : sum + val;
     }, 0);
   }, [entryMode, amountPaid, selectedComponents, componentAmounts]);
@@ -120,10 +112,10 @@ export const SemesterPaymentPage = () => {
     }
     // Breakdown mode: include amounts
     return FEE_COMPONENTS
-      .filter(item => selectedComponents.has(item.key) && toNum(componentAmounts[item.key] || '') > 0)
+      .filter(item => selectedComponents.has(item.key) && parseAmount(componentAmounts[item.key] || '') > 0)
       .map(item => ({
         component: item.key,
-        amount: toNum(componentAmounts[item.key] || ''),
+        amount: parseAmount(componentAmounts[item.key] || ''),
         isNegative: item.isNegative || false,
       }));
   }, [entryMode, includedTags, selectedComponents, componentAmounts]);
@@ -416,7 +408,7 @@ export const SemesterPaymentPage = () => {
               } ${d ? 'bg-surface-900' : 'bg-white'}`}>
                 <span className="text-xl text-surface-400 mr-2">৳</span>
                 <input type="text" inputMode="decimal" placeholder="0" value={amountPaid}
-                  onChange={(e) => { setAmountPaid(sanitize(e.target.value)); if (errors.amount) setErrors({}); }}
+                  onChange={(e) => { setAmountPaid(sanitizeAmount(e.target.value)); if (errors.amount) setErrors({}); }}
                   className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} />
               </div>
               {errors.amount && <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>}
@@ -495,7 +487,7 @@ export const SemesterPaymentPage = () => {
                       <span className="text-surface-400 mr-1 text-sm">৳</span>
                       <input type="text" inputMode="decimal" placeholder="0"
                         value={componentAmounts[item.key] || ''}
-                        onChange={(e) => { setComponentAmounts(prev => ({ ...prev, [item.key]: sanitize(e.target.value) })); if (errors.amount) setErrors({}); }}
+                        onChange={(e) => { setComponentAmounts(prev => ({ ...prev, [item.key]: sanitizeAmount(e.target.value) })); if (errors.amount) setErrors({}); }}
                         className={`w-full bg-transparent outline-none text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`} />
                     </div>
                   </div>

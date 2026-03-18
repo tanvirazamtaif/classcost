@@ -6,6 +6,7 @@ import { GButton } from '../components/ui';
 import { SuccessCheck } from '../components/ui/SuccessCheck';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { sanitizeAmount } from '../core/transactions';
 import { addHousingSetup } from './HousingLandingPage';
 
 // ═══════════════════════════════════════════════════════════════
@@ -235,7 +236,7 @@ export const AddHousingPage = () => {
               } ${d ? 'bg-surface-900' : 'bg-white'}`}>
                 <span className="text-xl text-surface-400 mr-2">৳</span>
                 <input type="text" inputMode="decimal" placeholder="0"
-                  value={monthlyRent} onChange={(e) => { setMonthlyRent(e.target.value.replace(/[^0-9.]/g, '')); if (errors.rent) setErrors({}); }}
+                  value={monthlyRent} onChange={(e) => { setMonthlyRent(sanitizeAmount(e.target.value)); if (errors.rent) setErrors({}); }}
                   className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} />
               </div>
               {errors.rent && <p className="text-xs text-danger-500 mt-1">{errors.rent}</p>}
@@ -284,7 +285,7 @@ export const AddHousingPage = () => {
               <div className={`flex items-center border rounded-xl px-3 py-2.5 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'} focus-within:border-primary-500`}>
                 <span className="text-surface-400 mr-2">৳</span>
                 <input type="text" inputMode="decimal" placeholder="0"
-                  value={deposit} onChange={(e) => setDeposit(e.target.value.replace(/[^0-9.]/g, ''))}
+                  value={deposit} onChange={(e) => setDeposit(sanitizeAmount(e.target.value))}
                   className={`bg-transparent outline-none w-full text-sm ${d ? 'text-white' : 'text-surface-900'}`} />
               </div>
               {parseFloat(deposit) > 0 && (
@@ -326,7 +327,7 @@ export const AddHousingPage = () => {
               <div className={`flex items-center border rounded-xl px-3 py-2.5 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'} focus-within:border-primary-500`}>
                 <span className="text-surface-400 mr-2">৳</span>
                 <input type="text" inputMode="decimal" placeholder="0"
-                  value={shiftingCost} onChange={(e) => setShiftingCost(e.target.value.replace(/[^0-9.]/g, ''))}
+                  value={shiftingCost} onChange={(e) => setShiftingCost(sanitizeAmount(e.target.value))}
                   className={`bg-transparent outline-none w-full text-sm ${d ? 'text-white' : 'text-surface-900'}`} />
               </div>
             </div>

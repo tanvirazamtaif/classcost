@@ -9,6 +9,7 @@ import { GButton } from '../components/ui';
 import { SuccessCheck } from '../components/ui/SuccessCheck';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { sanitizeAmount, parseAmount } from '../core/transactions';
 
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -19,19 +20,6 @@ const PAYMENT_STYLES = [
   { id: 'installment', label: 'Installment', desc: 'Split into parts', icon: '📅' },
   { id: 'partial', label: 'Partial', desc: 'Pay what you can now', icon: '✂️' },
 ];
-
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-function sanitize(value) {
-  return value.replace(/[^0-9.]/g, '');
-}
-
-function toNum(value) {
-  const n = parseFloat(value);
-  return isNaN(n) ? 0 : n;
-}
 
 function getAutoSemester() {
   const m = new Date().getMonth() + 1;
@@ -100,9 +88,9 @@ export const AddSemesterPage = () => {
   const validatePayment = () => {
     const errs = {};
     if (paymentStyle === 'installment') {
-      if (toNum(firstInstallmentAmount) <= 0) errs.amount = 'Enter first installment amount';
+      if (parseAmount(firstInstallmentAmount) <= 0) errs.amount = 'Enter first installment amount';
     } else {
-      if (toNum(amount) <= 0) errs.amount = 'Enter a payment amount';
+      if (parseAmount(amount) <= 0) errs.amount = 'Enter a payment amount';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -118,7 +106,7 @@ export const AddSemesterPage = () => {
 
     try {
       if (paymentStyle === 'installment') {
-        const firstAmount = toNum(firstInstallmentAmount);
+        const firstAmount = parseAmount(firstInstallmentAmount);
         const installmentData = Array.from({ length: installmentCount }, (_, i) => ({
           part: i + 1,
           amount: i === 0 ? firstAmount : 0,
@@ -145,7 +133,7 @@ export const AddSemesterPage = () => {
         });
         if (created?.id) setCreatedFeeId(created.id);
       } else {
-        const finalAmount = toNum(amount);
+        const finalAmount = parseAmount(amount);
         const created = addSemesterFee({
           feeType: 'semester_fee',
           paymentIntent: 'semester_payment',
@@ -189,7 +177,7 @@ export const AddSemesterPage = () => {
           </h2>
           <p className="text-surface-500 text-sm mb-2">{semesterName}</p>
           <p className={`text-sm mb-8 ${d ? 'text-surface-400' : 'text-surface-500'}`}>
-            ৳{(isInstallment ? toNum(firstInstallmentAmount) : toNum(amount)).toLocaleString()} recorded successfully
+            ৳{(isInstallment ? parseAmount(firstInstallmentAmount) : parseAmount(amount)).toLocaleString()} recorded successfully
           </p>
           <div className="flex gap-3 w-full max-w-xs mx-auto">
             <GButton
@@ -356,7 +344,7 @@ export const AddSemesterPage = () => {
                 inputMode="decimal"
                 placeholder="0"
                 value={amount}
-                onChange={(e) => { setAmount(sanitize(e.target.value)); if (errors.amount) setErrors({}); }}
+                onChange={(e) => { setAmount(sanitizeAmount(e.target.value)); if (errors.amount) setErrors({}); }}
                 className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
               />
             </div>
@@ -388,7 +376,7 @@ export const AddSemesterPage = () => {
                 inputMode="decimal"
                 placeholder="0"
                 value={firstInstallmentAmount}
-                onChange={(e) => { setFirstInstallmentAmount(sanitize(e.target.value)); if (errors.amount) setErrors({}); }}
+                onChange={(e) => { setFirstInstallmentAmount(sanitizeAmount(e.target.value)); if (errors.amount) setErrors({}); }}
                 className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
               />
             </div>
@@ -456,7 +444,7 @@ export const AddSemesterPage = () => {
                 inputMode="decimal"
                 placeholder="0"
                 value={amount}
-                onChange={(e) => { setAmount(sanitize(e.target.value)); if (errors.amount) setErrors({}); }}
+                onChange={(e) => { setAmount(sanitizeAmount(e.target.value)); if (errors.amount) setErrors({}); }}
                 className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
               />
             </div>

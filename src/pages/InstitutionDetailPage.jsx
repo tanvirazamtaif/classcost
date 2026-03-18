@@ -44,12 +44,6 @@ function getTypeLabel(type) {
   return map[type] || 'Institution';
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  try { return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
-  catch { return dateStr; }
-}
-
 // ═══════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════
