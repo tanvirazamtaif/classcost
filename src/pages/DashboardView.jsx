@@ -215,7 +215,7 @@ export const DashboardView = () => {
 
   const handleOpenForm = (categoryId) => {
     if (categoryId === 'education') return navigate('education-home');
-    if (categoryId === 'hostel') return navigate('housing-entry');
+    if (categoryId === 'hostel') return navigate('housing-landing');
     if (categoryId === 'books') return navigate('books-entry');
     if (categoryId === 'transport') return navigate('transport');
     if (categoryId === 'canteen') {
