@@ -242,7 +242,7 @@ export const EducationFeePage = () => {
               {/* Semester Payment — Primary */}
               <motion.button
                 whileTap={{ scale: 0.98 }}
-                onClick={() => { haptics.light(); navigate('semester-payment'); }}
+                onClick={() => { haptics.light(); navigate('semester-landing'); }}
                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition ${
                   d ? 'bg-primary-900/20 border-primary-800/50 hover:border-primary-600' : 'bg-primary-50 border-primary-200 hover:border-primary-400'
                 }`}

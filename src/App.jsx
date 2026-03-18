@@ -28,6 +28,9 @@ const BooksEntryPage = lazy(() => import('./pages/BooksEntryPage'));
 const EducationFeePage = lazy(() => import('./pages/EducationFeePage'));
 const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
 const SemesterPaymentPage = lazy(() => import('./pages/SemesterPaymentPage'));
+const SemesterLandingPage = lazy(() => import('./pages/SemesterLandingPage'));
+const AddSemesterPage = lazy(() => import('./pages/AddSemesterPage'));
+const SemesterDetailPage = lazy(() => import('./pages/SemesterDetailPage'));
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
@@ -102,6 +105,9 @@ const ViewRouter = () => {
         {view === "education-fees" && <EducationFeePage />}
         {view === "education-fee-form" && <EducationFeeFormPage />}
         {view === "semester-payment" && <SemesterPaymentPage />}
+        {view === "semester-landing" && <SemesterLandingPage />}
+        {view === "add-semester" && <AddSemesterPage />}
+        {view === "semester-detail" && <SemesterDetailPage />}
         {["semester", "reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
           <InnerPage />
         )}
