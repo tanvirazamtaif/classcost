@@ -73,7 +73,8 @@ export const DashboardView = () => {
     if (categoryId === 'education') return navigate('education-home');
     if (categoryId === 'hostel') return navigate('housing-entry');
     if (categoryId === 'books') return navigate('books-entry');
-    if (categoryId === 'transport' || categoryId === 'canteen') {
+    if (categoryId === 'transport') return navigate('transport');
+    if (categoryId === 'canteen') {
       setQuickEntryCategory(categoryId);
       return;
     }

@@ -31,6 +31,7 @@ const SemesterPaymentPage = lazy(() => import('./pages/SemesterPaymentPage'));
 const SemesterLandingPage = lazy(() => import('./pages/SemesterLandingPage'));
 const AddSemesterPage = lazy(() => import('./pages/AddSemesterPage'));
 const SemesterDetailPage = lazy(() => import('./pages/SemesterDetailPage'));
+const TransportPage = lazy(() => import('./pages/TransportPage'));
 const EducationHomePage = lazy(() => import('./pages/EducationHomePage'));
 const InstitutionDetailPage = lazy(() => import('./pages/InstitutionDetailPage'));
 const GeneralCostTrackerPage = lazy(() => import('./pages/GeneralCostTrackerPage'));
@@ -111,6 +112,7 @@ const ViewRouter = () => {
         {view === "semester-landing" && <SemesterLandingPage />}
         {view === "add-semester" && <AddSemesterPage />}
         {view === "semester-detail" && <SemesterDetailPage />}
+        {view === "transport" && <TransportPage />}
         {view === "education-home" && <EducationHomePage />}
         {view === "institution-detail" && <InstitutionDetailPage />}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
