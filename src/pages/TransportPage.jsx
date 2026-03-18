@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, Calendar, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { GButton } from '../components/ui';
 import { LayoutBottomNav } from '../components/layout';
+import { TransactionCard } from '../components/shared/TransactionCard';
+import { AmountInput } from '../components/shared/AmountInput';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
+import { createTransaction, getByCategory, getTotalSpent, validateAmount } from '../core/transactions';
 
 // ═══════════════════════════════════════════════════════════════
 // TRANSPORT TYPES
@@ -27,40 +30,33 @@ const HOMETOWN_SUBTYPES = [
 // ═══════════════════════════════════════════════════════════════
 
 export const TransportPage = () => {
-  const { navigate, theme, expenses, addExpense, addToast, user } = useApp();
+  const { navigate, theme, expenses, addExpense, addToast } = useApp();
   const d = theme === 'dark';
 
-  // Flow state: 'select' | 'subtype' | 'form'
+  // Flow: select → subtype (hometown only) → form
   const [step, setStep] = useState('select');
   const [selectedType, setSelectedType] = useState(null);
   const [selectedSubtype, setSelectedSubtype] = useState(null);
 
-  // Form state
+  // Form
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // ── Existing transport cards ────────────────────────────────
+  // ── Data (from shared helpers) ──────────────────────────────
 
-  const transportExpenses = useMemo(() => {
-    return (expenses || [])
-      .filter(e => e.type === 'transport')
-      .sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
-  }, [expenses]);
+  const transportExpenses = useMemo(() => getByCategory(expenses, 'transport'), [expenses]);
+  const totalSpent = useMemo(() => getTotalSpent(expenses, 'transport'), [expenses]);
 
-  // ── Handlers ────────────────────────────────────────────────
+  // ── Flow handlers ───────────────────────────────────────────
 
   const handleSelectType = (type) => {
     haptics.light();
     setSelectedType(type);
-    if (type.hasSubTypes) {
-      setStep('subtype');
-    } else {
-      setSelectedSubtype(null);
-      setStep('form');
-    }
+    setStep(type.hasSubTypes ? 'subtype' : 'form');
+    if (!type.hasSubTypes) setSelectedSubtype(null);
   };
 
   const handleSelectSubtype = (subtype) => {
@@ -85,10 +81,13 @@ export const TransportPage = () => {
     setErrors({});
   };
 
+  // ── Save (uses shared createTransaction) ────────────────────
+
   const handleSave = async () => {
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) {
-      setErrors({ amount: 'Enter a valid amount' });
+    const validation = validateAmount(amt);
+    if (!validation.valid) {
+      setErrors({ amount: validation.error });
       haptics.error();
       return;
     }
@@ -97,34 +96,31 @@ export const TransportPage = () => {
     haptics.medium();
 
     try {
-      const typeLabel = selectedType?.label || 'Transport';
-      const subtypeLabel = selectedSubtype?.label || '';
-      const fullLabel = subtypeLabel ? `${subtypeLabel}` : typeLabel;
+      const label = selectedSubtype?.label || selectedType?.label || 'Transport';
 
-      await addExpense({
+      await addExpense(createTransaction({
         type: 'transport',
         amount: amt,
-        label: 'Transport',
-        details: fullLabel,
-        date: date || new Date().toISOString().split('T')[0],
+        details: label,
+        date,
         meta: {
-          label: fullLabel,
+          label,
           transportType: selectedType?.id,
           transportSubtype: selectedSubtype?.id || null,
         },
-      });
+      }));
 
       haptics.success();
-      addToast(`${fullLabel} saved`, 'success');
+      addToast(`${label} · ৳${amt.toLocaleString()} saved`, 'success');
 
-      // Reset and go back to list
+      // Reset to list
       setStep('select');
       setSelectedType(null);
       setSelectedSubtype(null);
       setAmount('');
       setNote('');
       setErrors({});
-    } catch (e) {
+    } catch {
       haptics.error();
       addToast('Failed to save', 'error');
     } finally {
@@ -134,14 +130,8 @@ export const TransportPage = () => {
 
   // ── Helpers ─────────────────────────────────────────────────
 
-  const getFormTitle = () => {
-    if (selectedSubtype) return selectedSubtype.label;
-    if (selectedType) return selectedType.label;
-    return 'Transport';
-  };
-
   const getHeaderTitle = () => {
-    if (step === 'form') return getFormTitle();
+    if (step === 'form') return selectedSubtype?.label || selectedType?.label || 'Transport';
     if (step === 'subtype') return 'Home Town Travel';
     return 'Transport';
   };
@@ -176,17 +166,12 @@ export const TransportPage = () => {
         {/* ═══ STEP 1: TYPE SELECTION ═══ */}
         {step === 'select' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+            {/* Type cards */}
             <div className="space-y-2.5">
               {TRANSPORT_TYPES.map((type, i) => (
-                <motion.button
-                  key={type.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleSelectType(type)}
-                  className={cardCls}
-                >
+                <motion.button key={type.id}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  whileTap={{ scale: 0.98 }} onClick={() => handleSelectType(type)} className={cardCls}>
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${d ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
                     {type.icon}
                   </div>
@@ -198,52 +183,35 @@ export const TransportPage = () => {
               ))}
             </div>
 
-            {/* Saved transport cards */}
-            {transportExpenses.length > 0 && (
-              <div>
-                <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>
-                  Recent Transport ({transportExpenses.length})
-                </h2>
-                <div className="space-y-2">
-                  {transportExpenses.slice(0, 10).map((exp, i) => {
-                    const meta = exp.meta || {};
-                    const typeLabel = exp.details || meta.label || 'Transport';
-
-                    return (
-                      <motion.div
-                        key={exp.id || i}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + i * 0.03 }}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border ${
-                          d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <span className="text-lg">🚌</span>
-                          <div className="min-w-0">
-                            <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-surface-900'}`}>
-                              {typeLabel}
-                            </p>
-                            {exp.note && (
-                              <p className={`text-xs truncate ${d ? 'text-surface-500' : 'text-surface-400'}`}>{exp.note}</p>
-                            )}
-                            <p className={`text-xs flex items-center gap-1 mt-0.5 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                              <Calendar className="w-3 h-3" />
-                              {exp.date ? new Date(exp.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <p className={`text-sm font-semibold shrink-0 ${d ? 'text-white' : 'text-surface-900'}`}>
-                          ৳{(Number(exp.amount) || 0).toLocaleString()}
-                        </p>
-                      </motion.div>
-                    );
-                  })}
+            {/* Summary */}
+            {totalSpent > 0 && (
+              <div className={`p-4 rounded-2xl border ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Total Transport</p>
+                    <p className={`text-2xl font-bold ${d ? 'text-white' : 'text-surface-900'}`}>৳{totalSpent.toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Records</p>
+                    <p className={`text-lg font-semibold ${d ? 'text-surface-300' : 'text-surface-700'}`}>{transportExpenses.length}</p>
+                  </div>
                 </div>
               </div>
             )}
 
+            {/* Recent transport — shared TransactionCard */}
+            {transportExpenses.length > 0 && (
+              <div>
+                <h2 className={`text-sm font-semibold mb-3 ${d ? 'text-white' : 'text-surface-900'}`}>Recent</h2>
+                <div className="space-y-2">
+                  {transportExpenses.slice(0, 10).map((exp, i) => (
+                    <TransactionCard key={exp.id || i} transaction={exp} dark={d} animationDelay={i * 0.03} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
             {transportExpenses.length === 0 && (
               <div className={`text-center py-8 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
                 <span className="text-4xl block mb-3">🚌</span>
@@ -259,15 +227,9 @@ export const TransportPage = () => {
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-2.5">
             <p className={`text-sm mb-3 ${d ? 'text-surface-400' : 'text-surface-500'}`}>Where are you traveling?</p>
             {HOMETOWN_SUBTYPES.map((sub, i) => (
-              <motion.button
-                key={sub.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleSelectSubtype(sub)}
-                className={cardCls}
-              >
+              <motion.button key={sub.id}
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                whileTap={{ scale: 0.98 }} onClick={() => handleSelectSubtype(sub)} className={cardCls}>
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${d ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
                   {sub.icon}
                 </div>
@@ -288,31 +250,19 @@ export const TransportPage = () => {
               d ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
             }`}>
               <span>{selectedSubtype?.icon || selectedType?.icon}</span>
-              {getFormTitle()}
+              {selectedSubtype?.label || selectedType?.label}
             </div>
 
-            {/* Amount */}
+            {/* Amount — shared component */}
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Amount *</label>
-              <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${
-                errors.amount ? 'border-danger-500' : `${d ? 'border-surface-800' : 'border-surface-200'} focus-within:border-primary-500`
-              } ${d ? 'bg-surface-900' : 'bg-white'}`}>
-                <span className="text-xl text-surface-400 mr-2">৳</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={amount}
-                  onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.]/g, '')); if (errors.amount) setErrors({}); }}
-                  className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`}
-                  autoFocus
-                />
-              </div>
-              {errors.amount && (
-                <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />{errors.amount}
-                </p>
-              )}
+              <AmountInput
+                value={amount}
+                onChange={(v) => { setAmount(v); if (errors.amount) setErrors({}); }}
+                dark={d}
+                error={errors.amount}
+                autoFocus
+              />
             </div>
 
             {/* Date */}
@@ -326,14 +276,8 @@ export const TransportPage = () => {
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
                 Note <span className="text-surface-400 font-normal">(optional)</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g., CNG to campus, Bus fare"
-                maxLength={100}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className={inputCls}
-              />
+              <input type="text" placeholder="e.g., CNG to campus, Bus fare" maxLength={100}
+                value={note} onChange={(e) => setNote(e.target.value)} className={inputCls} />
             </div>
 
             {/* Save */}
