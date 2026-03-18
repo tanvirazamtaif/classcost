@@ -540,11 +540,20 @@ export const SemesterPaymentPage = () => {
                 <div className="space-y-2.5">
                   {installments.map((inst, i) => (
                     <div key={i} className={`flex items-center gap-3 p-2.5 rounded-xl ${d ? 'bg-surface-800/50' : 'bg-surface-50'}`}>
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${d ? 'bg-surface-700 text-surface-300' : 'bg-surface-200 text-surface-600'}`}>{inst.part}</div>
-                      <div className="flex-1">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${d ? 'bg-surface-700 text-surface-300' : 'bg-surface-200 text-surface-600'}`}>{inst.part}</div>
+                      <div className="flex-1 min-w-0">
                         <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>৳{inst.amount.toLocaleString()}</p>
-                        <p className="text-xs text-surface-500">Due {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                       </div>
+                      <input
+                        type="date"
+                        value={inst.dueDate}
+                        onChange={(e) => {
+                          setInstallments(prev => prev.map((item, idx) =>
+                            idx === i ? { ...item, dueDate: e.target.value } : item
+                          ));
+                        }}
+                        className={`w-32 border rounded-lg px-2 py-1.5 text-xs shrink-0 ${d ? 'border-surface-700 bg-surface-800 text-white' : 'border-surface-200 bg-surface-50 text-surface-900'}`}
+                      />
                     </div>
                   ))}
                 </div>
@@ -558,12 +567,14 @@ export const SemesterPaymentPage = () => {
              ══════════════════════════════════════════════════════════ */}
         {finalAmount > 0 && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            <div>
-              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-                Due Date <span className="text-surface-400 font-normal ml-1">(optional)</span>
-              </label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
-            </div>
+            {paymentStyle !== 'installment' && (
+              <div>
+                <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                  Due Date <span className="text-surface-400 font-normal ml-1">(optional)</span>
+                </label>
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
+              </div>
+            )}
             <div>
               <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
                 Note <span className="text-surface-400 font-normal ml-1">(optional)</span>
