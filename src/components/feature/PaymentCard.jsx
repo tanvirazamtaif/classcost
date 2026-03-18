@@ -1,29 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { getCategoryIcon, getTransactionLabel, getTransactionSublabel, formatTransactionDate } from '../../core/transactions';
 
-const categoryIcons = {
-  education: '🎓',
-  transport: '🚌',
-  canteen: '🍽️',
-  hostel: '🏠',
-  books: '📚',
-  uniform: '👔',
-  other: '📦',
-};
-
-const categoryLabels = {
-  education: 'Education',
-  transport: 'Transport',
-  canteen: 'Food',
-  hostel: 'Housing',
-  books: 'Study Materials',
-  uniform: 'Uniform',
-  other: 'Other',
-};
-
+/**
+ * Payment card used in Dashboard Recent transactions list.
+ * Now delegates to the shared category registry from core/transactions.
+ */
 export const PaymentCard = ({ payment, currencySymbol = '৳', onClick }) => {
-  const icon = categoryIcons[payment.type] || '📦';
+  const icon = getCategoryIcon(payment.type);
   const amount = Number(payment.amount) || 0;
+  const label = getTransactionLabel(payment);
+  const sublabel = getTransactionSublabel(payment);
+  const dateStr = formatTransactionDate(payment.date);
 
   return (
     <motion.div
@@ -35,11 +23,11 @@ export const PaymentCard = ({ payment, currencySymbol = '৳', onClick }) => {
         <span className="text-xl">{icon}</span>
         <div>
           <p className="text-sm font-medium text-surface-900 dark:text-white">
-            {payment.details || payment.label || categoryLabels[payment.type] || payment.type || 'Payment'}
+            {label}
           </p>
-          {payment.details && (
+          {sublabel && (
             <p className="text-xs text-surface-500 truncate max-w-[150px]">
-              {payment.label || categoryLabels[payment.type] || payment.type}
+              {sublabel}
             </p>
           )}
         </div>
@@ -48,9 +36,7 @@ export const PaymentCard = ({ payment, currencySymbol = '৳', onClick }) => {
         <p className="text-sm font-semibold text-surface-900 dark:text-white">
           {currencySymbol}{amount.toLocaleString('en-BD')}
         </p>
-        <p className="text-xs text-surface-500">
-          {payment.date ? new Date(payment.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }) : ''}
-        </p>
+        <p className="text-xs text-surface-500">{dateStr}</p>
       </div>
     </motion.div>
   );
