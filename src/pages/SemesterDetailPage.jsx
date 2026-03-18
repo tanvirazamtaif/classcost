@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Check, Circle, Bell, BellOff, Edit2, Calendar, Plus, AlertCircle } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
@@ -58,11 +58,33 @@ export const SemesterDetailPage = () => {
   // ── State ──────────────────────────────────────────────────
   const [editAmounts, setEditAmounts] = useState({});
   const [editDates, setEditDates] = useState({});
+  // Reminder state: { [instId]: { enabled: bool, daysBefore: 1|2|3 } }
   const [reminders, setReminders] = useState({});
+  const [reminderPopoverFor, setReminderPopoverFor] = useState(null); // inst.id or null
+  const [dateWarningFor, setDateWarningFor] = useState(null); // inst.id for pulse animation
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [recordAmount, setRecordAmount] = useState('');
   const [recordNote, setRecordNote] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!reminderPopoverFor) return;
+    const close = (e) => {
+      if (!e.target.closest('[data-reminder-popover]')) setReminderPopoverFor(null);
+    };
+    document.addEventListener('click', close, true);
+    return () => document.removeEventListener('click', close, true);
+  }, [reminderPopoverFor]);
+
+  // RULE: When installment is marked paid, clear its reminder
+  useEffect(() => {
+    installments.forEach(inst => {
+      if (inst.status === 'paid' && reminders[inst.id]?.enabled) {
+        setReminders(prev => { const { [inst.id]: _, ...rest } = prev; return rest; });
+      }
+    });
+  }, [installments]);
 
   // ── Derived ────────────────────────────────────────────────
 
@@ -117,10 +139,45 @@ export const SemesterDetailPage = () => {
     addToast(`Installment ${inst.part} paid`, 'success');
   }, [fee, editAmounts, payInstallment, addToast]);
 
-  const handleToggleReminder = useCallback((instId) => {
+  const handleReminderClick = useCallback((inst) => {
+    const instId = inst.id;
+    const currentDate = editDates[instId] ?? inst.dueDate;
+
+    // RULE: Date must be filled before enabling reminder
+    if (!currentDate) {
+      haptics.error();
+      setDateWarningFor(instId);
+      // Clear warning after animation
+      setTimeout(() => setDateWarningFor(null), 2000);
+      return;
+    }
+
     haptics.light();
-    setReminders(prev => ({ ...prev, [instId]: !prev[instId] }));
+    // If already has a reminder, open popover to edit/disable
+    // If no reminder, open popover to configure
+    setReminderPopoverFor(prev => prev === instId ? null : instId);
+  }, [editDates]);
+
+  const handleSetReminder = useCallback((instId, daysBefore) => {
+    haptics.success();
+    setReminders(prev => ({ ...prev, [instId]: { enabled: true, daysBefore } }));
+    setReminderPopoverFor(null);
   }, []);
+
+  const handleDisableReminder = useCallback((instId) => {
+    haptics.light();
+    setReminders(prev => { const { [instId]: _, ...rest } = prev; return rest; });
+    setReminderPopoverFor(null);
+  }, []);
+
+  // RULE: If date is cleared after reminder was set, auto-disable
+  const getEffectiveReminder = useCallback((inst) => {
+    const reminder = reminders[inst.id];
+    if (!reminder?.enabled) return null;
+    const currentDate = editDates[inst.id] ?? inst.dueDate;
+    if (!currentDate) return null; // Auto-disabled if date cleared
+    return reminder;
+  }, [reminders, editDates]);
 
   const handleSaveChanges = useCallback(() => {
     if (!fee || !hasUnsavedChanges) return;
@@ -259,14 +316,34 @@ export const SemesterDetailPage = () => {
 
           {/* Date */}
           {!isPaid ? (
-            <input
-              type="date"
-              value={currentDate}
-              onChange={(e) => setEditDates(prev => ({ ...prev, [inst.id]: e.target.value }))}
-              className={`text-xs mt-1.5 border rounded-lg px-2 py-1.5 outline-none transition focus:border-primary-500 ${
-                d ? 'bg-surface-800 border-surface-700 text-surface-300' : 'bg-surface-50 border-surface-200 text-surface-600'
-              }`}
-            />
+            <div className="relative mt-1.5">
+              <input
+                type="date"
+                value={currentDate}
+                onChange={(e) => {
+                  setEditDates(prev => ({ ...prev, [inst.id]: e.target.value }));
+                  if (dateWarningFor === inst.id) setDateWarningFor(null);
+                }}
+                className={`text-xs border rounded-lg px-2 py-1.5 outline-none transition focus:border-primary-500 ${
+                  dateWarningFor === inst.id
+                    ? 'border-amber-500 ring-2 ring-amber-500/30 animate-pulse'
+                    : d ? 'bg-surface-800 border-surface-700 text-surface-300' : 'bg-surface-50 border-surface-200 text-surface-600'
+                }`}
+              />
+              {/* Warning when clicking reminder without date */}
+              <AnimatePresence>
+                {dateWarningFor === inst.id && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-[10px] text-amber-500 mt-1 flex items-center gap-1"
+                  >
+                    <AlertCircle className="w-3 h-3" /> Set a date first to enable reminder
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
           ) : (
             inst.paidAt && (
               <p className={`text-xs mt-0.5 ${d ? 'text-surface-500' : 'text-surface-500'}`}>
@@ -274,20 +351,90 @@ export const SemesterDetailPage = () => {
               </p>
             )
           )}
+
+          {/* Active reminder label */}
+          {!isPaid && getEffectiveReminder(inst) && (
+            <p className={`text-[10px] mt-1 flex items-center gap-1 ${d ? 'text-primary-400' : 'text-primary-600'}`}>
+              <Bell className="w-3 h-3" /> Reminder {getEffectiveReminder(inst).daysBefore} day{getEffectiveReminder(inst).daysBefore > 1 ? 's' : ''} before
+            </p>
+          )}
         </div>
 
-        {/* Reminder toggle for unpaid */}
+        {/* Reminder button for unpaid */}
         {!isPaid && (
-          <button
-            onClick={() => handleToggleReminder(inst.id)}
-            className="mt-0.5 shrink-0"
-          >
-            {reminders[inst.id] ? (
-              <Bell className={`w-4 h-4 ${d ? 'text-primary-400' : 'text-primary-600'}`} />
-            ) : (
-              <BellOff className={`w-4 h-4 ${d ? 'text-surface-600' : 'text-surface-400'}`} />
-            )}
-          </button>
+          <div className="relative mt-0.5 shrink-0" data-reminder-popover>
+            <motion.button
+              onClick={() => handleReminderClick(inst)}
+              animate={
+                // Subtle pulse when date exists but no reminder yet
+                (currentDate && !getEffectiveReminder(inst))
+                  ? { scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }
+                  : {}
+              }
+              transition={
+                (currentDate && !getEffectiveReminder(inst))
+                  ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+                  : {}
+              }
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                getEffectiveReminder(inst)
+                  ? d ? 'bg-primary-600/20 text-primary-400' : 'bg-primary-100 text-primary-600'
+                  : d ? 'hover:bg-surface-800 text-surface-600' : 'hover:bg-surface-100 text-surface-400'
+              }`}
+            >
+              {getEffectiveReminder(inst)
+                ? <Bell className="w-4 h-4" />
+                : <BellOff className="w-4 h-4" />
+              }
+            </motion.button>
+
+            {/* Reminder popover */}
+            <AnimatePresence>
+              {reminderPopoverFor === inst.id && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -4 }}
+                  className={`absolute right-0 top-10 z-50 w-52 p-3 rounded-xl border shadow-xl ${
+                    d ? 'bg-surface-800 border-surface-700 shadow-black/40' : 'bg-white border-surface-200 shadow-surface-200/60'
+                  }`}
+                >
+                  <p className={`text-xs font-semibold mb-2.5 ${d ? 'text-white' : 'text-surface-900'}`}>
+                    Remind me
+                  </p>
+                  <div className="space-y-1.5">
+                    {[1, 2, 3].map(days => {
+                      const isActive = getEffectiveReminder(inst)?.daysBefore === days;
+                      return (
+                        <button
+                          key={days}
+                          onClick={() => handleSetReminder(inst.id, days)}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${
+                            isActive
+                              ? 'bg-primary-600 text-white'
+                              : d ? 'hover:bg-surface-700 text-surface-300' : 'hover:bg-surface-100 text-surface-700'
+                          }`}
+                        >
+                          {days} day{days > 1 ? 's' : ''} before due date
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {getEffectiveReminder(inst) && (
+                    <>
+                      <div className={`my-2 h-px ${d ? 'bg-surface-700' : 'bg-surface-200'}`} />
+                      <button
+                        onClick={() => handleDisableReminder(inst.id)}
+                        className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition"
+                      >
+                        Turn off reminder
+                      </button>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
       </motion.div>
     );
