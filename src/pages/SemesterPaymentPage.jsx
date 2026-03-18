@@ -303,7 +303,9 @@ export const SemesterPaymentPage = () => {
 
       <main className="max-w-md mx-auto p-4 space-y-6">
 
-        {/* ═══ SECTION A: CONTEXT ═══ */}
+        {/* ══════════════════════════════════════════════════════════
+             STEP 1: CONTEXT (always visible)
+             ══════════════════════════════════════════════════════════ */}
         <div className="space-y-4">
           <div>
             <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
@@ -323,23 +325,25 @@ export const SemesterPaymentPage = () => {
           </div>
         </div>
 
-        {/* ═══ RECEIPT SCANNER (mobile only) ═══ */}
-        {isMobile && entryMode === 'total' && (
-          <motion.button whileTap={{ scale: 0.98 }} onClick={() => setShowScanner(true)}
-            className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${
-              d ? 'bg-gradient-to-r from-primary-900/40 to-surface-800 border border-primary-800/50' : 'bg-gradient-to-r from-primary-50 to-surface-50 border border-primary-200'
-            }`}>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${d ? 'bg-primary-600/20' : 'bg-primary-100'}`}>
-              <Camera className="w-5 h-5 text-primary-600" />
+        {/* Duplicate detection */}
+        {existingPayment && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            className={`p-3.5 rounded-xl border flex items-start gap-3 ${d ? 'bg-amber-900/15 border-amber-800/40' : 'bg-amber-50 border-amber-200'}`}>
+            <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm ${d ? 'text-amber-300' : 'text-amber-800'}`}>You may already have a payment for {semesterName}</p>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => navigate('education-fees')} className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">View previous</button>
+                <span className="text-surface-400">|</span>
+                <button onClick={() => setDuplicateDismissed(true)} className="text-xs font-medium text-surface-500 hover:underline">Continue anyway</button>
+              </div>
             </div>
-            <div className="text-left flex-1">
-              <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Scan fee receipt</p>
-              <p className="text-xs text-surface-500">Take a photo to auto-fill amount</p>
-            </div>
-          </motion.button>
+          </motion.div>
         )}
 
-        {/* ═══ PAYMENT STYLE ═══ */}
+        {/* ══════════════════════════════════════════════════════════
+             STEP 2: PAYMENT STYLE (always visible)
+             ══════════════════════════════════════════════════════════ */}
         <div>
           <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Payment Style</label>
           <div className="grid grid-cols-3 gap-2">
@@ -357,25 +361,9 @@ export const SemesterPaymentPage = () => {
           </div>
         </div>
 
-        {/* ═══ DUPLICATE DETECTION ═══ */}
-        {existingPayment && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            className={`p-3.5 rounded-xl border flex items-start gap-3 ${d ? 'bg-amber-900/15 border-amber-800/40' : 'bg-amber-50 border-amber-200'}`}>
-            <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm ${d ? 'text-amber-300' : 'text-amber-800'}`}>You may already have a payment for {semesterName}</p>
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => navigate('education-fees')} className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">View previous</button>
-                <span className="text-surface-400">|</span>
-                <button onClick={() => setDuplicateDismissed(true)} className="text-xs font-medium text-surface-500 hover:underline">Continue anyway</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════
-             ENTRY MODE SELECTOR — the core UX redesign
-             ═══════════════════════════════════════════════════════ */}
+        {/* ══════════════════════════════════════════════════════════
+             STEP 3: ENTRY METHOD (always visible)
+             ══════════════════════════════════════════════════════════ */}
         <div>
           <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>How do you want to enter?</label>
           <div className={`flex rounded-xl overflow-hidden border ${d ? 'border-surface-700' : 'border-surface-200'}`}>
@@ -386,10 +374,8 @@ export const SemesterPaymentPage = () => {
               const sel = entryMode === mode.id;
               return (
                 <button key={mode.id} onClick={() => switchEntryMode(mode.id)}
-                  className={`flex-1 py-3.5 px-3 text-center transition-all relative ${
-                    sel
-                      ? d ? 'bg-primary-600 text-white' : 'bg-primary-600 text-white'
-                      : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-750' : 'bg-surface-50 text-surface-600 hover:bg-surface-100'
+                  className={`flex-1 py-3.5 px-3 text-center transition-all ${
+                    sel ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-750' : 'bg-surface-50 text-surface-600 hover:bg-surface-100'
                   }`}>
                   <p className="text-xs font-semibold">{mode.label}</p>
                   <p className={`text-[10px] mt-0.5 ${sel ? 'text-white/70' : 'text-surface-400'}`}>{mode.desc}</p>
@@ -399,151 +385,146 @@ export const SemesterPaymentPage = () => {
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════
-             TOTAL ENTRY MODE
-             ═══════════════════════════════════════════════════════ */}
+        {/* ══════════════════════════════════════════════════════════
+             STEP 4: AMOUNT SOURCE (conditional on entry method)
+             ══════════════════════════════════════════════════════════ */}
+
+        {/* ── TOTAL ENTRY ── */}
         {entryMode === 'total' && (
-          <AnimatePresence mode="wait">
-            <motion.div key="total-mode" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-5">
-              {/* Amount input */}
-              <div>
-                <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Amount Paid *</label>
-                <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${
-                  errors.amount ? 'border-danger-500' : `${d ? 'border-surface-800' : 'border-surface-200'} focus-within:border-primary-500`
-                } ${d ? 'bg-surface-900' : 'bg-white'}`}>
-                  <span className="text-xl text-surface-400 mr-2">৳</span>
-                  <input type="text" inputMode="decimal" placeholder="0" value={amountPaid}
-                    onChange={(e) => { setAmountPaid(sanitize(e.target.value)); if (errors.amount) setErrors({}); }}
-                    className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} />
+          <motion.div key="total-mode" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+            {/* Receipt scanner (mobile, total mode only) */}
+            {isMobile && (
+              <motion.button whileTap={{ scale: 0.98 }} onClick={() => setShowScanner(true)}
+                className={`w-full flex items-center gap-3 p-3.5 rounded-xl transition ${
+                  d ? 'bg-gradient-to-r from-primary-900/40 to-surface-800 border border-primary-800/50' : 'bg-gradient-to-r from-primary-50 to-surface-50 border border-primary-200'
+                }`}>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${d ? 'bg-primary-600/20' : 'bg-primary-100'}`}>
+                  <Camera className="w-4 h-4 text-primary-600" />
                 </div>
-                {errors.amount && <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>}
-              </div>
+                <div className="text-left flex-1">
+                  <p className={`text-xs font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Scan fee receipt</p>
+                  <p className="text-[10px] text-surface-500">Auto-fill from photo</p>
+                </div>
+              </motion.button>
+            )}
 
-              {/* What's included — tags only, no amount inputs */}
-              <div>
-                <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-                  What's included in this payment?
-                  <span className="text-surface-400 font-normal ml-1">(optional)</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {FEE_COMPONENTS.map(item => {
-                    const active = includedTags.has(item.key);
-                    return (
-                      <motion.button key={item.key} whileTap={{ scale: 0.95 }} onClick={() => toggleIncludedTag(item.key)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                          active
-                            ? item.isNegative
-                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-400 dark:ring-emerald-600'
-                              : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-2 ring-primary-400 dark:ring-primary-600'
-                            : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
-                        }`}>
-                        {active && <Check className="w-3.5 h-3.5" />}
-                        <span>{item.icon}</span>
-                        <span>{item.label}</span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-                {includedTags.size > 0 && (
-                  <p className="text-xs text-surface-400 mt-2">{includedTags.size} component{includedTags.size > 1 ? 's' : ''} included</p>
-                )}
+            {/* Amount input */}
+            <div>
+              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Amount Paid *</label>
+              <div className={`flex items-center border-2 rounded-xl px-4 py-3 transition ${
+                errors.amount ? 'border-danger-500' : `${d ? 'border-surface-800' : 'border-surface-200'} focus-within:border-primary-500`
+              } ${d ? 'bg-surface-900' : 'bg-white'}`}>
+                <span className="text-xl text-surface-400 mr-2">৳</span>
+                <input type="text" inputMode="decimal" placeholder="0" value={amountPaid}
+                  onChange={(e) => { setAmountPaid(sanitize(e.target.value)); if (errors.amount) setErrors({}); }}
+                  className={`text-2xl font-semibold bg-transparent outline-none w-full ${d ? 'text-white' : 'text-surface-900'}`} />
               </div>
-            </motion.div>
-          </AnimatePresence>
+              {errors.amount && <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>}
+            </div>
+
+            {/* What's included — tags only */}
+            <div>
+              <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                What's included?
+                <span className="text-surface-400 font-normal ml-1">(optional)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {FEE_COMPONENTS.map(item => {
+                  const active = includedTags.has(item.key);
+                  return (
+                    <motion.button key={item.key} whileTap={{ scale: 0.95 }} onClick={() => toggleIncludedTag(item.key)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                        active
+                          ? item.isNegative
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-400 dark:ring-emerald-600'
+                            : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-2 ring-primary-400 dark:ring-primary-600'
+                          : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                      }`}>
+                      {active && <Check className="w-3.5 h-3.5" />}
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════
-             BREAKDOWN ENTRY MODE
-             ═══════════════════════════════════════════════════════ */}
+        {/* ── BREAKDOWN ENTRY ── */}
         {entryMode === 'breakdown' && (
-          <AnimatePresence mode="wait">
-            <motion.div key="breakdown-mode" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-5">
-              {/* Component selector */}
-              <div>
-                <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-                  Select fee components
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {FEE_COMPONENTS.map(item => {
-                    const active = selectedComponents.has(item.key);
-                    return (
-                      <motion.button key={item.key} whileTap={{ scale: 0.95 }} onClick={() => toggleBreakdownComponent(item.key)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                          active
-                            ? item.isNegative
-                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-400 dark:ring-emerald-600'
-                              : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-2 ring-primary-400 dark:ring-primary-600'
-                            : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
-                        }`}>
-                        {active && <Check className="w-3.5 h-3.5" />}
-                        <span>{item.icon}</span>
-                        <span>{item.label}</span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-                {errors.amount && selectedComponents.size === 0 && (
-                  <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>
-                )}
+          <motion.div key="breakdown-mode" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+            {/* Component selector */}
+            <div>
+              <label className={`text-sm font-medium mb-3 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>Select fee components</label>
+              <div className="flex flex-wrap gap-2">
+                {FEE_COMPONENTS.map(item => {
+                  const active = selectedComponents.has(item.key);
+                  return (
+                    <motion.button key={item.key} whileTap={{ scale: 0.95 }} onClick={() => toggleBreakdownComponent(item.key)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                        active
+                          ? item.isNegative
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-400 dark:ring-emerald-600'
+                            : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-2 ring-primary-400 dark:ring-primary-600'
+                          : d ? 'bg-surface-800 text-surface-400 hover:bg-surface-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                      }`}>
+                      {active && <Check className="w-3.5 h-3.5" />}
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </motion.button>
+                  );
+                })}
               </div>
-
-              {/* Amount inputs for selected components */}
-              <AnimatePresence>
-                {selectedComponents.size > 0 && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className={`p-4 rounded-xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
-                    {FEE_COMPONENTS.filter(item => selectedComponents.has(item.key)).map(item => (
-                      <div key={item.key} className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 w-28 shrink-0">
-                          <span className="text-sm">{item.icon}</span>
-                          <label className={`text-sm ${item.isNegative ? 'text-emerald-600 dark:text-emerald-400' : d ? 'text-surface-300' : 'text-surface-700'}`}>
-                            {item.label}
-                          </label>
-                        </div>
-                        <div className={`flex-1 flex items-center border rounded-lg px-3 py-2.5 transition focus-within:border-primary-500 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
-                          <span className="text-surface-400 mr-1 text-sm">৳</span>
-                          <input type="text" inputMode="decimal" placeholder="0"
-                            value={componentAmounts[item.key] || ''}
-                            onChange={(e) => { setComponentAmounts(prev => ({ ...prev, [item.key]: sanitize(e.target.value) })); if (errors.amount) setErrors({}); }}
-                            className={`w-full bg-transparent outline-none text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`} />
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Auto-calculated total */}
-                    <div className={`pt-3 border-t ${d ? 'border-surface-700' : 'border-surface-200'}`}>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Total</span>
-                        <span className={`text-xl font-bold ${finalAmount > 0 ? 'text-primary-600' : 'text-surface-400'}`}>
-                          ৳{finalAmount.toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-surface-400 mt-1">This total will be saved as your payment amount</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {errors.amount && selectedComponents.size > 0 && finalAmount <= 0 && (
-                <p className="text-xs text-danger-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>
+              {errors.amount && selectedComponents.size === 0 && (
+                <p className="text-xs text-danger-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>
               )}
-            </motion.div>
-          </AnimatePresence>
+            </div>
+
+            {/* Amount inputs — only for selected components */}
+            {selectedComponents.size > 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className={`p-4 rounded-xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+                {FEE_COMPONENTS.filter(item => selectedComponents.has(item.key)).map(item => (
+                  <div key={item.key} className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 w-28 shrink-0">
+                      <span className="text-sm">{item.icon}</span>
+                      <label className={`text-sm ${item.isNegative ? 'text-emerald-600 dark:text-emerald-400' : d ? 'text-surface-300' : 'text-surface-700'}`}>{item.label}</label>
+                    </div>
+                    <div className={`flex-1 flex items-center border rounded-lg px-3 py-2.5 transition focus-within:border-primary-500 ${d ? 'border-surface-700 bg-surface-800' : 'border-surface-200 bg-surface-50'}`}>
+                      <span className="text-surface-400 mr-1 text-sm">৳</span>
+                      <input type="text" inputMode="decimal" placeholder="0"
+                        value={componentAmounts[item.key] || ''}
+                        onChange={(e) => { setComponentAmounts(prev => ({ ...prev, [item.key]: sanitize(e.target.value) })); if (errors.amount) setErrors({}); }}
+                        className={`w-full bg-transparent outline-none text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`} />
+                    </div>
+                  </div>
+                ))}
+                <div className={`pt-3 border-t ${d ? 'border-surface-700' : 'border-surface-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${d ? 'text-surface-300' : 'text-surface-700'}`}>Calculated Total</span>
+                    <span className={`text-xl font-bold ${finalAmount > 0 ? 'text-primary-600' : 'text-surface-400'}`}>৳{finalAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {errors.amount && selectedComponents.size > 0 && finalAmount <= 0 && (
+              <p className="text-xs text-danger-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount}</p>
+            )}
+          </motion.div>
         )}
 
-        {/* ═══ INSTALLMENT CONFIG ═══ */}
-        {paymentStyle === 'installment' && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+        {/* ══════════════════════════════════════════════════════════
+             STEP 5: INSTALLMENT SPLIT (only after total is resolved)
+             ══════════════════════════════════════════════════════════ */}
+        {paymentStyle === 'installment' && finalAmount > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             className={`p-4 rounded-2xl border space-y-4 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Split into installments</p>
-                <p className="text-xs text-surface-500 mt-0.5">
-                  {finalAmount > 0
-                    ? `Splitting ৳${finalAmount.toLocaleString()} from ${entryMode === 'breakdown' ? 'breakdown total' : 'amount paid'}`
-                    : entryMode === 'breakdown' ? 'Add breakdown amounts first' : 'Enter amount first'
-                  }
-                </p>
+                <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Split ৳{finalAmount.toLocaleString()} into parts</p>
+                <p className="text-xs text-surface-500 mt-0.5">Choose number of installments</p>
               </div>
               <div className="flex gap-2">
                 {[2, 3, 4].map(n => (
@@ -553,84 +534,65 @@ export const SemesterPaymentPage = () => {
               </div>
             </div>
 
-            {/* Installment schedule — shows when amount is entered */}
             {installments.length > 0 && (
               <>
                 <div className={`h-px ${d ? 'bg-surface-800' : 'bg-surface-200'}`} />
                 <div className="space-y-2.5">
                   {installments.map((inst, i) => (
                     <div key={i} className={`flex items-center gap-3 p-2.5 rounded-xl ${d ? 'bg-surface-800/50' : 'bg-surface-50'}`}>
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${d ? 'bg-surface-700 text-surface-300' : 'bg-surface-200 text-surface-600'}`}>
-                        {inst.part}
-                      </div>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${d ? 'bg-surface-700 text-surface-300' : 'bg-surface-200 text-surface-600'}`}>{inst.part}</div>
                       <div className="flex-1">
                         <p className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>৳{inst.amount.toLocaleString()}</p>
-                        <p className="text-xs text-surface-500">
-                          Due {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
+                        <p className="text-xs text-surface-500">Due {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className={`pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-surface-500">Total across parts</span>
-                    <span className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>৳{installmentsTotal.toLocaleString()}</span>
-                  </div>
-                </div>
               </>
-            )}
-
-            {finalAmount <= 0 && (
-              <p className={`text-xs text-center py-2 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                {entryMode === 'breakdown'
-                  ? 'Select components and enter amounts to generate schedule'
-                  : 'Enter payment amount above to generate schedule'
-                }
-              </p>
             )}
           </motion.div>
         )}
 
-        {/* ═══ SHARED: Due Date + Note ═══ */}
-        <div className="space-y-4">
-          <div>
-            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-              Due Date <span className="text-surface-400 font-normal ml-1">(optional)</span>
-            </label>
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
-          </div>
-          <div>
-            <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
-              Note <span className="text-surface-400 font-normal ml-1">(optional)</span>
-            </label>
-            <input type="text" placeholder="e.g., Paid via bKash" maxLength={100} value={note} onChange={(e) => setNote(e.target.value)} className={inputCls} />
-            {note.length > 80 && <p className="text-xs text-surface-400 mt-1 text-right">{note.length}/100</p>}
-          </div>
-        </div>
+        {/* ══════════════════════════════════════════════════════════
+             STEP 6: META (only after total is resolved)
+             ══════════════════════════════════════════════════════════ */}
+        {finalAmount > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            <div>
+              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                Due Date <span className="text-surface-400 font-normal ml-1">(optional)</span>
+              </label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className={`text-sm font-medium mb-2 block ${d ? 'text-surface-300' : 'text-surface-700'}`}>
+                Note <span className="text-surface-400 font-normal ml-1">(optional)</span>
+              </label>
+              <input type="text" placeholder="e.g., Paid via bKash" maxLength={100} value={note} onChange={(e) => setNote(e.target.value)} className={inputCls} />
+            </div>
+          </motion.div>
+        )}
       </main>
 
-      {/* ═══ SAVE BUTTON ═══ */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-t border-surface-200 dark:border-surface-800">
-        <div className="max-w-md mx-auto">
-          {finalAmount > 0 && (
+      {/* ══════════════════════════════════════════════════════════
+           SAVE BUTTON (only after total is resolved)
+           ══════════════════════════════════════════════════════════ */}
+      {finalAmount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-t border-surface-200 dark:border-surface-800">
+          <div className="max-w-md mx-auto">
             <div className="flex items-center justify-between mb-3 px-1">
               <div>
                 <span className="text-sm text-surface-500">
-                  {paymentStyle === 'full' ? 'Full Payment' : paymentStyle === 'installment' ? `Installment (${installmentCount} parts)` : 'Partial Payment'}
+                  {paymentStyle === 'full' ? 'Full Payment' : paymentStyle === 'installment' ? `${installmentCount} Installments` : 'Partial Payment'}
                 </span>
-                <span className="text-xs text-surface-400 ml-1.5">
-                  · {entryMode === 'breakdown' ? 'from breakdown' : 'total'}
-                </span>
+                <span className="text-xs text-surface-400 ml-1.5">· {entryMode === 'breakdown' ? 'breakdown' : 'total'}</span>
               </div>
               <span className="text-lg font-bold text-primary-600">৳{finalAmount.toLocaleString()}</span>
             </div>
-          )}
-          <GButton fullWidth size="lg" onClick={handleSave} loading={saving} disabled={saving || finalAmount <= 0}>
-            Save Payment
-          </GButton>
+            <GButton fullWidth size="lg" onClick={handleSave} loading={saving} disabled={saving}>Save Payment</GButton>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Receipt Scanner */}
       {isMobile && (
