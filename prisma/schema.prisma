@@ -15,7 +15,6 @@ model User {
   institution       String?
   classLevel        String?
   currency          String     @default("BDT")
-  familyCode        String?
   pin               String?
   parentPin         String?
   isLoggedIn        Boolean    @default(false)
