@@ -38,7 +38,7 @@ export const LandingPage = () => {
     window.google.accounts.id.renderButton(googleBtnRef.current, {
       theme: 'outline',
       size: 'large',
-      width: 280,
+      width: 340,
       text: 'continue_with',
       shape: 'rectangular',
       logo_alignment: 'left',
@@ -58,7 +58,6 @@ export const LandingPage = () => {
       }));
       addToast("Signed in with Google!", "success");
       if (result.id) await loadUserData(result.id);
-      // New user → role selection; returning user → dashboard (replace to prevent back to landing)
       if (result.profileComplete) {
         navigate("dashboard", { replace: true });
       } else {
@@ -90,162 +89,152 @@ export const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-[#09090f] relative overflow-hidden">
-      {/* Background gradient orbs */}
-      <div className="absolute top-[-100px] left-[30%] w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(99,102,241,.12),transparent_70%)] pointer-events-none" />
-      <div className="absolute bottom-[-50px] right-[10%] w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(168,85,247,.08),transparent_70%)] pointer-events-none" />
+      <div className="absolute top-[-100px] left-[30%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(99,102,241,.15),transparent_70%)] pointer-events-none" />
+      <div className="absolute bottom-[-100px] right-[5%] w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(168,85,247,.1),transparent_70%)] pointer-events-none" />
 
-      <div className="relative z-10 min-h-screen grid grid-cols-1 lg:grid-cols-2">
+      <div className="relative z-10 min-h-screen grid grid-cols-1 lg:grid-cols-[1fr_1.1fr]">
 
-        {/* ═══ LEFT — Brand Story (desktop only) ═══ */}
-        <div className="hidden lg:flex flex-col justify-center px-10 xl:px-16 py-12">
-          <div className="animate-landing-fade-up flex items-center gap-2 px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/15 rounded-full w-fit mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-            <span className="text-xs text-indigo-300 font-medium">Trusted by 500+ students</span>
-          </div>
-
-          <h1 className="animate-landing-fade-up-d1 text-4xl xl:text-[42px] font-extrabold leading-[1.15] tracking-tight text-white mb-4">
-            Track every taka<br />of your<br />
-            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">education journey</span>
-          </h1>
-
-          <p className="animate-landing-fade-up-d2 text-[15px] text-zinc-500 leading-relaxed mb-7 max-w-[380px]">
-            From semester fees to rickshaw fares — ClassCost helps Bangladesh students see exactly where their money goes.
-          </p>
-
-          <div className="animate-landing-fade-up-d3 flex gap-6 mb-8">
-            <div>
-              <div className="text-2xl font-bold text-white">৳2.4M+</div>
-              <div className="text-[11px] text-zinc-600">Expenses tracked</div>
+        {/* ═══ LEFT ═══ */}
+        <div className="hidden lg:flex flex-col justify-center pl-12 xl:pl-20 2xl:pl-28 pr-8 py-12">
+          <div className="max-w-[480px]">
+            <div className="animate-landing-fade-up flex items-center gap-2 px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/15 rounded-full w-fit mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+              <span className="text-xs text-indigo-300 font-medium">Trusted by 500+ students</span>
             </div>
-            <div className="w-px bg-zinc-800" />
-            <div>
-              <div className="text-2xl font-bold text-white">15+</div>
-              <div className="text-[11px] text-zinc-600">Universities</div>
-            </div>
-            <div className="w-px bg-zinc-800" />
-            <div>
-              <div className="text-2xl font-bold text-white">Free</div>
-              <div className="text-[11px] text-zinc-600">For students</div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {LANDING_CATEGORIES.map((cat, i) => (
-              <div key={cat.label} className="animate-landing-slide-in flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 bg-[#111118] border border-[#1e1e2a] rounded-xl"
-                style={{ animationDelay: `${i * 150}ms` }}>
-                <div className="w-[26px] h-[26px] rounded-lg flex items-center justify-center" style={{ background: cat.bgColor }}>
-                  {cat.icon}
-                </div>
-                <span className="text-xs text-zinc-400 font-medium">{cat.label}</span>
+            <h1 className="animate-landing-fade-up-d1 text-[40px] xl:text-[48px] 2xl:text-[54px] font-extrabold leading-[1.1] tracking-tight text-white mb-5">
+              Track every taka<br />of your{' '}
+              <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">education journey</span>
+            </h1>
+            <p className="animate-landing-fade-up-d2 text-base text-zinc-500 leading-relaxed mb-8 max-w-[420px]">
+              From semester fees to rickshaw fares — ClassCost helps Bangladesh students see exactly where their money goes.
+            </p>
+            <div className="animate-landing-fade-up-d3 flex gap-8 mb-10">
+              <div>
+                <div className="text-[28px] font-bold text-white">৳2.4M+</div>
+                <div className="text-xs text-zinc-600 mt-0.5">Expenses tracked</div>
               </div>
-            ))}
+              <div className="w-px bg-zinc-800" />
+              <div>
+                <div className="text-[28px] font-bold text-white">15+</div>
+                <div className="text-xs text-zinc-600 mt-0.5">Universities</div>
+              </div>
+              <div className="w-px bg-zinc-800" />
+              <div>
+                <div className="text-[28px] font-bold text-white">Free</div>
+                <div className="text-xs text-zinc-600 mt-0.5">For students</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              {LANDING_CATEGORIES.map((cat, i) => (
+                <div key={cat.label} className="animate-landing-slide-in flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 bg-[#111118] border border-[#1e1e2a] rounded-xl"
+                  style={{ animationDelay: `${i * 150}ms` }}>
+                  <div className="w-[26px] h-[26px] rounded-lg flex items-center justify-center" style={{ background: cat.bgColor }}>{cat.icon}</div>
+                  <span className="text-xs text-zinc-400 font-medium">{cat.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* ═══ RIGHT — Auth + Floating Cards ═══ */}
-        <div className="flex flex-col items-center justify-center px-5 py-12 lg:py-0 relative min-h-screen lg:min-h-0">
+        {/* ═══ RIGHT ═══ */}
+        <div className="flex items-center justify-center px-5 py-12 lg:py-0 min-h-screen lg:min-h-0">
+          <div className="relative">
 
-          {/* Floating data cards — desktop only */}
-          <div className="hidden lg:block absolute inset-0 overflow-hidden">
-            {/* Semester fee card — upper-left */}
-            <div className="absolute top-[15%] left-[8%] xl:left-[12%] animate-landing-float-1 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
-              <div className="text-[11px] text-zinc-600 mb-1">BRACU · Spring 2026</div>
-              <div className="text-lg font-bold text-white">৳85,000</div>
-              <div className="text-[10px] text-emerald-400 mt-0.5">✓ Semester fee paid</div>
-            </div>
-            {/* Monthly stats card — upper-right */}
-            <div className="absolute top-[8%] right-[12%] xl:right-[15%] animate-landing-float-2 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
-              <div className="text-[11px] text-zinc-600 mb-1">This month</div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-lg font-bold text-white">৳12,400</span>
-                <span className="text-[10px] text-red-400">↑ 8%</span>
+            {/* Floating cards — desktop only */}
+            <div className="hidden lg:block">
+              <div className="absolute -top-8 -left-28 xl:-left-36 animate-landing-float-1 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)] z-0">
+                <div className="text-[11px] text-zinc-600 mb-1">BRACU · Spring 2026</div>
+                <div className="text-lg font-bold text-white">৳85,000</div>
+                <div className="text-[10px] text-emerald-400 mt-0.5">✓ Semester fee paid</div>
               </div>
-              <div className="flex gap-[3px] mt-1.5">
-                {[16, 24, 12, 28, 20].map((h, i) => (
-                  <div key={i} className={`w-5 rounded-sm ${i === 4 ? 'bg-purple-400' : 'bg-indigo-500'}`} style={{ height: `${h}px` }} />
-                ))}
-              </div>
-            </div>
-            {/* Today's expenses card — bottom-center */}
-            <div className="absolute bottom-[12%] left-[15%] xl:left-[20%] animate-landing-float-3 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
-              <div className="text-[11px] text-zinc-600 mb-2">Today</div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/></svg>
+              <div className="absolute -top-16 -right-20 xl:-right-28 animate-landing-float-2 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)] z-0">
+                <div className="text-[11px] text-zinc-600 mb-1">This month</div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg font-bold text-white">৳12,400</span>
+                  <span className="text-[10px] text-red-400">↑ 8%</span>
                 </div>
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-white">University Transport</div>
-                  <div className="text-[10px] text-zinc-600">CNG · 2:30 PM</div>
+                <div className="flex gap-[3px] mt-1.5">
+                  {[16, 24, 12, 28, 20].map((h, i) => (
+                    <div key={i} className={`w-5 rounded-sm ${i === 4 ? 'bg-purple-400' : 'bg-indigo-500'}`} style={{ height: `${h}px` }} />
+                  ))}
                 </div>
-                <div className="text-xs font-semibold text-white">৳50</div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-orange-500/15 flex items-center justify-center">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-white">Canteen</div>
-                  <div className="text-[10px] text-zinc-600">Lunch · 1:15 PM</div>
-                </div>
-                <div className="text-xs font-semibold text-white">৳120</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile hero */}
-          <div className="lg:hidden text-center mb-8">
-            <Logo size={56} animated className="mb-4 mx-auto rounded-2xl" />
-            <h1 className="text-white text-2xl font-bold tracking-tight mb-1">ClassCost</h1>
-            <p className="text-zinc-500 text-sm">Smart expense tracking for students</p>
-          </div>
-
-          {/* ═══ AUTH CARD ═══ */}
-          <div className="w-full max-w-[340px] lg:max-w-[400px] bg-[#111118] border border-[#1e1e2a] rounded-[20px] p-7 lg:p-9 relative z-10 shadow-[0_16px_48px_rgba(0,0,0,.4)]">
-            <div className="text-center mb-5">
-              <div className="flex justify-center mb-3">
-                <Logo size={44} animated className="rounded-[14px]" />
-              </div>
-              <h2 className="text-white text-lg font-bold">Get started</h2>
-              <p className="text-zinc-600 text-xs mt-0.5">Sign in or create an account</p>
-            </div>
-
-            {GOOGLE_CLIENT_ID && (
-              <>
-                <div ref={googleBtnRef} className="flex justify-center mb-3" style={{ minHeight: 44 }} />
-                {gLoading && (
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
-                    <span className="text-zinc-500 text-xs">Signing in...</span>
+              <div className="absolute -bottom-12 -left-20 xl:-left-28 animate-landing-float-3 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)] z-0">
+                <div className="text-[11px] text-zinc-600 mb-2">Today</div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/></svg>
                   </div>
-                )}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex-1 h-px bg-zinc-800" />
-                  <span className="text-zinc-600 text-[11px]">or</span>
-                  <div className="flex-1 h-px bg-zinc-800" />
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-white">University Transport</div>
+                    <div className="text-[10px] text-zinc-600">CNG · 2:30 PM</div>
+                  </div>
+                  <div className="text-xs font-semibold text-white">৳50</div>
                 </div>
-              </>
-            )}
-
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email address"
-              onKeyDown={(e) => e.key === "Enter" && handleContinue()}
-              className="w-full rounded-xl bg-[#1a1a24] border border-zinc-800 py-3 px-4 text-white placeholder-zinc-600 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition mb-2.5" />
-
-            <button onClick={handleContinue} disabled={loading}
-              className="w-full text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 bg-indigo-600 hover:bg-indigo-500 text-white">
-              {loading ? <><div className="w-4 h-4 border-2 border-indigo-300 border-t-white rounded-full animate-spin" />Sending code...</> : "Continue with Email"}
-            </button>
-
-            <p className="text-zinc-700 text-[11px] text-center mt-2.5">We'll send a 6-digit code</p>
-          </div>
-
-          {/* Mobile pills */}
-          <div className="lg:hidden flex flex-wrap justify-center gap-2 mt-6">
-            {LANDING_CATEGORIES.map((cat) => (
-              <div key={cat.label} className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 bg-[#111118] border border-[#1e1e2a] rounded-lg">
-                <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: cat.bgColor }}>{cat.icon}</div>
-                <span className="text-[10px] text-zinc-500">{cat.label}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-orange-500/15 flex items-center justify-center">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-white">Canteen</div>
+                    <div className="text-[10px] text-zinc-600">Lunch · 1:15 PM</div>
+                  </div>
+                  <div className="text-xs font-semibold text-white">৳120</div>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Mobile hero */}
+            <div className="lg:hidden text-center mb-8">
+              <Logo size={56} animated className="mb-4 mx-auto rounded-2xl" />
+              <h1 className="text-white text-2xl font-bold tracking-tight mb-1">ClassCost</h1>
+              <p className="text-zinc-500 text-sm">Smart expense tracking for students</p>
+            </div>
+
+            {/* AUTH CARD */}
+            <div className="w-full max-w-[340px] lg:max-w-none lg:w-[400px] xl:w-[420px] bg-[#111118] border border-[#1e1e2a] rounded-[20px] p-7 lg:p-9 relative z-10 shadow-[0_16px_48px_rgba(0,0,0,.4)]">
+              <div className="text-center mb-5">
+                <div className="flex justify-center mb-3">
+                  <Logo size={48} animated className="rounded-[14px]" />
+                </div>
+                <h2 className="text-white text-lg lg:text-xl font-bold">Get started</h2>
+                <p className="text-zinc-600 text-xs mt-1">Sign in or create an account</p>
+              </div>
+              {GOOGLE_CLIENT_ID && (
+                <>
+                  <div ref={googleBtnRef} className="flex justify-center mb-3" style={{ minHeight: 44 }} />
+                  {gLoading && (
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
+                      <span className="text-zinc-500 text-xs">Signing in...</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex-1 h-px bg-zinc-800" />
+                    <span className="text-zinc-600 text-[11px]">or</span>
+                    <div className="flex-1 h-px bg-zinc-800" />
+                  </div>
+                </>
+              )}
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email address"
+                onKeyDown={(e) => e.key === "Enter" && handleContinue()}
+                className="w-full rounded-xl bg-[#1a1a24] border border-zinc-800 py-3 px-4 text-white placeholder-zinc-600 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition mb-3" />
+              <button onClick={handleContinue} disabled={loading}
+                className="w-full text-sm font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 bg-indigo-600 hover:bg-indigo-500 text-white">
+                {loading ? <><div className="w-4 h-4 border-2 border-indigo-300 border-t-white rounded-full animate-spin" />Sending code...</> : "Continue with Email"}
+              </button>
+              <p className="text-zinc-700 text-[11px] text-center mt-3">We'll send a 6-digit code</p>
+            </div>
+
+            {/* Mobile pills */}
+            <div className="lg:hidden flex flex-wrap justify-center gap-2 mt-6">
+              {LANDING_CATEGORIES.map((cat) => (
+                <div key={cat.label} className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 bg-[#111118] border border-[#1e1e2a] rounded-lg">
+                  <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: cat.bgColor }}>{cat.icon}</div>
+                  <span className="text-[10px] text-zinc-500">{cat.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
