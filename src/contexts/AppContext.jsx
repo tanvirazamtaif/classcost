@@ -144,12 +144,13 @@ export const AppProvider = ({ children }) => {
   // Sync user data from server on login
   const loadUserData = useCallback(async (userId) => {
     try {
-      const [expData, semData, loanData, setData, housingData] = await Promise.all([
+      const [expData, semData, loanData, setData, housingData, clubData] = await Promise.all([
         api.getExpenses(userId),
         api.getSemesters(userId),
         api.getLoans(userId),
         api.getSettings(userId),
         api.getHousings(userId),
+        api.getClubs(userId),
       ]);
       // Map DB fields back to frontend fields: note→details, meta.label→label
       setExpensesLocal((expData || []).map(exp => ({
@@ -160,6 +161,7 @@ export const AppProvider = ({ children }) => {
       setSemestersLocal(semData);
       setLoansLocal(loanData);
       setHousingsLocal(housingData || []);
+      setClubsLocal(clubData || []);
       if (setData?.notifications) setNotificationsLocal(setData.notifications);
 
       // Migrate housing from localStorage to DB (one-time)
@@ -175,6 +177,20 @@ export const AppProvider = ({ children }) => {
             api.getHousings(userId).then(d => setHousingsLocal(d || []));
           })
           .catch(e => console.error('Housing migration failed:', e));
+      }
+
+      // Migrate clubs from localStorage to DB (one-time)
+      const localClubs = (() => {
+        try { return JSON.parse(localStorage.getItem('ut_v3_clubs') || '[]'); }
+        catch { return []; }
+      })();
+      if (localClubs.length > 0 && (!clubData || clubData.length === 0)) {
+        Promise.all(localClubs.map(c => api.createClub(userId, c)))
+          .then(() => {
+            localStorage.removeItem('ut_v3_clubs');
+            api.getClubs(userId).then(d => setClubsLocal(d || []));
+          })
+          .catch(e => console.error('Club migration failed:', e));
       }
     } catch (e) {
       console.error('Failed to load user data:', e);
@@ -313,17 +329,29 @@ export const AppProvider = ({ children }) => {
     catch (e) { console.error('Failed to delete housing:', e); }
   }, []);
 
-  // Helper: add club (client-only for now, no API)
-  const addClub = useCallback((club) => {
+  // Helper: add club and sync to server
+  const addClub = useCallback(async (club) => {
     setClubsLocal(prev => [...prev, club]);
-  }, []);
+    if (user?.id) {
+      try { await api.createClub(user.id, club); }
+      catch (e) { console.error('Failed to sync club:', e); }
+    }
+  }, [user?.id]);
 
-  const updateClub = useCallback((id, updates) => {
+  // Helper: update club and sync to server
+  const updateClub = useCallback(async (id, updates) => {
     setClubsLocal(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  }, []);
+    try {
+      const current = clubs.find(c => c.id === id);
+      await api.updateClubApi(id, { ...current, ...updates });
+    } catch (e) { console.error('Failed to update club:', e); }
+  }, [clubs]);
 
-  const removeClub = useCallback((id) => {
+  // Helper: remove club and sync to server
+  const removeClub = useCallback(async (id) => {
     setClubsLocal(prev => prev.filter(c => c.id !== id));
+    try { await api.deleteClub(id); }
+    catch (e) { console.error('Failed to delete club:', e); }
   }, []);
 
   // Helper: add semester and sync

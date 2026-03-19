@@ -78,6 +78,19 @@ export const OnboardingWizard = () => {
       if (instCheck.warning) addToast(instCheck.warning, "warning");
     }
 
+    // Build institutions array — include onboarding institution
+    const existingInstitutions = user?.profile?.institutions || [];
+    const newInstitutions = [...existingInstitutions];
+    if (form.institutionName && !existingInstitutions.some(i => i.name.toLowerCase() === form.institutionName.toLowerCase())) {
+      newInstitutions.push({
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+        name: form.institutionName,
+        type: mod?.group || 'university',
+        addedAt: new Date().toISOString(),
+        source: 'onboarding',
+      });
+    }
+
     setUser((p) => ({
       ...p,
       name: form.fullName,
@@ -89,6 +102,7 @@ export const OnboardingWizard = () => {
         educationLevel: form.educationLevel,
         institutionName: form.institutionName,
         institutionType: form.variant || null,
+        institutions: newInstitutions,
       },
       profileComplete: true,
       onboardingStep: STEPS.length,

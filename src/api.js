@@ -259,12 +259,12 @@ export async function getClubs(userId) {
   return request(`/api/clubs/${userId}`);
 }
 
-export async function createClub(data) {
-  return request('/api/clubs', { method: 'POST', body: JSON.stringify(data) });
+export async function createClub(userId, club) {
+  return request('/api/clubs', { method: 'POST', body: JSON.stringify({ userId, club }) });
 }
 
-export async function updateClub(id, data) {
-  return request(`/api/clubs/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export async function updateClubApi(id, club) {
+  return request(`/api/clubs/${id}`, { method: 'PUT', body: JSON.stringify({ club }) });
 }
 
 export async function deleteClub(id) {
