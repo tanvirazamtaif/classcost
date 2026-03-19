@@ -17,6 +17,11 @@ const eventRoutes = require('./routes/events.cjs');
 const uniformRoutes = require('./routes/uniforms.cjs');
 const educationFeeRoutes = require('./routes/educationFees.cjs');
 const housingRoutes = require('./routes/housing.cjs');
+const entityRoutes = require('./routes/entities.cjs');
+const trackerRoutes = require('./routes/trackers.cjs');
+const obligationRoutes = require('./routes/obligations.cjs');
+const ledgerRoutes = require('./routes/ledger.cjs');
+const allocationRoutes = require('./routes/allocations.cjs');
 
 const app = express();
 
@@ -37,6 +42,11 @@ app.use('/api/events', eventRoutes);
 app.use('/api/uniforms', uniformRoutes);
 app.use('/api/education-fees', educationFeeRoutes);
 app.use('/api/housing', housingRoutes);
+app.use('/api/entities', entityRoutes);
+app.use('/api/trackers', trackerRoutes);
+app.use('/api/obligations', obligationRoutes);
+app.use('/api/ledger', ledgerRoutes);
+app.use('/api/allocations', allocationRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {

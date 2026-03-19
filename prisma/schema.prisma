@@ -8,26 +8,26 @@ datasource db {
 }
 
 model User {
-  id                String     @id @default(uuid())
-  email             String     @unique
-  name              String?
-  eduType           String?
-  institution       String?
-  classLevel        String?
-  currency          String     @default("BDT")
-  pin               String?
-  parentPin         String?
-  isLoggedIn        Boolean    @default(false)
-  profileComplete    Boolean    @default(false)
-  onboardingSkipped  Boolean    @default(false)
-  onboardingStep     Int        @default(0)
-  onboardingComplete Boolean    @default(false)
-  profile           Json?
-  premiumUntil      DateTime?
-  premiumSource     String?
-  lastLoginAt       DateTime?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  name               String?
+  eduType            String?
+  institution        String?
+  classLevel         String?
+  currency           String    @default("BDT")
+  pin                String?
+  parentPin          String?
+  isLoggedIn         Boolean   @default(false)
+  profileComplete    Boolean   @default(false)
+  onboardingSkipped  Boolean   @default(false)
+  onboardingStep     Int       @default(0)
+  onboardingComplete Boolean   @default(false)
+  profile            Json?
+  premiumUntil       DateTime?
+  premiumSource      String?
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   expenses        Expense[]
   semesters       Semester[]
@@ -41,18 +41,27 @@ model User {
   uniforms        Uniform[]
   educationFees   EducationFee[]
   housings        Housing[]
+
+  // v3 architecture relations
+  entities            Entity[]
+  trackers            Tracker[]
+  obligations         Obligation[]
+  ledgerEntries       LedgerEntry[]
+  allocationsReceived Allocation[]
+  linkedAsParent      LinkedAccount[] @relation("ParentLink")
+  linkedAsChild       LinkedAccount[] @relation("ChildLink")
 }
 
 model PromoCode {
-  id          String    @id @default(uuid())
-  code        String    @unique
-  description String?
-  durationDays Int      @default(30)
-  maxUses     Int       @default(100)
-  usedCount   Int       @default(0)
-  active      Boolean   @default(true)
-  expiresAt   DateTime?
-  createdAt   DateTime  @default(now())
+  id           String    @id @default(uuid())
+  code         String    @unique
+  description  String?
+  durationDays Int       @default(30)
+  maxUses      Int       @default(100)
+  usedCount    Int       @default(0)
+  active       Boolean   @default(true)
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
 }
 
 model Otp {
@@ -102,6 +111,8 @@ model Loan {
   payments          Json     @default("[]")
   startDate         String?
   createdAt         DateTime @default(now())
+
+  ledgerEntries LedgerEntry[]
 }
 
 model Settings {
@@ -115,17 +126,17 @@ model Settings {
 }
 
 model CoachingCenter {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  monthlyFee Float
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  monthlyFee  Float
   totalMonths Int?
-  monthsPaid  Int     @default(0)
-  startDate  DateTime
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  monthsPaid  Int      @default(0)
+  startDate   DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Batch {
@@ -143,31 +154,31 @@ model Batch {
 }
 
 model PrivateTutor {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tutorName      String
-  subject        String
-  monthlyFee     Float
-  paymentType    String
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutorName       String
+  subject         String
+  monthlyFee      Float
+  paymentType     String
   sessionsPerWeek Int?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Club {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institutionName String    @default("")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionName String   @default("")
   name            String
   data            Json?
   fee             Float?
   frequency       String?
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Event {
@@ -195,24 +206,220 @@ model Uniform {
 }
 
 model EducationFee {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   feeType   String
-  data      Json      // Full complex fee object (payments, periodStatus, installments, etc.)
-  isDeleted Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  data      Json // Full complex fee object (payments, periodStatus, installments, etc.)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Housing {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   housingType String
   name        String
-  data        Json      // Full setup object: monthlyRent, deposit, moveInDate, status, etc.
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  data        Json // Full setup object: monthlyRent, deposit, moveInDate, status, etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── V3 ARCHITECTURE ENUMS ─────────────────────────────────────────────────
+
+enum EntityType {
+  INSTITUTION
+  RESIDENCE
+  COACHING
+}
+
+enum TrackerType {
+  SEMESTER
+  MONTHLY
+  ONE_TIME
+  CUSTOM
+}
+
+enum TrackerStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ObligationStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  WAIVED
+  CANCELLED
+}
+
+enum LedgerType {
+  EXPENSE
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+  TRANSFER
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerStatus {
+  CONFIRMED
+  PENDING
+  VOID
+}
+
+// ─── V3 ARCHITECTURE MODELS ────────────────────────────────────────────────
+
+// Section 1: Entity — represents a real-world place the student pays money to
+model Entity {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       EntityType
+  name       String
+  shortName  String?
+  meta       Json? // address, logo URL, contact info, etc.
+  isActive   Boolean    @default(true)
+  archivedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  trackers    Tracker[]
+  obligations Obligation[]
+
+  @@index([userId, type])
+  @@index([userId, isActive])
+}
+
+// Section 2: Tracker — a time-bound cost container (e.g. "Fall 2025 semester")
+model Tracker {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityId    String
+  entity      Entity        @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  type        TrackerType
+  label       String
+  startDate   DateTime
+  endDate     DateTime?
+  status      TrackerStatus @default(ACTIVE)
+  meta        Json? // credits, semester number, custom fields
+  budgetMinor Int? // optional budget cap in minor units
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  obligations   Obligation[]
+  ledgerEntries LedgerEntry[]
+
+  @@index([userId, status])
+  @@index([entityId, status])
+  @@index([userId, entityId])
+}
+
+// Section 3: Obligation — a known upcoming cost (e.g. "Tuition ৳85,000 due Jan 15")
+model Obligation {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityId       String?
+  entity         Entity?          @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  trackerId      String?
+  tracker        Tracker?         @relation(fields: [trackerId], references: [id], onDelete: SetNull)
+  category       String // from categories registry
+  label          String
+  amountMinor    Int // total obligation in minor units
+  paidMinor      Int              @default(0)
+  dueDate        DateTime?
+  status         ObligationStatus @default(PENDING)
+  waiverPct      Int              @default(0) // 0-100
+  isRecurring    Boolean          @default(false)
+  recurrenceRule String? // iCal RRULE or simple: "MONTHLY", "SEMESTER"
+  parentId       String? // self-relation for installment splits
+  parent         Obligation?      @relation("InstallmentSplit", fields: [parentId], references: [id])
+  installments   Obligation[]     @relation("InstallmentSplit")
+  meta           Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  ledgerEntries LedgerEntry[]
+
+  @@index([userId, status])
+  @@index([trackerId, status])
+  @@index([userId, dueDate])
+  @@index([userId, category])
+  @@index([parentId])
+}
+
+// Section 4: LedgerEntry — every money movement, immutable record
+model LedgerEntry {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackerId       String?
+  tracker         Tracker?        @relation(fields: [trackerId], references: [id], onDelete: SetNull)
+  obligationId    String?
+  obligation      Obligation?     @relation(fields: [obligationId], references: [id], onDelete: SetNull)
+  type            LedgerType
+  direction       LedgerDirection
+  category        String
+  subCategory     String?
+  amountMinor     Int
+  baseAmountMinor Int? // amount in user's home currency, for multi-currency
+  currency        String          @default("BDT")
+  status          LedgerStatus    @default(CONFIRMED)
+  date            DateTime
+  note            String?
+  receiptUrl      String?
+  sourceRef       String? // migration traceability, receipt provenance
+  loanId          String?
+  loan            Loan?           @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  meta            Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  allocations Allocation[]
+
+  @@index([userId, date])
+  @@index([userId, category])
+  @@index([trackerId, date])
+  @@index([obligationId])
+  @@index([userId, type, date])
+  @@index([loanId])
+}
+
+// Section 5: Allocation — splits a payment across family members
+model Allocation {
+  id            String      @id @default(cuid())
+  ledgerEntryId String
+  ledgerEntry   LedgerEntry @relation(fields: [ledgerEntryId], references: [id], onDelete: Cascade)
+  toUserId      String
+  toUser        User        @relation(fields: [toUserId], references: [id], onDelete: Cascade)
+  amountMinor   Int
+  note          String?
+  createdAt     DateTime    @default(now())
+
+  @@index([ledgerEntryId])
+  @@index([toUserId])
+}
+
+// Section 6: LinkedAccount — parent↔child family linking
+model LinkedAccount {
+  id        String   @id @default(cuid())
+  parentId  String
+  parent    User     @relation("ParentLink", fields: [parentId], references: [id], onDelete: Cascade)
+  childId   String
+  child     User     @relation("ChildLink", fields: [childId], references: [id], onDelete: Cascade)
+  role      String   @default("viewer") // viewer, editor, admin
+  createdAt DateTime @default(now())
+
+  @@unique([parentId, childId])
 }

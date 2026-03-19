@@ -1,6 +1,8 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { EducationFeeProvider } from './contexts/EducationFeeContext';
+import { V3Provider } from './contexts/V3Context';
+import { isEnabled } from './lib/featureFlags';
 import { ErrorBoundary, RoleSelection } from './components/feature';
 import { ToastContainer, DashboardSkeleton, ReportsSkeleton, LoadingOverlay } from './components/ui';
 import { Header, LayoutBottomNav, Sidebar } from './components/layout';
@@ -14,6 +16,7 @@ const OnboardingWizard = lazy(() => import('./pages/OnboardingWizard').then(m =>
 const ParentOnboardingView = lazy(() => import('./pages/ParentOnboardingView'));
 const DashboardView = lazy(() => import('./pages/DashboardView').then(m => ({ default: m.DashboardView })));
 const ParentDashboardView = lazy(() => import('./pages/ParentDashboardView'));
+const DashboardV3 = lazy(() => import('./pages/DashboardV3'));
 const ReportsView = lazy(() => import('./pages/ReportsView').then(m => ({ default: m.ReportsView })));
 const SettingsView = lazy(() => import('./pages/SettingsView'));
 const LoansView = lazy(() => import('./pages/LoansView'));
@@ -32,6 +35,7 @@ const AddHousingPage = lazy(() => import('./pages/AddHousingPage'));
 const HousingDetailPage = lazy(() => import('./pages/HousingDetailPage'));
 const EducationHomePage = lazy(() => import('./pages/EducationHomePage'));
 const InstitutionDetailPage = lazy(() => import('./pages/InstitutionDetailPage'));
+const EntityDetailV3 = lazy(() => import('./pages/EntityDetailV3'));
 const GeneralCostTrackerPage = lazy(() => import('./pages/GeneralCostTrackerPage'));
 const ClubDetailPage = lazy(() => import('./pages/ClubDetailPage'));
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
@@ -93,7 +97,11 @@ const ViewRouter = () => {
         {view === "parent-onboarding" && <ParentOnboardingView />}
         {view === "education-setup" && <EducationSetupView />}
         {view === "historical-data" && <HistoricalDataView />}
-        {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
+        {view === "dashboard" && (
+          isEnabled('USE_NEW_ARCHITECTURE')
+            ? <DashboardV3 />
+            : (isParent ? <ParentDashboardView /> : <DashboardView />)
+        )}
         {view === "education-fee-form" && <EducationFeeFormPage />}
         {view === "semester-landing" && <SemesterLandingPage />}
         {view === "add-semester" && <AddSemesterPage />}
@@ -104,7 +112,11 @@ const ViewRouter = () => {
         {view === "add-housing" && <AddHousingPage />}
         {view === "housing-detail" && <HousingDetailPage />}
         {view === "education-home" && <EducationHomePage />}
-        {view === "institution-detail" && <InstitutionDetailPage />}
+        {view === "institution-detail" && (
+          isEnabled('USE_NEW_ARCHITECTURE')
+            ? <EntityDetailV3 />
+            : <InstitutionDetailPage />
+        )}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
         {view === "club-detail" && <ClubDetailPage />}
         {["reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
@@ -142,7 +154,9 @@ export default function App() {
         `}</style>
         <AppProvider>
           <EducationFeeProvider>
-            <ViewRouter />
+            <V3Provider>
+              <ViewRouter />
+            </V3Provider>
           </EducationFeeProvider>
         </AppProvider>
       </div>

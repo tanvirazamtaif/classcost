@@ -12,3 +12,4 @@ export { ExpenseDetailSheet } from './ExpenseDetailSheet';
 export { PaymentCard } from './PaymentCard';
 export { ExpenseChart } from './ExpenseChart';
 export { QuickEntrySheet } from './QuickEntrySheet';
+export { AddPaymentV3 } from './AddPaymentV3';

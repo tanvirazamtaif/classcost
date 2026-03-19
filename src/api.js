@@ -315,3 +315,131 @@ export async function redeemPromoCode(userId, code) {
     body: JSON.stringify({ userId, code }),
   });
 }
+
+// ── v3: Entities ────────────────────────────────────────────────────────────
+
+export async function getEntities(userId) {
+  return request(`/api/entities/${userId}`);
+}
+
+export async function createEntity(userId, data) {
+  return request(`/api/entities/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateEntity(userId, id, data) {
+  return request(`/api/entities/${userId}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteEntity(userId, id) {
+  return request(`/api/entities/${userId}/${id}`, { method: 'DELETE' });
+}
+
+// ── v3: Trackers ────────────────────────────────────────────────────────────
+
+export async function getTrackers(userId) {
+  return request(`/api/trackers/${userId}`);
+}
+
+export async function getTrackersForEntity(userId, entityId) {
+  return request(`/api/trackers/${userId}/entity/${entityId}`);
+}
+
+export async function createTracker(userId, data) {
+  return request(`/api/trackers/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateTracker(userId, id, data) {
+  return request(`/api/trackers/${userId}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// ── v3: Obligations ─────────────────────────────────────────────────────────
+
+export async function getObligations(userId) {
+  return request(`/api/obligations/${userId}`);
+}
+
+export async function getUpcomingObligations(userId) {
+  return request(`/api/obligations/${userId}/upcoming`);
+}
+
+export async function createObligation(userId, data) {
+  return request(`/api/obligations/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateObligation(userId, id, data) {
+  return request(`/api/obligations/${userId}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function applyWaiver(userId, id, data) {
+  return request(`/api/obligations/${userId}/${id}/waiver`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function skipObligation(userId, id) {
+  return request(`/api/obligations/${userId}/${id}/skip`, { method: 'PATCH' });
+}
+
+// ── v3: Ledger ──────────────────────────────────────────────────────────────
+
+export async function getLedgerEntries(userId, params = {}) {
+  const query = new URLSearchParams();
+  if (params.cursor) query.set('cursor', params.cursor);
+  const base = params.entityId
+    ? `/api/ledger/${userId}/entity/${params.entityId}`
+    : params.trackerId
+      ? `/api/ledger/${userId}/tracker/${params.trackerId}`
+      : `/api/ledger/${userId}`;
+  const qs = query.toString();
+  return request(qs ? `${base}?${qs}` : base);
+}
+
+export async function getLedgerSummary(userId) {
+  return request(`/api/ledger/${userId}/summary`);
+}
+
+export async function createLedgerEntry(userId, data) {
+  return request(`/api/ledger/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function voidLedgerEntry(userId, id, reason) {
+  return request(`/api/ledger/${userId}/${id}/void`, {
+    method: 'PATCH',
+    body: JSON.stringify({ voidReason: reason }),
+  });
+}
+
+// ── v3: Allocations ─────────────────────────────────────────────────────────
+
+export async function getAllocationsForEntry(userId, entryId) {
+  return request(`/api/allocations/${userId}/entry/${entryId}`);
+}
+
+export async function createAllocation(userId, data) {
+  return request(`/api/allocations/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
