@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, AlertCircle, CreditCard } from 'lucide-react';
+import { Check, AlertCircle, CreditCard, ChevronRight } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { Header, LayoutBottomNav, Sidebar } from '../components/layout';
 import { FAB, GCard, GCardContent, GButton } from '../components/ui';
@@ -13,6 +13,11 @@ import { useEducationFees } from '../contexts/EducationFeeContext';
 import { STATUS_CONFIG } from '../types/educationFees';
 import { MarkPaidSheet } from '../components/education/MarkPaidSheet';
 import { SkipPeriodSheet } from '../components/education/SkipPeriodSheet';
+import { useUserProfile } from '../hooks/useUserProfile';
+
+// Icon maps for entity cards
+const INST_ICONS = { university: '🎓', school: '🏫', college: '🎒', coaching: '📖', madrasa: '🕌', polytechnic: '⚙️', default: '🏛️' };
+const HOUSING_ICONS = { apartment: '🏢', mess: '🏘️', hostel: '🏨', hotel: '🏩', dorm: '🛏️', other: '🏠' };
 
 // Category grid derived from shared registry (single source of truth)
 const CATEGORY_GRID = [
@@ -28,7 +33,7 @@ const CATEGORY_GRID = [
 // ═══════════════════════════════════════════════════════════════
 
 export const DashboardView = () => {
-  const { user, expenses, theme, navigate, getUpcomingPayments, markScheduledAsPaid, addExpense, addToast } = useApp();
+  const { user, expenses, theme, navigate, getUpcomingPayments, markScheduledAsPaid, addExpense, addToast, housings } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [preselectedCategory, setPreselectedCategory] = useState('');
@@ -39,13 +44,51 @@ export const DashboardView = () => {
   const [selectedExpense, setSelectedExpense] = useState(null);
   const d = theme === 'dark';
 
-  const { getUpcomingPayments: eduUpcoming, getOverduePayments: overduePayments, getTotalPaidThisMonth: eduMonthly } = useEducationFees();
+  const { getUpcomingPayments: eduUpcoming, getOverduePayments: overduePayments, getTotalPaidThisMonth: eduMonthly, activeFees } = useEducationFees();
+  const { institutionName, institutionType } = useUserProfile();
 
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || 'BDT');
   const currencySymbol = profile?.currency === 'USD' ? '$' : profile?.currency === 'INR' ? '₹' : '৳';
 
   useEffect(() => { document.title = "Dashboard — ClassCost"; }, []);
+
+  // ── Entity data for "My Places" tab ─────────────────────────
+  const institutions = useMemo(() => {
+    const instMap = new Map();
+    if (institutionName) {
+      instMap.set(institutionName.toLowerCase(), {
+        name: institutionName, type: user?.eduType || institutionType || 'university',
+        source: 'profile', feeCount: 0, totalPaid: 0,
+      });
+    }
+    activeFees.forEach(fee => {
+      const feeName = fee.name || fee.semester?.name;
+      if (!feeName || feeName === 'Semester Payment' || feeName === 'Payment') return;
+      const key = feeName.toLowerCase();
+      if (instMap.has(key)) {
+        const inst = instMap.get(key);
+        inst.feeCount++;
+        inst.totalPaid += (fee.payments || []).reduce((s, p) => s + (p.amount || 0), 0) || (fee.isPaid ? fee.amount || 0 : 0);
+      } else {
+        const isLikely = feeName.length > 3 && !/^(tuition|lab|exam|fee|payment|coaching)/i.test(feeName);
+        if (isLikely) {
+          instMap.set(key, {
+            name: feeName, type: fee.feeType === 'coaching' ? 'coaching' : 'university',
+            source: 'fees', feeCount: 1,
+            totalPaid: (fee.payments || []).reduce((s, p) => s + (p.amount || 0), 0) || (fee.isPaid ? fee.amount || 0 : 0),
+          });
+        }
+      }
+    });
+    return Array.from(instMap.values());
+  }, [activeFees, institutionName, user?.eduType, institutionType]);
+
+  const activeHousings = useMemo(() => (housings || []).filter(h => h.status === 'active'), [housings]);
+  const hasPlaces = institutions.length > 0 || activeHousings.length > 0;
+  const [activeTab, setActiveTab] = useState(null); // set after first render
+  useEffect(() => { if (activeTab === null) setActiveTab(hasPlaces ? 'places' : 'recent'); }, [hasPlaces]);
+  const tab = activeTab || 'recent';
 
   const totals = useMemo(() => {
     const all = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
@@ -137,6 +180,101 @@ export const DashboardView = () => {
 
         {/* ═══ QUICK ADD ═══ */}
         <QuickAddBar expenses={expenses} addExpense={addExpense} addToast={addToast} dark={d} />
+
+        {/* ═══ TAB BAR ═══ */}
+        <motion.div variants={fadeInUp} className="mb-4">
+          <div className={`flex border-b ${d ? 'border-surface-800' : 'border-surface-200'}`}>
+            {[
+              { id: 'places', label: 'My Places' },
+              { id: 'recent', label: 'Recent' },
+            ].map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                className={`flex-1 py-2.5 text-sm font-medium text-center transition-all ${
+                  tab === t.id
+                    ? `${d ? 'text-white' : 'text-surface-900'} border-b-2 border-primary-600`
+                    : `${d ? 'text-surface-500' : 'text-surface-400'} border-b-2 border-transparent`
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ═══ TAB: MY PLACES ═══ */}
+        {tab === 'places' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 mb-6">
+            {/* Institutions */}
+            {institutions.length > 0 && activeHousings.length > 0 && (
+              <p className={`text-xs font-medium uppercase tracking-wide ${d ? 'text-surface-500' : 'text-surface-400'}`}>🎓 Institutions</p>
+            )}
+            {institutions.length > 0 && (
+              <div className="space-y-2">
+                {institutions.map((inst, i) => (
+                  <motion.button key={inst.name} whileTap={{ scale: 0.98 }} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                    onClick={() => navigate('institution-detail', { params: { institutionName: inst.name, institutionType: inst.type } })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition ${
+                      d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
+                    }`}>
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base ${d ? 'bg-purple-900/30' : 'bg-purple-50'}`}>
+                      {INST_ICONS[inst.type] || INST_ICONS.default}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-surface-900'}`}>{inst.name}</p>
+                      <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>
+                        {inst.feeCount > 0 ? `${inst.feeCount} fee${inst.feeCount > 1 ? 's' : ''}` : 'No fees yet'}
+                        {inst.totalPaid > 0 ? ` · ৳${inst.totalPaid.toLocaleString()}` : ''}
+                      </p>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 shrink-0 ${d ? 'text-surface-600' : 'text-surface-400'}`} />
+                  </motion.button>
+                ))}
+              </div>
+            )}
+            {institutions.length === 0 && (
+              <button onClick={() => navigate('education-home')} className="text-xs font-medium text-primary-600">+ Add Institution</button>
+            )}
+
+            {/* Housing */}
+            {institutions.length > 0 && activeHousings.length > 0 && (
+              <p className={`text-xs font-medium uppercase tracking-wide ${d ? 'text-surface-500' : 'text-surface-400'}`}>🏠 Housing</p>
+            )}
+            {activeHousings.length > 0 && (
+              <div className="space-y-2">
+                {activeHousings.map((setup, i) => (
+                  <motion.button key={setup.id} whileTap={{ scale: 0.98 }} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                    onClick={() => navigate('housing-detail', { params: { housingId: setup.id } })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition ${
+                      d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
+                    }`}>
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base ${d ? 'bg-green-900/30' : 'bg-green-50'}`}>
+                      {HOUSING_ICONS[setup.type] || HOUSING_ICONS.other}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-surface-900'}`}>{setup.name}</p>
+                      <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>
+                        {setup.monthlyRent ? `৳${setup.monthlyRent.toLocaleString()}/mo` : 'No rent set'}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">Active</span>
+                  </motion.button>
+                ))}
+              </div>
+            )}
+            {activeHousings.length === 0 && (
+              <button onClick={() => navigate('add-housing')} className="text-xs font-medium text-primary-600">+ Add Housing</button>
+            )}
+
+            {!hasPlaces && (
+              <div className={`text-center py-8 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
+                <p className="text-sm">No institutions or housing set up yet</p>
+                <p className="text-xs mt-1">Add them from Education or Housing sections</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ═══ TAB: RECENT ═══ */}
+        {tab === 'recent' && <>
 
         {/* Upcoming Payments */}
         {(getUpcomingPayments?.() || []).length > 0 && (
@@ -350,6 +488,7 @@ export const DashboardView = () => {
             </GCard>
           )}
         </motion.section>
+        </>}
       </motion.main>
 
       <FAB onClick={() => setSheetOpen(true)} />
