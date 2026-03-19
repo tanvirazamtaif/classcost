@@ -27,7 +27,7 @@ const TYPE_META = {
 // ═══════════════════════════════════════════════════════════════
 
 export const HousingDetailPage = () => {
-  const { navigate, addToast, addExpense, theme, routeParams, expenses, housings, updateHousing } = useApp();
+  const { navigate, goBack, addToast, addExpense, theme, routeParams, expenses, housings, updateHousing } = useApp();
   const d = theme === 'dark';
 
   const { housingId } = routeParams || {};
@@ -197,7 +197,7 @@ export const HousingDetailPage = () => {
     return (
       <motion.div {...pageTransition} className={`min-h-screen flex flex-col items-center justify-center px-6 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
         <p className="text-surface-500 text-sm mb-4">Housing not found</p>
-        <GButton onClick={() => navigate('housing-landing')}>Back</GButton>
+        <GButton onClick={() => navigate('housing-landing', { replace: true })}>Back</GButton>
       </motion.div>
     );
   }
@@ -210,7 +210,7 @@ export const HousingDetailPage = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => { haptics.light(); navigate('housing-landing'); }}
+          <button onClick={() => { haptics.light(); goBack(); }}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>

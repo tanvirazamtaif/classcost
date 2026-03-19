@@ -34,7 +34,7 @@ function getAutoSemester() {
 // ═══════════════════════════════════════════════════════════════
 
 export const AddSemesterPage = () => {
-  const { navigate, addToast, theme } = useApp();
+  const { navigate, goBack, addToast, theme } = useApp();
   const { addSemesterFee, activeFees } = useEducationFees();
   const { institutionName } = useUserProfile();
   const d = theme === 'dark';

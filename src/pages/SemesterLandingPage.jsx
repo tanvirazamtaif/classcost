@@ -49,7 +49,7 @@ function getTotalPaid(fee) {
 // ═══════════════════════════════════════════════════════════════
 
 export const SemesterLandingPage = () => {
-  const { navigate, theme } = useApp();
+  const { navigate, goBack, theme } = useApp();
   const { activeFees } = useEducationFees();
   const { institutionName } = useUserProfile();
   const d = theme === 'dark';
@@ -78,7 +78,7 @@ export const SemesterLandingPage = () => {
       <GButton
         size="lg"
         icon={Plus}
-        onClick={() => { haptics.light(); navigate('add-semester'); }}
+        onClick={() => { haptics.light(); goBack(); }}
       >
         Add your first semester
       </GButton>
@@ -165,7 +165,7 @@ export const SemesterLandingPage = () => {
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
-            onClick={() => { haptics.light(); navigate('education-home'); }}
+            onClick={() => { haptics.light(); goBack(); }}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition"
           >
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
@@ -181,7 +181,7 @@ export const SemesterLandingPage = () => {
             fullWidth
             size="lg"
             icon={Plus}
-            onClick={() => { haptics.light(); navigate('add-semester'); }}
+            onClick={() => { haptics.light(); goBack(); }}
           >
             Add Semester
           </GButton>

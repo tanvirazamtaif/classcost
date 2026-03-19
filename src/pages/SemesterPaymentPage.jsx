@@ -51,7 +51,7 @@ function getAutoSemester() {
 // ═══════════════════════════════════════════════════════════════
 
 export const SemesterPaymentPage = () => {
-  const { navigate, addToast, theme } = useApp();
+  const { navigate, goBack, addToast, theme } = useApp();
   const { institutionName } = useUserProfile();
   const { addSemesterFee, activeFees } = useEducationFees();
   const d = theme === 'dark';
@@ -286,7 +286,7 @@ export const SemesterPaymentPage = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => { haptics.light(); navigate('education-home'); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
+          <button onClick={() => { haptics.light(); goBack(); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>
           <h1 className={`text-lg font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Semester Payment</h1>

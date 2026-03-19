@@ -30,7 +30,7 @@ function getPaymentStyleColor(fee, d) {
 // ═══════════════════════════════════════════════════════════════
 
 export const SemesterDetailPage = () => {
-  const { navigate, addToast, theme, routeParams } = useApp();
+  const { navigate, goBack, addToast, theme, routeParams } = useApp();
   const { getFeeById, activeFees, payInstallment, updateFee, recordPayment } = useEducationFees();
   const d = theme === 'dark';
 
@@ -272,7 +272,7 @@ export const SemesterDetailPage = () => {
         <div className="text-4xl mb-4">🔍</div>
         <h2 className={`text-lg font-semibold mb-2 ${d ? 'text-white' : 'text-surface-900'}`}>Semester not found</h2>
         <p className="text-surface-500 text-sm mb-6">This semester may have been deleted.</p>
-        <GButton onClick={() => { haptics.light(); navigate('semester-landing'); }}>Back to Semesters</GButton>
+        <GButton onClick={() => navigate('semester-landing', { replace: true })}>Back to Semesters</GButton>
       </motion.div>
     );
   }
@@ -482,7 +482,7 @@ export const SemesterDetailPage = () => {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { haptics.light(); navigate('semester-landing'); }}
+              onClick={() => { haptics.light(); goBack(); }}
               className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition"
             >
               <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />

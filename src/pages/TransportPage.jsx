@@ -30,7 +30,7 @@ const HOMETOWN_SUBTYPES = [
 // ═══════════════════════════════════════════════════════════════
 
 export const TransportPage = () => {
-  const { navigate, theme, expenses, addExpense, addToast } = useApp();
+  const { navigate, goBack, theme, expenses, addExpense, addToast } = useApp();
   const d = theme === 'dark';
 
   // Flow: select → subtype (hometown only) → form
@@ -74,7 +74,7 @@ export const TransportPage = () => {
       setSelectedType(null);
       setSelectedSubtype(null);
     } else {
-      navigate('dashboard');
+      goBack();
     }
     setAmount('');
     setNote('');

@@ -28,7 +28,7 @@ const GROUP_TO_FILTER = {
 };
 
 export const EducationFeePage = () => {
-  const { navigate, theme, user, educationLevel, setEducationLevel, educationLevelAsked, setEducationLevelAsked } = useApp();
+  const { navigate, goBack, theme, user, educationLevel, setEducationLevel, educationLevelAsked, setEducationLevelAsked } = useApp();
   const { activeFees, deleteFee } = useEducationFees();
   const d = theme === 'dark';
 
@@ -163,7 +163,7 @@ export const EducationFeePage = () => {
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
-            onClick={() => { haptics.light(); navigate('dashboard'); }}
+            onClick={() => { haptics.light(); goBack(); }}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition"
           >
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
@@ -242,7 +242,7 @@ export const EducationFeePage = () => {
               {/* Semester Payment — Primary */}
               <motion.button
                 whileTap={{ scale: 0.98 }}
-                onClick={() => { haptics.light(); navigate('semester-landing'); }}
+                onClick={() => { haptics.light(); goBack(); }}
                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition ${
                   d ? 'bg-primary-900/20 border-primary-800/50 hover:border-primary-600' : 'bg-primary-50 border-primary-200 hover:border-primary-400'
                 }`}

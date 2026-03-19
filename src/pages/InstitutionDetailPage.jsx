@@ -30,7 +30,7 @@ function getTypeLabel(type) {
 // ═══════════════════════════════════════════════════════════════
 
 export const InstitutionDetailPage = () => {
-  const { navigate, addToast, theme, routeParams, user, setUser, clubs, addClub, updateClub, removeClub } = useApp();
+  const { navigate, goBack, addToast, theme, routeParams, user, setUser, clubs, addClub, updateClub, removeClub } = useApp();
   const { activeFees, addFee, addSemesterFee } = useEducationFees();
   const d = theme === 'dark';
 
@@ -81,7 +81,7 @@ export const InstitutionDetailPage = () => {
     return (
       <motion.div {...pageTransition} className={`min-h-screen flex flex-col items-center justify-center px-6 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
         <p className={`text-sm ${d ? 'text-surface-400' : 'text-surface-500'}`}>Institution not found</p>
-        <GButton className="mt-4" onClick={() => navigate('education-home')}>Back</GButton>
+        <GButton className="mt-4" onClick={() => navigate('education-home', { replace: true })}>Back</GButton>
       </motion.div>
     );
   }
@@ -98,7 +98,7 @@ export const InstitutionDetailPage = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => { haptics.light(); navigate('education-home'); }}
+          <button onClick={() => { haptics.light(); goBack(); }}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>

@@ -158,7 +158,7 @@ export const AddHousingPage = () => {
             <GButton variant="secondary" fullWidth onClick={() => { haptics.light(); navigate('housing-detail', { params: { housingId: createdId } }); }}>
               View Details
             </GButton>
-            <GButton fullWidth onClick={() => { haptics.light(); navigate('housing-landing'); }}>Done</GButton>
+            <GButton fullWidth onClick={() => { haptics.light(); navigate('housing-landing', { replace: true }); }}>Done</GButton>
           </div>
         </motion.div>
       </motion.div>

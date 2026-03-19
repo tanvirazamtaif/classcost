@@ -27,7 +27,7 @@ function getTypeMeta(type) { return TYPE_META[type] || TYPE_META.other; }
 // ═══════════════════════════════════════════════════════════════
 
 export const HousingLandingPage = () => {
-  const { navigate, theme, expenses, housings } = useApp();
+  const { navigate, goBack, theme, expenses, housings } = useApp();
   const d = theme === 'dark';
 
   const activeSetups = useMemo(() => (housings || []).filter(h => h.status === 'active'), [housings]);
@@ -50,7 +50,7 @@ export const HousingLandingPage = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => { haptics.light(); navigate('dashboard'); }}
+          <button onClick={() => { haptics.light(); goBack(); }}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
           </button>
@@ -61,7 +61,7 @@ export const HousingLandingPage = () => {
       <main className="max-w-md mx-auto p-4 space-y-5">
 
         {/* Add button */}
-        <GButton fullWidth size="lg" icon={Plus} onClick={() => { haptics.light(); navigate('add-housing'); }}>
+        <GButton fullWidth size="lg" icon={Plus} onClick={() => { haptics.light(); goBack(); }}>
           Add Housing
         </GButton>
 

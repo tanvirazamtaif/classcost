@@ -23,7 +23,7 @@ function getDaySuffix(day) {
 }
 
 export const EducationFeeFormPage = () => {
-  const { navigate, addToast, routeParams, theme } = useApp();
+  const { navigate, goBack, addToast, routeParams, theme } = useApp();
   const { institutionName, educationLevel } = useUserProfile();
   const { addFee, addSemesterFee, savedCreditRates, setSavedCreditRates } = useEducationFees();
   const d = theme === 'dark';
@@ -288,7 +288,7 @@ export const EducationFeeFormPage = () => {
       <div className={`min-h-screen flex items-center justify-center ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
         <div className="text-center">
           <p className="text-surface-500 mb-4">Fee type not found</p>
-          <GButton onClick={() => navigate('education-home')}>Go back</GButton>
+          <GButton onClick={() => navigate('education-home', { replace: true })}>Go back</GButton>
         </div>
       </div>
     );
@@ -300,7 +300,7 @@ export const EducationFeeFormPage = () => {
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
-            onClick={() => { haptics.light(); navigate('education-home'); }}
+            onClick={() => { haptics.light(); goBack(); }}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition"
           >
             <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />

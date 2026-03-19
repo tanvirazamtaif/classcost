@@ -43,7 +43,7 @@ const BOOK_TYPES = [
 // ═══════════════════════════════════════════════════════════════
 
 export const StudyMaterialsPage = () => {
-  const { navigate, theme, expenses, addExpense, editExpense, removeExpense, addToast } = useApp();
+  const { navigate, goBack, theme, expenses, addExpense, editExpense, removeExpense, addToast } = useApp();
   const d = theme === 'dark';
 
   // Flow: home | supplies | books | add-supply | add-book | edit
@@ -72,7 +72,7 @@ export const StudyMaterialsPage = () => {
     haptics.light();
     if (view === 'add-supply' || view === 'add-book') setView(view === 'add-supply' ? 'supplies' : 'books');
     else if (view === 'supplies' || view === 'books' || view === 'edit') setView('home');
-    else navigate('dashboard');
+    else goBack();
     resetForm();
   };
 
