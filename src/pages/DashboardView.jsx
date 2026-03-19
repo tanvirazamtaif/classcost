@@ -219,7 +219,12 @@ export const DashboardView = () => {
                       {INST_ICONS[inst.type] || INST_ICONS.default}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-surface-900'}`}>{inst.name}</p>
+                      <p className={`text-sm font-medium truncate ${d ? 'text-white' : 'text-surface-900'}`}>
+                        {inst.name}
+                        {!user?.profile?.institutionInfo?.[inst.name]?.classYear && (
+                          <span className="ml-1.5 inline-block w-2 h-2 rounded-full bg-red-500 align-middle" style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
+                        )}
+                      </p>
                       <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>
                         {inst.feeCount > 0 ? `${inst.feeCount} fee${inst.feeCount > 1 ? 's' : ''}` : 'No fees yet'}
                         {inst.totalPaid > 0 ? ` · ৳${inst.totalPaid.toLocaleString()}` : ''}
@@ -518,6 +523,7 @@ export const DashboardView = () => {
         onClose={() => setSelectedExpense(null)}
         expense={selectedExpense}
       />
+      <style>{`@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }`}</style>
     </div>
   );
 };

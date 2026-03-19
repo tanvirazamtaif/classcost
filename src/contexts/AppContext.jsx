@@ -76,6 +76,7 @@ export const AppProvider = ({ children }) => {
   const [scheduledPayments, setScheduledPaymentsLocal] = useLocalStorage("ut_v3_scheduled", []);
   const [entries, setEntriesLocal] = useLocalStorage("ut_v3_entries", []);
   const [housings, setHousingsLocal] = useLocalStorage("ut_v3_housings", []);
+  const [clubs, setClubsLocal] = useLocalStorage("ut_v3_clubs", []);
   const [syncing, setSyncing] = useState(false);
   const [routeParams, setRouteParams] = useState(null); // params passed via navigate()
   const [pendingAccountType, setPendingAccountType] = useState(null); // temp during signup
@@ -312,6 +313,11 @@ export const AppProvider = ({ children }) => {
     catch (e) { console.error('Failed to delete housing:', e); }
   }, []);
 
+  // Helper: add club (client-only for now, no API)
+  const addClub = useCallback((club) => {
+    setClubsLocal(prev => [...prev, club]);
+  }, []);
+
   // Helper: add semester and sync
   const addSemester = useCallback(async (semester) => {
     setSemestersLocal(prev => [...prev, semester]);
@@ -479,6 +485,7 @@ export const AppProvider = ({ children }) => {
     updateScheduledPayment, markScheduledAsPaid, getUpcomingPayments,
     entries, addEntry, updateEntry, deleteEntry, getEntriesByCategory,
     housings, addHousing, updateHousing, removeHousing,
+    clubs, addClub,
     educationLevel, setEducationLevel,
     educationLevelAsked, setEducationLevelAsked,
   };
