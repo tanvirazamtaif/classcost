@@ -33,6 +33,7 @@ const HousingDetailPage = lazy(() => import('./pages/HousingDetailPage'));
 const EducationHomePage = lazy(() => import('./pages/EducationHomePage'));
 const InstitutionDetailPage = lazy(() => import('./pages/InstitutionDetailPage'));
 const GeneralCostTrackerPage = lazy(() => import('./pages/GeneralCostTrackerPage'));
+const ClubDetailPage = lazy(() => import('./pages/ClubDetailPage'));
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ const ViewRouter = () => {
         {view === "education-home" && <EducationHomePage />}
         {view === "institution-detail" && <InstitutionDetailPage />}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
+        {view === "club-detail" && <ClubDetailPage />}
         {["reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
           <InnerPage />
         )}

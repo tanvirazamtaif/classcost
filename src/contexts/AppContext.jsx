@@ -49,7 +49,7 @@ const VALID_VIEWS = new Set([
   'dashboard', 'reports', 'settings', 'loans', 'schedule',
   'education-fee-form', 'semester-landing', 'add-semester', 'semester-detail',
   'transport', 'study-materials', 'housing-landing', 'add-housing', 'housing-detail',
-  'education-home', 'institution-detail', 'general-cost-tracker', 'admin',
+  'education-home', 'institution-detail', 'general-cost-tracker', 'club-detail', 'admin',
 ]);
 
 /** Read pathname on initial page load so direct links like /reports work */

@@ -8,7 +8,7 @@ import { haptics } from '../../lib/haptics';
 const CLUB_TYPES = ['Club', 'Committee', 'Organization', 'Team', 'Other'];
 const CLUB_ICONS = ['⚽', '🏀', '🎭', '🎵', '🎨', '💻', '🔬', '📸', '🎮', '♟️', '📚', '✨'];
 
-export const ClubsTab = ({ institutionName, clubs, addClub, updateClub, removeClub, dark, addToast }) => {
+export const ClubsTab = ({ institutionName, clubs, addClub, updateClub, removeClub, navigate, dark, addToast }) => {
   const d = dark;
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
@@ -27,14 +27,22 @@ export const ClubsTab = ({ institutionName, clubs, addClub, updateClub, removeCl
   const handleSave = () => {
     if (!name.trim()) { haptics.error(); addToast('Enter a name', 'error'); return; }
     haptics.success();
+    const feeVal = parseFloat(fee) || null;
     addClub({
       id: `club_${Date.now().toString(36)}`,
       institutionName,
       name: name.trim(),
       type, icon,
-      fee: parseFloat(fee) || null,
+      fee: feeVal,
       isActive: true,
       createdAt: new Date().toISOString(),
+      recurringFees: feeVal > 0 ? [{
+        id: `rf_${Date.now().toString(36)}`,
+        label: 'Membership Fee',
+        amount: feeVal,
+        frequency: 'semester',
+        lastPaid: null,
+      }] : [],
     });
     addToast(`${name.trim()} added`, 'success');
     setShowAdd(false); setName(''); setType('Club'); setIcon('⚽'); setFee('');
@@ -100,6 +108,10 @@ export const ClubsTab = ({ institutionName, clubs, addClub, updateClub, removeCl
                     setSelectedClub(null);
                   }} className="!text-red-500">Remove</GButton>
                 </div>
+                <GButton fullWidth className="mt-2" onClick={() => {
+                  haptics.light();
+                  navigate('club-detail', { params: { clubId: selectedClub.id, institutionName } });
+                }}>View Details →</GButton>
               </div>
             ) : (
               <div className="p-4 space-y-3">

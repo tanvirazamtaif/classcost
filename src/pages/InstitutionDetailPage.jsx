@@ -158,6 +158,7 @@ export const InstitutionDetailPage = () => {
             addClub={addClub}
             updateClub={updateClub}
             removeClub={removeClub}
+            navigate={navigate}
             dark={d}
             addToast={addToast}
           />
