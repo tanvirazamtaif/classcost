@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, EDU_GROUPS, INSTITUTIONS } from '../constants/education';
 import { CURRENCIES } from '../constants/currencies';
-import { HOSTEL_TYPES } from '../constants/categories';
-import { Btn, Input, Select, Toggle } from '../components/ui';
-import { validateInstitution, validateAmount } from '../utils/guardian';
+import { Btn, Input, Toggle } from '../components/ui';
+import { validateInstitution } from '../utils/guardian';
 
 export const OnboardingWizard = () => {
   const { user, setUser, navigate, addToast } = useApp();
@@ -13,12 +12,8 @@ export const OnboardingWizard = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [form, setForm] = useState({
     fullName: "", educationLevel: "", variant: "",
-    institutionName: "", classYear: "", semesterType: "tri", currency: "BDT",
-    admissionFee: "",
-    hasHostel: false, hostelFee: "", hostelType: "monthly",
-    hasCoaching: false, coachingName: "", coachingFee: "", coachingFreq: "monthly",
-    hasBatch: false, batchName: "", batchFee: "", batchFreq: "monthly",
-    previousTransport: "", previousCanteen: "",
+    institutionName: "", currency: "BDT",
+    hasCoaching: false, coachingName: "",
   });
   const [instQuery, setInstQuery] = useState("");
   const [showInstDrop, setShowInstDrop] = useState(false);
@@ -43,7 +38,6 @@ export const OnboardingWizard = () => {
   const allInsts = INSTITUTIONS[form.educationLevel] || [];
   const filteredInsts = allInsts.filter((u) => u.toLowerCase().includes(instQuery.toLowerCase()));
 
-  // Dynamic placeholder based on education level
   const getInstitutionPlaceholder = () => {
     const group = mod?.group;
     switch (group) {
@@ -60,22 +54,16 @@ export const OnboardingWizard = () => {
     { title: "Welcome!", sub: "Let's set up your ClassCost profile" },
     { title: "Education Level", sub: "What stage of education are you in?" },
     { title: "Institution Type", sub: "What type of institution?" },
-    { title: "Institution Details", sub: "Where do you study?" },
-    { title: "Currency", sub: "Choose your preferred currency" },
-    { title: "Recurring Costs", sub: "Coaching, batch, and other recurring fees" },
-    { title: "Previous Costs", sub: "Any education expenses from before?" },
+    { title: "Your Details", sub: "Tell us about yourself" },
     { title: "All Set!", sub: "Your profile is ready" },
   ];
 
   const canProceed = () => {
     switch (step) {
-      case 0: return true; // Welcome
-      case 1: return !!form.educationLevel; // Education level required
-      case 2: return true; // Institution type optional (some levels don't have variants)
-      case 3: return !!form.fullName; // Name required
-      case 4: return !!form.currency; // Currency required
-      case 5: return true; // Recurring costs optional
-      case 6: return true; // Previous costs optional
+      case 0: return true;
+      case 1: return !!form.educationLevel;
+      case 2: return true;
+      case 3: return !!form.fullName && !!form.currency;
       default: return true;
     }
   };
@@ -83,7 +71,6 @@ export const OnboardingWizard = () => {
   const handleFinish = () => {
     if (!form.fullName || !form.educationLevel) { addToast("Fill required fields", "error"); return; }
 
-    // Guardian: validate institution vs education level
     if (form.institutionName) {
       const eduGroup = mod?.group || form.educationLevel;
       const instCheck = validateInstitution(form.institutionName, eduGroup);
@@ -91,28 +78,18 @@ export const OnboardingWizard = () => {
       if (instCheck.warning) addToast(instCheck.warning, "warning");
     }
 
-    // Guardian: validate amounts
-    if (form.hasCoaching && form.coachingFee) {
-      const amtCheck = validateAmount(form.coachingFee, 'coaching');
-      if (!amtCheck.valid) { addToast(amtCheck.error, "error"); return; }
-    }
-    if (form.hasBatch && form.batchFee) {
-      const amtCheck = validateAmount(form.batchFee, 'batch');
-      if (!amtCheck.valid) { addToast(amtCheck.error, "error"); return; }
-    }
-    if (form.hasHostel && form.hostelFee) {
-      const amtCheck = validateAmount(form.hostelFee, 'hostel');
-      if (!amtCheck.valid) { addToast(amtCheck.error, "error"); return; }
-    }
-
     setUser((p) => ({
       ...p,
       name: form.fullName,
       eduType: mod?.group || form.educationLevel,
       institution: form.institutionName,
-      classLevel: form.classYear,
       currency: form.currency,
-      profile: form,
+      profile: {
+        ...form,
+        educationLevel: form.educationLevel,
+        institutionName: form.institutionName,
+        institutionType: form.variant || null,
+      },
       profileComplete: true,
       onboardingStep: STEPS.length,
       onboardingComplete: true,
@@ -221,11 +198,12 @@ export const OnboardingWizard = () => {
           </div>
         )}
 
-        {/* Step 3: Institution Details (Name + Class/Year) */}
+        {/* Step 3: Your Details (SIMPLIFIED — no money, no class/year) */}
         {step === 3 && (
           <div className="flex flex-col gap-4">
             <Input label="Full Name *" value={form.fullName} onChange={(v) => upd("fullName", v)} placeholder="Your full name" icon="👤" />
 
+            {/* Institution Name with autocomplete */}
             <div className="flex flex-col gap-1.5 relative">
               <label className="text-sm font-semibold text-slate-700">{mod?.institutionLabel || "Institution Name"}</label>
               <div className="relative">
@@ -264,139 +242,61 @@ export const OnboardingWizard = () => {
               </div>
             )}
 
-            {mod && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-slate-700">{mod.periodLabel} / Class</label>
-                <div className="flex flex-wrap gap-2">
-                  {mod.levels.map((y) => (
-                    <button key={y} onClick={() => upd("classYear", y)}
-                      className={`px-3.5 py-2 rounded-xl text-sm font-semibold border-2 transition ${form.classYear === y ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-slate-50 text-slate-600"}`}>
-                      {y}
-                    </button>
-                  ))}
-                </div>
+            {/* Currency — compact pills */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700">Currency</label>
+              <div className="flex flex-wrap gap-2">
+                {CURRENCIES.slice(0, 6).map((c) => (
+                  <button key={c.id} onClick={() => upd("currency", c.id)}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border-2 flex items-center gap-1.5 transition ${
+                      form.currency === c.id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-600"
+                    }`}>
+                    <span>{c.flag}</span> {c.symbol} {c.id}
+                    {form.currency === c.id && <span className="text-indigo-600">✓</span>}
+                  </button>
+                ))}
               </div>
-            )}
-
-            {mod?.hasSemesterChoice && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-slate-700">Semester System</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(mod.semChoiceOptions || [{ v: "tri", l: "Trimester" }, { v: "bi", l: "Semester" }]).map((o) => (
-                    <button key={o.v} onClick={() => upd("semesterType", o.v)}
-                      className={`p-3 rounded-2xl text-left border-2 transition ${form.semesterType === o.v ? "border-indigo-500 bg-indigo-50" : "border-slate-100 bg-slate-50"}`}>
-                      <div className={`text-sm font-bold ${form.semesterType === o.v ? "text-indigo-700" : "text-slate-700"}`}>{o.l}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 4: Currency ONLY */}
-        {step === 4 && (
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-700">Preferred Currency</label>
-            <div className="grid grid-cols-2 gap-2">
-              {CURRENCIES.map((c) => (
-                <button key={c.id} onClick={() => upd("currency", c.id)}
-                  className={`p-3 rounded-2xl border-2 flex items-center gap-2.5 transition ${form.currency === c.id ? "border-indigo-500 bg-indigo-50" : "border-slate-100 bg-white"}`}>
-                  <span className="text-xl">{c.flag}</span>
-                  <div className="text-left min-w-0">
-                    <div className={`text-sm font-bold ${form.currency === c.id ? "text-indigo-700" : "text-slate-700"}`}>{c.symbol} {c.id}</div>
-                    <div className="text-xs text-slate-400 truncate">{c.name}</div>
-                  </div>
-                  {form.currency === c.id && <span className="ml-auto text-indigo-600 text-sm">✓</span>}
-                </button>
-              ))}
+              {!CURRENCIES.slice(0, 6).some(c => c.id === form.currency) && form.currency !== 'BDT' && (
+                <p className="text-xs text-slate-400">Selected: {form.currency}</p>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* Step 5: Recurring Costs (Coaching, Batch, Hostel — CONSOLIDATED) */}
-        {step === 5 && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-slate-500 mb-1">Add any recurring education costs. You can skip if none apply.</p>
-
-            {/* Coaching */}
+            {/* Coaching toggle — name only, NO fee */}
             <div className={`p-4 rounded-2xl border-2 transition ${form.hasCoaching ? "border-violet-300 bg-violet-50" : "border-slate-100 bg-white"}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2"><span className="text-xl">📖</span><div><p className="font-bold text-slate-800 text-sm">Coaching Center</p><p className="text-xs text-slate-400">Private coaching fees</p></div></div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📖</span>
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm">Coaching Center</p>
+                    <p className="text-xs text-slate-400">Do you go to any coaching?</p>
+                  </div>
+                </div>
                 <Toggle label="" value={form.hasCoaching} onChange={(v) => upd("hasCoaching", v)} />
               </div>
               {form.hasCoaching && (
-                <div className="flex flex-col gap-3 pt-3 border-t border-violet-100">
+                <div className="pt-3 mt-3 border-t border-violet-100">
                   <Input label="Center Name" value={form.coachingName} onChange={(v) => upd("coachingName", v)} placeholder="e.g., Udvash, Unmesh" icon="🏫" />
-                  <Input label="Monthly Fee" type="number" value={form.coachingFee} onChange={(v) => upd("coachingFee", v)} placeholder="e.g. 3000" icon="💰" />
-                  <Select label="Frequency" value={form.coachingFreq} onChange={(v) => upd("coachingFreq", v)} icon="🔄"
-                    options={[{ value: "monthly", label: "Monthly" }, { value: "quarterly", label: "Quarterly" }, { value: "yearly", label: "Yearly" }, { value: "onetime", label: "One-time" }]} />
                 </div>
               )}
             </div>
-
-            {/* Batch */}
-            <div className={`p-4 rounded-2xl border-2 transition ${form.hasBatch ? "border-amber-300 bg-amber-50" : "border-slate-100 bg-white"}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2"><span className="text-xl">👥</span><div><p className="font-bold text-slate-800 text-sm">Batch / Program</p><p className="text-xs text-slate-400">Group coaching or program fee</p></div></div>
-                <Toggle label="" value={form.hasBatch} onChange={(v) => upd("hasBatch", v)} />
-              </div>
-              {form.hasBatch && (
-                <div className="flex flex-col gap-3 pt-3 border-t border-amber-100">
-                  <Input label="Batch Name" value={form.batchName} onChange={(v) => upd("batchName", v)} placeholder="e.g., HSC 2025 Batch" icon="📋" />
-                  <Input label="Fee Amount" type="number" value={form.batchFee} onChange={(v) => upd("batchFee", v)} placeholder="e.g. 15000" icon="💰" />
-                  <Select label="Frequency" value={form.batchFreq} onChange={(v) => upd("batchFreq", v)} icon="🔄"
-                    options={[{ value: "monthly", label: "Monthly" }, { value: "quarterly", label: "Quarterly" }, { value: "onetime", label: "One-time" }]} />
-                </div>
-              )}
-            </div>
-
-            {/* Hostel */}
-            {mod?.hasHostel && (
-              <div className={`p-4 rounded-2xl border-2 transition ${form.hasHostel ? "border-sky-300 bg-sky-50" : "border-slate-100 bg-white"}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2"><span className="text-xl">🏠</span><div><p className="font-bold text-slate-800 text-sm">Hostel / Hall</p><p className="text-xs text-slate-400">Monthly accommodation</p></div></div>
-                  <Toggle label="" value={form.hasHostel} onChange={(v) => upd("hasHostel", v)} />
-                </div>
-                {form.hasHostel && (
-                  <div className="flex flex-col gap-3 pt-3 border-t border-sky-100">
-                    <Input label="Fee Amount" type="number" value={form.hostelFee} onChange={(v) => upd("hostelFee", v)} placeholder="e.g. 5000" icon="💰" />
-                    <div className="flex flex-wrap gap-2">
-                      {HOSTEL_TYPES.map((t) => (
-                        <button key={t.id} onClick={() => upd("hostelType", t.id)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition ${form.hostelType === t.id ? "border-sky-500 bg-sky-100 text-sky-700" : "border-slate-100 bg-slate-50 text-slate-600"}`}>
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
 
-        {/* Step 6: Previous Costs — ONE STEP for ALL categories */}
-        {step === 6 && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-slate-500 mb-1">Have you already spent on education this year? Enter approximate totals. You can skip if none.</p>
-            <Input label="Admission / Registration Fee" type="number" value={form.admissionFee} onChange={(v) => upd("admissionFee", v)} placeholder="Total paid so far" icon="💳" />
-            <Input label="Previous Transport Cost" type="number" value={form.previousTransport} onChange={(v) => upd("previousTransport", v)} placeholder="Total spent before today" icon="🚌" />
-            <Input label="Previous Canteen Cost" type="number" value={form.previousCanteen} onChange={(v) => upd("previousCanteen", v)} placeholder="Total spent before today" icon="🍽️" />
-          </div>
-        )}
-
-        {/* Step 7: Finish */}
-        {step === 7 && (
+        {/* Step 4: All Set! */}
+        {step === 4 && (
           <div className="flex flex-col items-center gap-6 py-8">
             <div className="text-6xl">🎉</div>
             <div className="text-center">
               <h3 className="text-lg font-bold text-slate-800 mb-2">You're All Set!</h3>
               <p className="text-sm text-slate-500 max-w-xs mb-4">Your profile is ready. Start tracking your education expenses now.</p>
               {form.institutionName && (
-                <div className="bg-indigo-50 rounded-2xl p-3 inline-block">
+                <div className="bg-indigo-50 rounded-2xl p-3 inline-block mb-2">
                   <p className="text-sm text-indigo-700 font-medium">{mod?.icon} {form.institutionName}</p>
-                  {form.classYear && <p className="text-xs text-indigo-500">{form.classYear}</p>}
+                </div>
+              )}
+              {form.hasCoaching && form.coachingName && (
+                <div className="bg-violet-50 rounded-2xl p-3 inline-block">
+                  <p className="text-sm text-violet-700 font-medium">📖 {form.coachingName}</p>
                 </div>
               )}
             </div>
@@ -406,7 +306,6 @@ export const OnboardingWizard = () => {
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-4 flex gap-3">
         {step > 0 && <Btn variant="secondary" onClick={() => {
-          // Auto-skip step 2 (Institution Type) going back if it has no variants
           const prevStep = step - 1;
           if (prevStep === 2 && (!mod?.variants || mod.variants.length === 0)) {
             setStep(1);
@@ -414,11 +313,10 @@ export const OnboardingWizard = () => {
             setStep(prevStep);
           }
         }} className="flex-1">← Back</Btn>}
-        {step < 7
+        {step < 4
           ? <Btn onClick={() => {
               if (!canProceed()) { addToast("Please complete this step", "error"); return; }
               let nextStep = step + 1;
-              // Auto-skip step 2 (Institution Type) if no variants for selected level
               if (nextStep === 2) {
                 const selectedMod = EDU[form.educationLevel];
                 if (!selectedMod?.variants || selectedMod.variants.length === 0) nextStep = 3;
