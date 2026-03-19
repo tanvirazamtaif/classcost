@@ -234,36 +234,48 @@ enum EntityType {
   INSTITUTION
   RESIDENCE
   COACHING
+  ABROAD
+  PERSONAL_PHASE
 }
 
 enum TrackerType {
   SEMESTER
-  MONTHLY
+  RECURRING_MONTHLY
+  RECURRING_YEARLY
   ONE_TIME
+  PER_CLASS
+  INSTALLMENT_PLAN
+  SESSION
+  EXAM_CYCLE
+  ABROAD_PREP
   CUSTOM
 }
 
 enum TrackerStatus {
   ACTIVE
+  PAUSED
   COMPLETED
-  ARCHIVED
-}
-
-enum ObligationStatus {
-  PENDING
-  PARTIAL
-  PAID
-  OVERDUE
-  WAIVED
   CANCELLED
 }
 
+enum ObligationStatus {
+  UPCOMING
+  DUE
+  OVERDUE
+  PAID
+  PARTIALLY_PAID
+  WAIVED
+  SKIPPED
+  VOIDED
+}
+
 enum LedgerType {
-  EXPENSE
   PAYMENT
+  INCOME
   REFUND
+  WAIVER_CREDIT
   ADJUSTMENT
-  TRANSFER
+  CORRECTION
 }
 
 enum LedgerDirection {
@@ -272,29 +284,32 @@ enum LedgerDirection {
 }
 
 enum LedgerStatus {
-  CONFIRMED
+  POSTED
   PENDING
-  VOID
+  VOIDED
 }
 
 // ─── V3 ARCHITECTURE MODELS ────────────────────────────────────────────────
 
 // Section 1: Entity — represents a real-world place the student pays money to
 model Entity {
-  id         String     @id @default(cuid())
-  userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       EntityType
-  name       String
-  shortName  String?
-  meta       Json? // address, logo URL, contact info, etc.
-  isActive   Boolean    @default(true)
-  archivedAt DateTime?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      EntityType
+  name      String
+  subType   String? // university, school, college, hostel, apartment, mess
+  eduLevel  String? // Maps to EDU constants: private_uni, secondary, hsc, etc.
+  startDate DateTime?
+  endDate   DateTime?
+  isActive  Boolean    @default(true)
+  metadata  Json? // NON-FINANCIAL ONLY: classYear, semesterSystem, studentId, section
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  trackers    Tracker[]
-  obligations Obligation[]
+  trackers      Tracker[]
+  obligations   Obligation[]
+  ledgerEntries LedgerEntry[]
 
   @@index([userId, type])
   @@index([userId, isActive])
@@ -305,10 +320,12 @@ model Tracker {
   id          String        @id @default(cuid())
   userId      String
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entityId    String
-  entity      Entity        @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  entityId    String?
+  entity      Entity?       @relation(fields: [entityId], references: [id], onDelete: SetNull)
   type        TrackerType
   label       String
+  category    String // semester_fee | rent | coaching_monthly | etc.
+  cadence     String? // monthly | yearly | per_semester | per_session | once
   startDate   DateTime
   endDate     DateTime?
   status      TrackerStatus @default(ACTIVE)
@@ -327,28 +344,31 @@ model Tracker {
 
 // Section 3: Obligation — a known upcoming cost (e.g. "Tuition ৳85,000 due Jan 15")
 model Obligation {
-  id             String           @id @default(cuid())
-  userId         String
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entityId       String?
-  entity         Entity?          @relation(fields: [entityId], references: [id], onDelete: SetNull)
-  trackerId      String?
-  tracker        Tracker?         @relation(fields: [trackerId], references: [id], onDelete: SetNull)
-  category       String // from categories registry
-  label          String
-  amountMinor    Int // total obligation in minor units
-  paidMinor      Int              @default(0)
-  dueDate        DateTime?
-  status         ObligationStatus @default(PENDING)
-  waiverPct      Int              @default(0) // 0-100
-  isRecurring    Boolean          @default(false)
-  recurrenceRule String? // iCal RRULE or simple: "MONTHLY", "SEMESTER"
-  parentId       String? // self-relation for installment splits
-  parent         Obligation?      @relation("InstallmentSplit", fields: [parentId], references: [id])
-  installments   Obligation[]     @relation("InstallmentSplit")
-  meta           Json?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id                String           @id @default(cuid())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityId          String?
+  entity            Entity?          @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  trackerId         String?
+  tracker           Tracker?         @relation(fields: [trackerId], references: [id], onDelete: SetNull)
+  category          String // from categories registry
+  label             String
+  amountMinor       Int // total obligation in minor units
+  dueDate           DateTime?
+  status            ObligationStatus @default(UPCOMING)
+  waiverAmountMinor Int              @default(0) // Absolute waiver in minor units
+  waiverReason      String? // "Merit scholarship", "Sports waiver 20%"
+  period            String? // "2026-03", "2026-yearly", "spring-2026"
+  installmentSeq    Int? // 1, 2, 3 for installment parts
+  installmentOf     Int? // total installments (e.g., 3)
+  isRecurring       Boolean          @default(false)
+  recurrenceRule    String? // iCal RRULE or simple: "MONTHLY", "SEMESTER"
+  parentId          String? // self-relation for installment splits
+  parent            Obligation?      @relation("InstallmentSplit", fields: [parentId], references: [id])
+  installments      Obligation[]     @relation("InstallmentSplit")
+  meta              Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   ledgerEntries LedgerEntry[]
 
@@ -356,6 +376,7 @@ model Obligation {
   @@index([trackerId, status])
   @@index([userId, dueDate])
   @@index([userId, category])
+  @@index([userId, period])
   @@index([parentId])
 }
 
@@ -368,6 +389,8 @@ model LedgerEntry {
   tracker         Tracker?        @relation(fields: [trackerId], references: [id], onDelete: SetNull)
   obligationId    String?
   obligation      Obligation?     @relation(fields: [obligationId], references: [id], onDelete: SetNull)
+  entityId        String?
+  entity          Entity?         @relation(fields: [entityId], references: [id], onDelete: SetNull)
   type            LedgerType
   direction       LedgerDirection
   category        String
@@ -375,7 +398,7 @@ model LedgerEntry {
   amountMinor     Int
   baseAmountMinor Int? // amount in user's home currency, for multi-currency
   currency        String          @default("BDT")
-  status          LedgerStatus    @default(CONFIRMED)
+  status          LedgerStatus    @default(POSTED)
   date            DateTime
   note            String?
   receiptUrl      String?
@@ -393,6 +416,7 @@ model LedgerEntry {
   @@index([trackerId, date])
   @@index([obligationId])
   @@index([userId, type, date])
+  @@index([userId, entityId, date])
   @@index([loanId])
 }
 

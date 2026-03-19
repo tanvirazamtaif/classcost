@@ -5,11 +5,12 @@ const { isValidCategory } = require('../lib/categories.cjs');
 const { generateMissingObligations } = require('../services/obligationGenerator.cjs');
 
 // Status transition map — only listed transitions are allowed
-// Terminal states (PAID, WAIVED, CANCELLED) have no outgoing transitions
+// Terminal states (PAID, WAIVED, SKIPPED, VOIDED) have no outgoing transitions
 const STATUS_TRANSITIONS = {
-  PENDING: ['PARTIAL', 'PAID', 'OVERDUE', 'WAIVED', 'CANCELLED'],
-  PARTIAL: ['PAID', 'OVERDUE', 'CANCELLED'],
-  OVERDUE: ['PAID', 'PARTIAL', 'CANCELLED'],
+  UPCOMING: ['DUE', 'WAIVED', 'SKIPPED', 'VOIDED'],
+  DUE: ['PAID', 'PARTIALLY_PAID', 'OVERDUE', 'WAIVED', 'VOIDED'],
+  OVERDUE: ['PAID', 'PARTIALLY_PAID', 'VOIDED'],
+  PARTIALLY_PAID: ['PAID', 'OVERDUE', 'VOIDED'],
 };
 
 function canTransition(from, to) {
@@ -63,7 +64,7 @@ router.get('/:userId/upcoming', async (req, res) => {
     const obligations = await prisma.obligation.findMany({
       where: {
         userId,
-        status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
+        status: { in: ['UPCOMING', 'DUE', 'PARTIALLY_PAID', 'OVERDUE'] },
         OR: [
           { dueDate: null },
           { dueDate: { lte: thirtyDaysFromNow } },
@@ -73,7 +74,7 @@ router.get('/:userId/upcoming', async (req, res) => {
         tracker: true,
         entity: true,
         ledgerEntries: {
-          where: { direction: 'DEBIT', status: 'CONFIRMED' },
+          where: { direction: 'DEBIT', status: 'POSTED' },
           select: { amountMinor: true },
         },
       },
@@ -83,8 +84,7 @@ router.get('/:userId/upcoming', async (req, res) => {
     // Derive amountPaid and amountRemaining, sort OVERDUE first
     const results = obligations.map((obl) => {
       const amountPaid = obl.ledgerEntries.reduce((sum, le) => sum + le.amountMinor, 0);
-      const waiverMinor = Math.floor((obl.amountMinor * obl.waiverPct) / 100);
-      const amountRemaining = obl.amountMinor - waiverMinor - amountPaid;
+      const amountRemaining = obl.amountMinor - obl.waiverAmountMinor - amountPaid;
       const { ledgerEntries, ...rest } = obl;
       return { ...rest, amountPaid, amountRemaining };
     });
@@ -154,7 +154,8 @@ router.post('/:userId', async (req, res) => {
         label: req.body.label.trim(),
         amountMinor: req.body.amountMinor,
         dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
-        waiverPct: req.body.waiverPct || 0,
+        waiverAmountMinor: req.body.waiverAmountMinor || 0,
+        waiverReason: req.body.waiverReason || null,
         isRecurring: req.body.isRecurring || false,
         recurrenceRule: req.body.recurrenceRule || null,
         parentId: req.body.parentId || null,
@@ -170,7 +171,7 @@ router.post('/:userId', async (req, res) => {
   }
 });
 
-// Update obligation (label, dueDate, status, waiverPct)
+// Update obligation (label, dueDate, status, waiverAmountMinor)
 router.put('/:userId/:id', async (req, res) => {
   try {
     const existing = await prisma.obligation.findFirst({
@@ -179,7 +180,7 @@ router.put('/:userId/:id', async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Obligation not found' });
 
     // Check terminal state
-    if (['PAID', 'WAIVED', 'CANCELLED'].includes(existing.status)) {
+    if (['PAID', 'WAIVED', 'SKIPPED', 'VOIDED'].includes(existing.status)) {
       return res.status(400).json({ error: `Cannot update obligation in terminal status: ${existing.status}` });
     }
 
@@ -194,11 +195,14 @@ router.put('/:userId/:id', async (req, res) => {
     if (req.body.dueDate !== undefined) {
       updates.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
     }
-    if (req.body.waiverPct !== undefined) {
-      if (typeof req.body.waiverPct !== 'number' || req.body.waiverPct < 0 || req.body.waiverPct > 100) {
-        return res.status(400).json({ errors: ['waiverPct must be 0-100'] });
+    if (req.body.waiverAmountMinor !== undefined) {
+      if (typeof req.body.waiverAmountMinor !== 'number' || req.body.waiverAmountMinor < 0 || !Number.isInteger(req.body.waiverAmountMinor)) {
+        return res.status(400).json({ errors: ['waiverAmountMinor must be a non-negative integer'] });
       }
-      updates.waiverPct = req.body.waiverPct;
+      updates.waiverAmountMinor = req.body.waiverAmountMinor;
+    }
+    if (req.body.waiverReason !== undefined) {
+      updates.waiverReason = req.body.waiverReason;
     }
     if (req.body.status !== undefined) {
       if (!canTransition(existing.status, req.body.status)) {
@@ -228,23 +232,27 @@ router.patch('/:userId/:id/waiver', async (req, res) => {
       where: { id: req.params.id, userId: req.params.userId },
     });
     if (!existing) return res.status(404).json({ error: 'Obligation not found' });
-    if (['PAID', 'WAIVED', 'CANCELLED'].includes(existing.status)) {
+    if (['PAID', 'WAIVED', 'SKIPPED', 'VOIDED'].includes(existing.status)) {
       return res.status(400).json({ error: `Cannot apply waiver to obligation in terminal status: ${existing.status}` });
     }
 
-    const { waiverPct, waiverReason } = req.body;
-    if (typeof waiverPct !== 'number' || waiverPct < 1 || waiverPct > 100) {
-      return res.status(400).json({ errors: ['waiverPct must be 1-100'] });
+    const { waiverAmountMinor, waiverReason } = req.body;
+    if (typeof waiverAmountMinor !== 'number' || waiverAmountMinor <= 0 || !Number.isInteger(waiverAmountMinor)) {
+      return res.status(400).json({ errors: ['waiverAmountMinor must be a positive integer'] });
+    }
+    if (waiverAmountMinor > existing.amountMinor) {
+      return res.status(400).json({ errors: ['waiverAmountMinor cannot exceed amountMinor'] });
     }
 
-    const meta = existing.meta || {};
-    if (waiverReason) meta.waiverReason = waiverReason;
-
-    const newStatus = waiverPct === 100 ? 'WAIVED' : existing.status;
+    const newStatus = waiverAmountMinor >= existing.amountMinor ? 'WAIVED' : existing.status;
 
     const obligation = await prisma.obligation.update({
       where: { id: req.params.id },
-      data: { waiverPct, status: newStatus, meta },
+      data: {
+        waiverAmountMinor,
+        waiverReason: waiverReason || null,
+        status: newStatus,
+      },
       include: { tracker: true, entity: true },
     });
     res.json(obligation);
@@ -255,20 +263,20 @@ router.patch('/:userId/:id/waiver', async (req, res) => {
   }
 });
 
-// Skip obligation (set status=CANCELLED)
+// Skip obligation (set status=SKIPPED)
 router.patch('/:userId/:id/skip', async (req, res) => {
   try {
     const existing = await prisma.obligation.findFirst({
       where: { id: req.params.id, userId: req.params.userId },
     });
     if (!existing) return res.status(404).json({ error: 'Obligation not found' });
-    if (['PAID', 'WAIVED', 'CANCELLED'].includes(existing.status)) {
+    if (['PAID', 'WAIVED', 'SKIPPED', 'VOIDED'].includes(existing.status)) {
       return res.status(400).json({ error: `Cannot skip obligation in terminal status: ${existing.status}` });
     }
 
     const obligation = await prisma.obligation.update({
       where: { id: req.params.id },
-      data: { status: 'CANCELLED' },
+      data: { status: 'SKIPPED' },
       include: { tracker: true, entity: true },
     });
     res.json(obligation);

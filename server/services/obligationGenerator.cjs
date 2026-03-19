@@ -9,7 +9,7 @@ async function generateMissingObligations(userId) {
     where: {
       userId,
       status: 'ACTIVE',
-      type: { in: ['MONTHLY', 'CUSTOM'] },
+      type: { in: ['RECURRING_MONTHLY', 'RECURRING_YEARLY', 'CUSTOM'] },
     },
     include: {
       obligations: {
@@ -24,10 +24,10 @@ async function generateMissingObligations(userId) {
   for (const tracker of trackers) {
     const meta = tracker.meta || {};
 
-    if (tracker.type === 'MONTHLY') {
+    if (tracker.type === 'RECURRING_MONTHLY') {
       const generated = await generateMonthly(tracker, meta, userId);
       created.push(...generated);
-    } else if (tracker.type === 'CUSTOM' && meta.recurrence === 'YEARLY') {
+    } else if (tracker.type === 'RECURRING_YEARLY' || (tracker.type === 'CUSTOM' && meta.recurrence === 'YEARLY')) {
       const generated = await generateYearly(tracker, meta, userId);
       created.push(...generated);
     }
@@ -85,7 +85,7 @@ async function generateMonthly(tracker, meta, userId) {
         dueDate,
         status,
         isRecurring: true,
-        recurrenceRule: 'MONTHLY',
+        recurrenceRule: 'RECURRING_MONTHLY',
       },
     });
     created.push(obligation);
@@ -153,7 +153,7 @@ function resolveStatus(dueDate, now) {
   const due = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (due < today) return 'OVERDUE';
-  return 'PENDING';
+  return 'UPCOMING';
 }
 
 function toMonthKey(date) {

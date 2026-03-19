@@ -3,8 +3,8 @@ const router = express.Router();
 const { prisma } = require('../db.cjs');
 const { isValidCategory } = require('../lib/categories.cjs');
 
-const VALID_TRACKER_TYPES = ['SEMESTER', 'MONTHLY', 'ONE_TIME', 'CUSTOM'];
-const VALID_TRACKER_STATUSES = ['ACTIVE', 'COMPLETED', 'ARCHIVED'];
+const VALID_TRACKER_TYPES = ['SEMESTER', 'RECURRING_MONTHLY', 'RECURRING_YEARLY', 'ONE_TIME', 'PER_CLASS', 'INSTALLMENT_PLAN', 'SESSION', 'EXAM_CYCLE', 'ABROAD_PREP', 'CUSTOM'];
+const VALID_TRACKER_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED'];
 const FINANCIAL_WORDS = ['amount', 'payment', 'fee', 'balance', 'due'];
 
 function validateMetadata(meta) {
@@ -100,9 +100,11 @@ router.post('/:userId', async (req, res) => {
     const tracker = await prisma.tracker.create({
       data: {
         userId,
-        entityId: req.body.entityId,
+        entityId: req.body.entityId || null,
         type: req.body.type,
         label: req.body.label.trim(),
+        category: req.body.category,
+        cadence: req.body.cadence || null,
         startDate: new Date(req.body.startDate),
         endDate: req.body.endDate ? new Date(req.body.endDate) : null,
         budgetMinor: req.body.budgetMinor || null,
@@ -110,11 +112,11 @@ router.post('/:userId', async (req, res) => {
       },
     });
 
-    // Auto-generate obligation for MONTHLY tracker
-    if (req.body.type === 'MONTHLY' && req.body.amountMinor && req.body.dueDay) {
+    // Auto-generate obligation for RECURRING_MONTHLY tracker
+    if (req.body.type === 'RECURRING_MONTHLY' && req.body.amountMinor && req.body.dueDay) {
       const now = new Date();
       const dueDate = new Date(now.getFullYear(), now.getMonth(), req.body.dueDay);
-      const status = now > dueDate ? 'OVERDUE' : 'PENDING';
+      const status = now > dueDate ? 'OVERDUE' : 'UPCOMING';
 
       await prisma.obligation.create({
         data: {
@@ -143,7 +145,7 @@ router.post('/:userId', async (req, res) => {
           label: req.body.label.trim(),
           amountMinor: req.body.amountMinor,
           dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
-          status: 'PENDING',
+          status: 'UPCOMING',
         },
       });
 
@@ -158,7 +160,7 @@ router.post('/:userId', async (req, res) => {
             label: inst.label || parent.label + ' installment',
             amountMinor: inst.amountMinor,
             dueDate: inst.dueDate ? new Date(inst.dueDate) : null,
-            status: 'PENDING',
+            status: 'UPCOMING',
           },
         });
       }
@@ -222,12 +224,12 @@ router.put('/:userId/:id', async (req, res) => {
   }
 });
 
-// Soft delete tracker (set status=ARCHIVED)
+// Soft delete tracker (set status=CANCELLED)
 router.delete('/:userId/:id', async (req, res) => {
   try {
     const tracker = await prisma.tracker.update({
       where: { id: req.params.id },
-      data: { status: 'ARCHIVED' },
+      data: { status: 'CANCELLED' },
     });
     res.json(tracker);
   } catch (err) {

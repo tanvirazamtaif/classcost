@@ -39,11 +39,11 @@ const FEE_TYPE_TO_CATEGORY = {
 // ── paymentPattern → TrackerType mapping ────────────────────────────────────
 
 const PATTERN_TO_TRACKER_TYPE = {
-  recurring: 'MONTHLY',
-  per_class: 'CUSTOM',
+  recurring: 'RECURRING_MONTHLY',
+  per_class: 'PER_CLASS',
   semester: 'SEMESTER',
-  installment: 'SEMESTER',
-  yearly: 'CUSTOM',
+  installment: 'INSTALLMENT_PLAN',
+  yearly: 'RECURRING_YEARLY',
   one_time: 'ONE_TIME',
 };
 
@@ -51,15 +51,15 @@ const PATTERN_TO_TRACKER_TYPE = {
 
 const STATUS_MAP = {
   paid: 'PAID',
-  partial: 'PARTIAL',
-  upcoming: 'PENDING',
+  partial: 'PARTIALLY_PAID',
+  upcoming: 'UPCOMING',
   overdue: 'OVERDUE',
-  skipped: 'CANCELLED',
-  future: 'PENDING',
+  skipped: 'SKIPPED',
+  future: 'UPCOMING',
 };
 
 function mapStatus(oldStatus) {
-  return STATUS_MAP[oldStatus] || 'PENDING';
+  return STATUS_MAP[oldStatus] || 'UPCOMING';
 }
 
 function toMinor(amount) {
@@ -163,7 +163,7 @@ async function migrateEducationFee(record) {
       type: trackerType,
       label,
       startDate,
-      status: data.isDeleted ? 'ARCHIVED' : 'ACTIVE',
+      status: data.isDeleted ? 'CANCELLED' : 'ACTIVE',
       meta: trackerMeta,
     },
   });
@@ -230,7 +230,7 @@ async function migrateEducationFee(record) {
         category,
         amountMinor,
         currency: 'BDT',
-        status: 'CONFIRMED',
+        status: 'POSTED',
         date: payment.paidAt ? new Date(payment.paidAt) : record.createdAt,
         note: payment.note || null,
         sourceRef: paymentSourceRef,
@@ -239,17 +239,22 @@ async function migrateEducationFee(record) {
     });
     counts.ledgerEntries++;
 
-    // Recalculate obligation paidMinor if linked
+    // Recalculate obligation status if linked
     if (obligationId) {
       const agg = await prisma.ledgerEntry.aggregate({
-        where: { obligationId, direction: 'DEBIT', status: 'CONFIRMED' },
+        where: { obligationId, direction: 'DEBIT', status: 'POSTED' },
         _sum: { amountMinor: true },
       });
       const totalPaid = agg._sum.amountMinor || 0;
-      await prisma.obligation.update({
-        where: { id: obligationId },
-        data: { paidMinor: totalPaid },
-      });
+      const obl = await prisma.obligation.findUnique({ where: { id: obligationId } });
+      if (obl) {
+        const effectiveDue = obl.amountMinor - obl.waiverAmountMinor;
+        const newStatus = totalPaid >= effectiveDue ? 'PAID' : totalPaid > 0 ? 'PARTIALLY_PAID' : obl.status;
+        await prisma.obligation.update({
+          where: { id: obligationId },
+          data: { status: newStatus },
+        });
+      }
     }
   }
 
@@ -278,11 +283,11 @@ async function migrateRecurringObligations(userId, entityId, trackerId, category
         category,
         label: label + ' - ' + formatPeriod(period),
         amountMinor,
-        paidMinor: toMinor(paidAmount),
+
         dueDate,
         status: mapStatus(status),
         isRecurring: true,
-        recurrenceRule: 'MONTHLY',
+        recurrenceRule: 'RECURRING_MONTHLY',
         meta: { originalPeriod: period },
       },
     });
@@ -303,11 +308,11 @@ async function migrateSemesterObligations(userId, entityId, trackerId, category,
   // Determine parent status from periodStatus or payments
   const periodStatus = data.periodStatus || {};
   const payments = data.payments || [];
-  let parentStatus = 'PENDING';
+  let parentStatus = 'UPCOMING';
   if (payments.length > 0) {
     const paidTotal = payments.filter(p => !p.isRefund).reduce((s, p) => s + (Number(p.amount) || 0), 0);
     if (paidTotal >= (sem.totalAmount || 0)) parentStatus = 'PAID';
-    else if (paidTotal > 0) parentStatus = 'PARTIAL';
+    else if (paidTotal > 0) parentStatus = 'PARTIALLY_PAID';
   }
 
   const parent = await prisma.obligation.create({
@@ -318,7 +323,6 @@ async function migrateSemesterObligations(userId, entityId, trackerId, category,
       category,
       label: label + (sem.semesterName ? ' - ' + sem.semesterName : ''),
       amountMinor: totalMinor,
-      paidMinor: toMinor(payments.filter(p => !p.isRefund).reduce((s, p) => s + (Number(p.amount) || 0), 0)),
       dueDate,
       status: parentStatus,
       meta: {
@@ -336,7 +340,7 @@ async function migrateSemesterObligations(userId, entityId, trackerId, category,
   // Installments
   if (sem.isInstallment && Array.isArray(sem.installments) && sem.installments.length > 0) {
     for (const inst of sem.installments) {
-      const instStatus = inst.status ? mapStatus(inst.status) : 'PENDING';
+      const instStatus = inst.status ? mapStatus(inst.status) : 'UPCOMING';
       const obl = await prisma.obligation.create({
         data: {
           userId,
@@ -346,7 +350,6 @@ async function migrateSemesterObligations(userId, entityId, trackerId, category,
           category,
           label: label + ' - Part ' + (inst.part || '?'),
           amountMinor: toMinor(inst.amount),
-          paidMinor: toMinor(inst.paidAmount || 0),
           dueDate: inst.dueDate ? new Date(inst.dueDate) : null,
           status: instStatus,
           meta: { installmentPart: inst.part, originalId: inst.id },
@@ -384,7 +387,7 @@ async function migrateYearlyObligations(userId, entityId, trackerId, category, l
         category,
         label: label + ' - ' + (isNaN(year) ? period : year),
         amountMinor,
-        paidMinor: toMinor(paidAmount),
+
         dueDate,
         status: mapStatus(status),
         isRecurring: true,
@@ -415,7 +418,7 @@ async function migrateOneTimeObligation(userId, entityId, trackerId, category, l
         category,
         label,
         amountMinor: toMinor(totalPaid),
-        paidMinor: toMinor(totalPaid),
+
         status: 'PAID',
       },
     });
@@ -435,9 +438,8 @@ async function migrateOneTimeObligation(userId, entityId, trackerId, category, l
       category,
       label,
       amountMinor,
-      paidMinor: isPaid ? amountMinor : 0,
       dueDate: ot.dueDate ? new Date(ot.dueDate) : null,
-      status: isPaid ? 'PAID' : 'PENDING',
+      status: isPaid ? 'PAID' : 'UPCOMING',
       meta: ot.paidAt ? { paidAt: ot.paidAt } : null,
     },
   });

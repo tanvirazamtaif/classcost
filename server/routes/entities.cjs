@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { prisma } = require('../db.cjs');
 
-const VALID_ENTITY_TYPES = ['INSTITUTION', 'RESIDENCE', 'COACHING'];
+const VALID_ENTITY_TYPES = ['INSTITUTION', 'RESIDENCE', 'COACHING', 'ABROAD', 'PERSONAL_PHASE'];
 
 const FINANCIAL_WORDS = ['amount', 'payment', 'fee', 'balance', 'due'];
 
@@ -23,8 +23,8 @@ function validateBody(body) {
   if (!body.type || !VALID_ENTITY_TYPES.includes(body.type)) {
     errors.push('type is required and must be one of: ' + VALID_ENTITY_TYPES.join(', '));
   }
-  if (body.meta !== undefined && !validateMetadata(body.meta)) {
-    errors.push('meta must not contain financial data (amount, payment, fee, balance, due)');
+  if (body.metadata !== undefined && !validateMetadata(body.metadata)) {
+    errors.push('metadata must not contain financial data (amount, payment, fee, balance, due)');
   }
   return errors;
 }
@@ -68,8 +68,11 @@ router.post('/:userId', async (req, res) => {
         userId: req.params.userId,
         type: req.body.type,
         name: req.body.name.trim(),
-        shortName: req.body.shortName || null,
-        meta: req.body.meta || null,
+        subType: req.body.subType || null,
+        eduLevel: req.body.eduLevel || null,
+        startDate: req.body.startDate ? new Date(req.body.startDate) : null,
+        endDate: req.body.endDate ? new Date(req.body.endDate) : null,
+        metadata: req.body.metadata || null,
       },
     });
     res.status(201).json(entity);
@@ -90,8 +93,11 @@ router.put('/:userId/:id', async (req, res) => {
       data: {
         type: req.body.type,
         name: req.body.name.trim(),
-        shortName: req.body.shortName || null,
-        meta: req.body.meta || null,
+        subType: req.body.subType || null,
+        eduLevel: req.body.eduLevel || null,
+        startDate: req.body.startDate ? new Date(req.body.startDate) : null,
+        endDate: req.body.endDate ? new Date(req.body.endDate) : null,
+        metadata: req.body.metadata || null,
       },
     });
     res.json(entity);
@@ -109,7 +115,7 @@ router.delete('/:userId/:id', async (req, res) => {
       where: { id: req.params.id },
       data: {
         isActive: false,
-        archivedAt: new Date(),
+        endDate: new Date(),
       },
     });
     res.json(entity);

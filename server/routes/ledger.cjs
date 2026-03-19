@@ -3,7 +3,7 @@ const router = express.Router();
 const { prisma } = require('../db.cjs');
 const { isValidCategory, isValidSubCategory } = require('../lib/categories.cjs');
 
-const VALID_LEDGER_TYPES = ['EXPENSE', 'PAYMENT', 'REFUND', 'ADJUSTMENT', 'TRANSFER'];
+const VALID_LEDGER_TYPES = ['PAYMENT', 'INCOME', 'REFUND', 'WAIVER_CREDIT', 'ADJUSTMENT', 'CORRECTION'];
 const VALID_DIRECTIONS = ['DEBIT', 'CREDIT'];
 const PAGE_SIZE = 50;
 
@@ -30,39 +30,38 @@ function validateCreate(body) {
   return errors;
 }
 
-// Recalculate obligation status based on confirmed debit entries
+// Recalculate obligation status based on posted debit entries
 async function recalcObligationStatus(obligationId) {
   const obligation = await prisma.obligation.findUnique({ where: { id: obligationId } });
   if (!obligation) return;
   // Terminal states that shouldn't be recalculated from payments
-  if (['WAIVED', 'CANCELLED'].includes(obligation.status)) return;
+  if (['WAIVED', 'VOIDED', 'SKIPPED'].includes(obligation.status)) return;
 
   const result = await prisma.ledgerEntry.aggregate({
-    where: { obligationId, direction: 'DEBIT', status: 'CONFIRMED' },
+    where: { obligationId, direction: 'DEBIT', status: 'POSTED' },
     _sum: { amountMinor: true },
   });
 
   const totalPaid = result._sum.amountMinor || 0;
-  const waiverMinor = Math.floor((obligation.amountMinor * obligation.waiverPct) / 100);
-  const effectiveDue = obligation.amountMinor - waiverMinor;
+  const effectiveDue = obligation.amountMinor - obligation.waiverAmountMinor;
 
   let newStatus;
   if (totalPaid >= effectiveDue) {
     newStatus = 'PAID';
   } else if (totalPaid > 0) {
-    newStatus = 'PARTIAL';
+    newStatus = 'PARTIALLY_PAID';
   } else {
-    // Revert to PENDING or OVERDUE based on due date
+    // Revert to UPCOMING or OVERDUE based on due date
     if (obligation.dueDate && new Date(obligation.dueDate) < new Date()) {
       newStatus = 'OVERDUE';
     } else {
-      newStatus = 'PENDING';
+      newStatus = 'UPCOMING';
     }
   }
 
   await prisma.obligation.update({
     where: { id: obligationId },
-    data: { paidMinor: totalPaid, status: newStatus },
+    data: { status: newStatus },
   });
 }
 
@@ -117,9 +116,9 @@ router.get('/:userId/summary', async (req, res) => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    // All confirmed entries for user
+    // All posted entries for user
     const allEntries = await prisma.ledgerEntry.findMany({
-      where: { userId, status: 'CONFIRMED' },
+      where: { userId, status: 'POSTED' },
       select: { amountMinor: true, direction: true, date: true, category: true, trackerId: true },
     });
 
@@ -277,7 +276,7 @@ router.post('/:userId', async (req, res) => {
         amountMinor: req.body.amountMinor,
         baseAmountMinor: req.body.baseAmountMinor || null,
         currency: req.body.currency || 'BDT',
-        status: 'CONFIRMED',
+        status: 'POSTED',
         date: new Date(req.body.date),
         note: req.body.note || null,
         receiptUrl: req.body.receiptUrl || null,
@@ -307,7 +306,7 @@ router.patch('/:userId/:id/void', async (req, res) => {
       where: { id: req.params.id, userId: req.params.userId },
     });
     if (!existing) return res.status(404).json({ error: 'Ledger entry not found' });
-    if (existing.status === 'VOID') {
+    if (existing.status === 'VOIDED') {
       return res.status(400).json({ error: 'Entry is already voided' });
     }
 
@@ -321,7 +320,7 @@ router.patch('/:userId/:id/void', async (req, res) => {
 
     const entry = await prisma.ledgerEntry.update({
       where: { id: req.params.id },
-      data: { status: 'VOID', meta },
+      data: { status: 'VOIDED', meta },
       include: { tracker: true, obligation: true },
     });
 

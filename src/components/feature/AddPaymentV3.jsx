@@ -100,7 +100,7 @@ export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselected
   const trackerObligations = useMemo(() => {
     if (!selectedTrackerId) return [];
     return (upcomingObligations || []).filter(
-      (o) => o.trackerId === selectedTrackerId && ['PENDING', 'PARTIAL', 'OVERDUE'].includes(o.status)
+      (o) => o.trackerId === selectedTrackerId && ['UPCOMING', 'DUE', 'PARTIALLY_PAID', 'OVERDUE'].includes(o.status)
     );
   }, [selectedTrackerId, upcomingObligations]);
 

@@ -116,7 +116,7 @@ export const EntityDetailV3 = () => {
 
   function getNextDue(trackerId) {
     const obls = obligationsByTracker[trackerId] || [];
-    const pending = obls.filter((o) => ['PENDING', 'OVERDUE'].includes(o.status)).sort((a, b) => {
+    const pending = obls.filter((o) => ['UPCOMING', 'DUE', 'OVERDUE'].includes(o.status)).sort((a, b) => {
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
       return new Date(a.dueDate) - new Date(b.dueDate);
@@ -127,7 +127,7 @@ export const EntityDetailV3 = () => {
   function getTrackerProgress(trackerId) {
     const obls = obligationsByTracker[trackerId] || [];
     const total = obls.reduce((s, o) => s + o.amountMinor, 0);
-    const paid = obls.reduce((s, o) => s + (o.amountPaid || o.paidMinor || 0), 0);
+    const paid = obls.reduce((s, o) => s + (o.amountPaid || 0), 0);
     return { total, paid, remaining: total - paid };
   }
 

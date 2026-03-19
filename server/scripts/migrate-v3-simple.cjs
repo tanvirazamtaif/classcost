@@ -118,10 +118,10 @@ async function migrateHousing() {
       data: {
         userId: h.userId,
         entityId: entity.id,
-        type: 'MONTHLY',
+        type: 'RECURRING_MONTHLY',
         label: 'Monthly Rent',
         startDate: data.moveInDate ? new Date(data.moveInDate) : h.createdAt,
-        status: h.isActive ? 'ACTIVE' : 'ARCHIVED',
+        status: h.isActive ? 'ACTIVE' : 'CANCELLED',
         meta: { category: 'rent', dueDay: 10 },
       },
     });
@@ -139,9 +139,9 @@ async function migrateHousing() {
           label: 'Monthly Rent - ' + now.toLocaleString('en', { month: 'short', year: 'numeric' }),
           amountMinor: toMinor(data.monthlyRent),
           dueDate,
-          status: now > dueDate ? 'OVERDUE' : 'PENDING',
+          status: now > dueDate ? 'OVERDUE' : 'UPCOMING',
           isRecurring: true,
-          recurrenceRule: 'MONTHLY',
+          recurrenceRule: 'RECURRING_MONTHLY',
         },
       });
       oblCount++;
@@ -181,10 +181,10 @@ async function migrateCoaching() {
       data: {
         userId: c.userId,
         entityId: entity.id,
-        type: 'MONTHLY',
+        type: 'RECURRING_MONTHLY',
         label: c.name + ' Monthly',
         startDate: c.startDate,
-        status: c.isActive ? 'ACTIVE' : 'ARCHIVED',
+        status: c.isActive ? 'ACTIVE' : 'CANCELLED',
         meta: { category: 'coaching_monthly', dueDay: 10 },
         budgetMinor: toMinor(c.monthlyFee),
       },
@@ -205,11 +205,11 @@ async function migrateCoaching() {
             category: 'coaching_monthly',
             label: c.name + ' - ' + oblMonth.toLocaleString('en', { month: 'short', year: 'numeric' }),
             amountMinor,
-            paidMinor: amountMinor,
+
             dueDate: oblMonth,
             status: 'PAID',
             isRecurring: true,
-            recurrenceRule: 'MONTHLY',
+            recurrenceRule: 'RECURRING_MONTHLY',
           },
         });
         oblCount++;
@@ -227,9 +227,9 @@ async function migrateCoaching() {
           label: c.name + ' - ' + now.toLocaleString('en', { month: 'short', year: 'numeric' }),
           amountMinor,
           dueDate: currentDue,
-          status: now > currentDue ? 'OVERDUE' : 'PENDING',
+          status: now > currentDue ? 'OVERDUE' : 'UPCOMING',
           isRecurring: true,
-          recurrenceRule: 'MONTHLY',
+          recurrenceRule: 'RECURRING_MONTHLY',
         },
       });
       oblCount++;
@@ -281,12 +281,12 @@ async function migrateExpenses(nameMap) {
       data: {
         userId: exp.userId,
         trackerId,
-        type: 'EXPENSE',
+        type: 'PAYMENT',
         direction: 'DEBIT',
         category: mapCategory(exp.type),
         amountMinor,
         currency: 'BDT',
-        status: 'CONFIRMED',
+        status: 'POSTED',
         date: new Date(exp.date),
         note: exp.note || null,
         sourceRef,
@@ -317,12 +317,12 @@ async function migrateEvents() {
     await prisma.ledgerEntry.create({
       data: {
         userId: evt.userId,
-        type: 'EXPENSE',
+        type: 'PAYMENT',
         direction: 'DEBIT',
         category: 'other',
         amountMinor: toMinor(evt.amount),
         currency: 'BDT',
-        status: 'CONFIRMED',
+        status: 'POSTED',
         date: evt.date,
         note: evt.name || null,
         sourceRef,
@@ -352,12 +352,12 @@ async function migrateUniforms() {
     await prisma.ledgerEntry.create({
       data: {
         userId: uni.userId,
-        type: 'EXPENSE',
+        type: 'PAYMENT',
         direction: 'DEBIT',
         category: 'uniform',
         amountMinor: toMinor(uni.amount),
         currency: 'BDT',
-        status: 'CONFIRMED',
+        status: 'POSTED',
         date: uni.purchaseDate,
         note: uni.description || null,
         sourceRef,
