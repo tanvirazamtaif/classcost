@@ -6,10 +6,10 @@ import { SuccessCheck } from '../ui/SuccessCheck';
 import { useApp } from '../../contexts/AppContext';
 import { haptics } from '../../lib/haptics';
 import { getSubTypes, getCategoryById } from '../../types/payment';
-import { createEntry, createEntryItem } from '../../types/entrySchema';
+import { createTransaction } from '../../core/transactions';
 
 export const QuickEntrySheet = ({ isOpen, onClose, categoryId }) => {
-  const { addEntry, addToast, user, theme } = useApp();
+  const { addExpense, addToast, user, theme } = useApp();
   const d = theme === 'dark';
   const profile = user?.profile;
   const currencySymbol = profile?.currency === 'USD' ? '$' : profile?.currency === 'INR' ? '₹' : '৳';
@@ -30,21 +30,15 @@ export const QuickEntrySheet = ({ isOpen, onClose, categoryId }) => {
 
     try {
       const subType = subTypes.find(s => s.id === selectedType);
-      const item = createEntryItem({
-        subType: selectedType,
-        label: subType?.label || selectedType,
+      const label = subType?.label || selectedType;
+
+      await addExpense(createTransaction({
+        type: categoryId,
         amount: Number(amount),
-        note,
-      });
+        details: label,
+        meta: { subType: selectedType, label },
+      }));
 
-      const entry = createEntry({
-        category: categoryId,
-        mode: 'individual',
-        items: [item],
-        note,
-      });
-
-      await addEntry(entry);
       setStep('success');
       setTimeout(() => {
         resetAndClose();
