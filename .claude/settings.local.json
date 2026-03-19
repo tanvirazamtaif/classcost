@@ -17,7 +17,8 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(npx prisma:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(grep -E \"\\\\.md$\")"
     ]
   }
 }

@@ -6,7 +6,7 @@ import { GButton } from '../components/ui';
 import { SuccessCheck } from '../components/ui/SuccessCheck';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
-import { sanitizeAmount } from '../core/transactions';
+import { sanitizeAmount, createTransaction } from '../core/transactions';
 import { addHousingSetup } from './HousingLandingPage';
 
 // ═══════════════════════════════════════════════════════════════
@@ -106,26 +106,24 @@ export const AddHousingPage = () => {
 
       // Record deposit as expense if entered
       if (dep > 0) {
-        await addExpense({
+        await addExpense(createTransaction({
           type: 'hostel',
           amount: dep,
-          label: 'Housing',
           details: `Deposit / Advance — ${name.trim()}`,
           date: startDate,
           meta: { housingId: id, housingType: 'deposit', label: `Deposit — ${name.trim()}` },
-        });
+        }));
       }
 
       // Record shifting cost as expense if entered
       if (shift > 0) {
-        await addExpense({
+        await addExpense(createTransaction({
           type: 'hostel',
           amount: shift,
-          label: 'Housing',
           details: `Shifting Cost — ${name.trim()}`,
           date: startDate,
           meta: { housingId: id, housingType: 'shifting', label: `Shifting — ${name.trim()}` },
-        });
+        }));
       }
 
       haptics.success();

@@ -14,7 +14,6 @@ const OnboardingWizard = lazy(() => import('./pages/OnboardingWizard').then(m =>
 const ParentOnboardingView = lazy(() => import('./pages/ParentOnboardingView'));
 const DashboardView = lazy(() => import('./pages/DashboardView').then(m => ({ default: m.DashboardView })));
 const ParentDashboardView = lazy(() => import('./pages/ParentDashboardView'));
-const SemesterView = lazy(() => import('./pages/SemesterView'));
 const ReportsView = lazy(() => import('./pages/ReportsView').then(m => ({ default: m.ReportsView })));
 const SettingsView = lazy(() => import('./pages/SettingsView'));
 const LoansView = lazy(() => import('./pages/LoansView'));
@@ -22,12 +21,7 @@ const EducationSetupView = lazy(() => import('./pages/EducationSetupView'));
 const HistoricalDataView = lazy(() => import('./pages/HistoricalDataView'));
 const BudgetSettingsView = lazy(() => import('./pages/BudgetSettingsView'));
 const ScheduleView = lazy(() => import('./pages/ScheduleView').then(m => ({ default: m.ScheduleView })));
-const EducationEntryPage = lazy(() => import('./pages/EducationEntryPage'));
-const HousingEntryPage = lazy(() => import('./pages/HousingEntryPage'));
-const BooksEntryPage = lazy(() => import('./pages/BooksEntryPage'));
-const EducationFeePage = lazy(() => import('./pages/EducationFeePage'));
 const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
-const SemesterPaymentPage = lazy(() => import('./pages/SemesterPaymentPage'));
 const SemesterLandingPage = lazy(() => import('./pages/SemesterLandingPage'));
 const AddSemesterPage = lazy(() => import('./pages/AddSemesterPage'));
 const SemesterDetailPage = lazy(() => import('./pages/SemesterDetailPage'));
@@ -71,7 +65,6 @@ const InnerPage = () => {
     loans: <LoansView />,
     reports: <ReportsView />,
     settings: <SettingsView />,
-    semester: <SemesterView />,
     "budget-settings": <BudgetSettingsView />,
     schedule: <ScheduleView />,
   };
@@ -107,12 +100,7 @@ const ViewRouter = () => {
         {view === "education-setup" && <EducationSetupView />}
         {view === "historical-data" && <HistoricalDataView />}
         {view === "dashboard" && (isParent ? <ParentDashboardView /> : <DashboardView />)}
-        {view === "education-entry" && <EducationEntryPage />}
-        {view === "housing-entry" && <HousingEntryPage />}
-        {view === "books-entry" && <BooksEntryPage />}
-        {view === "education-fees" && <EducationFeePage />}
         {view === "education-fee-form" && <EducationFeeFormPage />}
-        {view === "semester-payment" && <SemesterPaymentPage />}
         {view === "semester-landing" && <SemesterLandingPage />}
         {view === "add-semester" && <AddSemesterPage />}
         {view === "semester-detail" && <SemesterDetailPage />}
@@ -124,7 +112,7 @@ const ViewRouter = () => {
         {view === "education-home" && <EducationHomePage />}
         {view === "institution-detail" && <InstitutionDetailPage />}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
-        {["semester", "reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
+        {["reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
           <InnerPage />
         )}
       </Suspense>

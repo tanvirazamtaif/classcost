@@ -46,9 +46,8 @@ export const useApp = () => {
 const VALID_VIEWS = new Set([
   'landing', 'otp', 'role-selection', 'onboarding', 'parent-onboarding',
   'education-setup', 'historical-data', 'budget-settings',
-  'dashboard', 'semester', 'reports', 'settings', 'loans', 'schedule',
-  'education-entry', 'housing-entry', 'books-entry', 'entry-detail',
-  'education-fees', 'education-fee-form', 'semester-payment', 'semester-landing', 'add-semester', 'semester-detail',
+  'dashboard', 'reports', 'settings', 'loans', 'schedule',
+  'education-fee-form', 'semester-landing', 'add-semester', 'semester-detail',
   'transport', 'study-materials', 'housing-landing', 'add-housing', 'housing-detail',
   'education-home', 'institution-detail', 'general-cost-tracker', 'admin',
 ]);

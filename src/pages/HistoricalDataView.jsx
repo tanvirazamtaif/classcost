@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { makeFmt } from '../utils/format';
+import { createTransaction } from '../core/transactions';
 
 const PERIODS = [
   { id: 'this_year', label: 'এই বছর (This Year)', icon: '📅' },
@@ -56,15 +57,12 @@ export const HistoricalDataView = () => {
       const date = getPeriodDate();
       const entries = CATEGORIES
         .filter(cat => Number(amounts[cat.id]) > 0)
-        .map(cat => ({
-          userId: user?.id,
+        .map(cat => createTransaction({
           type: cat.id,
-          subType: 'historical',
           amount: Number(amounts[cat.id]),
+          details: `${cat.label} (Historical)`,
           date,
-          label: `${cat.label} (Historical)`,
-          details: `Past expense — ${getPeriodLabel()}`,
-          isHistorical: true,
+          meta: { subType: 'historical', isHistorical: true, period: getPeriodLabel() },
         }));
 
       for (const expense of entries) {
