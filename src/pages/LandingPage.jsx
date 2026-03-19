@@ -145,14 +145,16 @@ export const LandingPage = () => {
         {/* ═══ RIGHT — Auth + Floating Cards ═══ */}
         <div className="flex flex-col items-center justify-center px-5 py-12 lg:py-0 relative min-h-screen lg:min-h-0">
 
-          {/* Floating data cards — desktop only */}
-          <div className="hidden lg:block">
-            <div className="absolute top-[60px] left-5 xl:left-10 animate-landing-float-1 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
+          {/* Floating data cards wrapper — centered around auth card */}
+          <div className="hidden lg:block absolute inset-0">
+            {/* Semester fee card — top-left of auth area */}
+            <div className="absolute top-[12%] left-[5%] animate-landing-float-1 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
               <div className="text-[11px] text-zinc-600 mb-1">BRACU · Spring 2026</div>
               <div className="text-lg font-bold text-white">৳85,000</div>
               <div className="text-[10px] text-emerald-400 mt-0.5">✓ Semester fee paid</div>
             </div>
-            <div className="absolute top-[180px] right-2 xl:right-5 animate-landing-float-2 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
+            {/* Monthly stats card — top-right of auth area */}
+            <div className="absolute top-[25%] right-[8%] animate-landing-float-2 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
               <div className="text-[11px] text-zinc-600 mb-1">This month</div>
               <div className="flex items-baseline gap-1">
                 <span className="text-lg font-bold text-white">৳12,400</span>
@@ -164,7 +166,8 @@ export const LandingPage = () => {
                 ))}
               </div>
             </div>
-            <div className="absolute bottom-[100px] left-5 xl:left-10 animate-landing-float-3 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
+            {/* Today's expenses card — bottom-left of auth area */}
+            <div className="absolute bottom-[15%] left-[3%] animate-landing-float-3 bg-[#111118] border border-[#1e1e2a] rounded-2xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,.3)]">
               <div className="text-[11px] text-zinc-600 mb-2">Today</div>
               <div className="flex items-center gap-2 mb-1.5">
                 <div className="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center">
