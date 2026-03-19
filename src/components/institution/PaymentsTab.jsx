@@ -6,20 +6,17 @@ import { AmountInput } from '../shared/AmountInput';
 import { haptics } from '../../lib/haptics';
 import { validateAmount } from '../../core/transactions';
 
+// Non-semester fees only (semester fees are in the Semesters tab)
 const PRIMARY_FEES = [
   { id: 'admission_fee', icon: '🎫', label: 'Admission Fee' },
-  { id: 'semester_payment', icon: '🎓', label: 'Semester Payment', route: 'semester-landing' },
-  { id: 'tuition_monthly', icon: '📅', label: 'Monthly Tuition' },
-  { id: 'exam_fee', icon: '📝', label: 'Exam Fee' },
-  { id: 'lab_fee', icon: '🔬', label: 'Lab Fee' },
-  { id: 'library_fee', icon: '📚', label: 'Library Fee' },
   { id: 'id_card', icon: '🪪', label: 'ID Card Fee' },
+  { id: 'tuition_monthly', icon: '📅', label: 'Monthly Tuition' },
+  { id: 'registration_fee', icon: '📄', label: 'Registration Fee' },
+  { id: 'development_fee', icon: '🏗️', label: 'Development Fee' },
   { id: 'other', icon: '📦', label: 'Custom Fee' },
 ];
 
 const SECONDARY_FEES = [
-  { id: 'registration_fee', icon: '📄', label: 'Registration Fee' },
-  { id: 'development_fee', icon: '🏗️', label: 'Development Fee' },
   { id: 'transport', icon: '🚌', label: 'Transport' },
   { id: 'hostel', icon: '🏠', label: 'Hostel' },
   { id: 'books', icon: '📖', label: 'Books' },

@@ -49,6 +49,12 @@ export const SemesterDetailPage = () => {
   const [recordNote, setRecordNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Semester internal fees
+  const [showAddFee, setShowAddFee] = useState(false);
+  const [addFeeType, setAddFeeType] = useState(null);
+  const [addFeeAmount, setAddFeeAmount] = useState('');
+  const [addFeeNote, setAddFeeNote] = useState('');
+
   // Close popover on outside click
   useEffect(() => {
     if (!reminderPopoverFor) return;
@@ -691,6 +697,132 @@ export const SemesterDetailPage = () => {
             </div>
           </div>
         )}
+
+        {/* ═══ SEMESTER INTERNAL FEES ═══ */}
+        {fee.feeType === 'semester_container' && (() => {
+          const SEMESTER_FEE_TYPES = [
+            { id: 'tuition', icon: '🎓', label: 'Tuition' },
+            { id: 'lab_fee', icon: '🔬', label: 'Lab Fee' },
+            { id: 'exam_fee', icon: '📝', label: 'Exam Fee' },
+            { id: 'library_fee', icon: '📚', label: 'Library Fee' },
+            { id: 'development_fee', icon: '🏗️', label: 'Development Fee' },
+            { id: 'custom', icon: '📦', label: 'Custom Fee' },
+          ];
+
+          const semFees = fee.semester?.fees || [];
+          const totalFees = semFees.reduce((s, f) => s + (f.amount || 0), 0);
+          const totalFeePaid = semFees.reduce((s, f) => s + (f.paidAmount || 0), 0);
+          const feeProgress = totalFees > 0 ? Math.min(100, Math.round(totalFeePaid / totalFees * 100)) : 0;
+
+          const handleAddInternalFee = () => {
+            if (!addFeeType || parseAmount(addFeeAmount) <= 0) { haptics.error(); return; }
+            const newFee = {
+              id: `sf_${Date.now().toString(36)}`,
+              type: addFeeType.id, label: addFeeType.label, icon: addFeeType.icon,
+              amount: parseAmount(addFeeAmount), paidAmount: 0, isPaid: false,
+              note: addFeeNote || null, addedAt: new Date().toISOString(),
+            };
+            const currentFees = fee.semester?.fees || [];
+            updateFee(fee.id, {
+              semester: { ...fee.semester, fees: [...currentFees, newFee] },
+              amount: (fee.amount || 0) + newFee.amount,
+            }, `Added ${addFeeType.label} ৳${newFee.amount}`);
+            haptics.success();
+            addToast(`${addFeeType.label} added`, 'success');
+            setShowAddFee(false); setAddFeeType(null); setAddFeeAmount(''); setAddFeeNote('');
+          };
+
+          const handleToggleFeePaid = (feeItem) => {
+            if (feeItem.isPaid) return;
+            haptics.success();
+            const updatedFees = (fee.semester?.fees || []).map(f =>
+              f.id === feeItem.id ? { ...f, isPaid: true, paidAmount: f.amount, paidAt: new Date().toISOString() } : f
+            );
+            updateFee(fee.id, { semester: { ...fee.semester, fees: updatedFees } }, `Paid ${feeItem.label}`);
+            addToast(`${feeItem.label} marked paid`, 'success');
+          };
+
+          return (
+            <div className="space-y-4">
+              <h2 className={`text-sm font-semibold ${d ? 'text-white' : 'text-surface-900'}`}>Fees in this Semester</h2>
+
+              {/* Fee list */}
+              {semFees.length > 0 && (
+                <div className="space-y-2">
+                  {semFees.map(f => (
+                    <motion.button key={f.id} whileTap={{ scale: 0.98 }}
+                      onClick={() => handleToggleFeePaid(f)}
+                      disabled={f.isPaid}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition ${
+                        f.isPaid
+                          ? d ? 'bg-emerald-900/10 border-emerald-800/20' : 'bg-emerald-50/50 border-emerald-200/50'
+                          : d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
+                      }`}>
+                      {f.isPaid
+                        ? <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shrink-0"><Check className="w-3 h-3 text-white" /></div>
+                        : <div className={`w-5 h-5 rounded-full border-2 shrink-0 ${d ? 'border-surface-600' : 'border-surface-300'}`} />
+                      }
+                      <span className="text-sm">{f.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${f.isPaid ? 'line-through text-surface-400' : d ? 'text-white' : 'text-surface-900'}`}>{f.label}</p>
+                        {f.note && <p className="text-xs text-surface-500">{f.note}</p>}
+                      </div>
+                      <p className={`text-sm font-semibold shrink-0 ${f.isPaid ? (d ? 'text-emerald-400' : 'text-emerald-600') : d ? 'text-white' : 'text-surface-900'}`}>
+                        ৳{(f.amount || 0).toLocaleString()}
+                      </p>
+                    </motion.button>
+                  ))}
+
+                  {/* Totals */}
+                  <div className={`pt-3 border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>Total: ৳{totalFees.toLocaleString()}</span>
+                      <span className={`text-xs font-medium ${d ? 'text-emerald-400' : 'text-emerald-600'}`}>Paid: ৳{totalFeePaid.toLocaleString()} ({feeProgress}%)</span>
+                    </div>
+                    <div className={`h-1.5 rounded-full overflow-hidden ${d ? 'bg-surface-800' : 'bg-surface-100'}`}>
+                      <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${feeProgress}%` }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Add fee */}
+              {!showAddFee ? (
+                <GButton fullWidth variant="secondary" onClick={() => { haptics.light(); setShowAddFee(true); }}>
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Fee
+                </GButton>
+              ) : (
+                <AnimatePresence>
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-2xl border space-y-3 ${d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'}`}>
+                    <p className={`text-sm font-medium ${d ? 'text-white' : 'text-surface-900'}`}>Add Fee</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SEMESTER_FEE_TYPES.map(t => (
+                        <button key={t.id} onClick={() => { haptics.light(); setAddFeeType(t); }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                            addFeeType?.id === t.id ? 'bg-primary-600 text-white' : d ? 'bg-surface-800 text-surface-400' : 'bg-surface-100 text-surface-600'
+                          }`}>{t.icon} {t.label}</button>
+                      ))}
+                    </div>
+                    {addFeeType && (
+                      <>
+                        <AmountInput value={addFeeAmount} onChange={setAddFeeAmount} dark={d} size="sm" autoFocus />
+                        <input type="text" placeholder="Note (optional)" value={addFeeNote} onChange={(e) => setAddFeeNote(e.target.value)}
+                          className={`w-full p-3 border rounded-xl text-sm outline-none focus:border-primary-500 transition ${
+                            d ? 'bg-surface-800 border-surface-700 text-white' : 'bg-surface-50 border-surface-200 text-surface-900'
+                          }`} />
+                      </>
+                    )}
+                    <div className="flex gap-2">
+                      <GButton variant="secondary" fullWidth onClick={() => { setShowAddFee(false); setAddFeeType(null); setAddFeeAmount(''); }}>Cancel</GButton>
+                      <GButton fullWidth onClick={handleAddInternalFee} disabled={!addFeeType || parseAmount(addFeeAmount) <= 0}>Add</GButton>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Note */}
         {fee.note && (

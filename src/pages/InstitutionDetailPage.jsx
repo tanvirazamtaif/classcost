@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import { GButton } from '../components/ui';
+import { SemestersTab } from '../components/institution/SemestersTab';
 import { PaymentsTab } from '../components/institution/PaymentsTab';
 import { ClubsTab } from '../components/institution/ClubsTab';
 import { StudentInfoTab } from '../components/institution/StudentInfoTab';
@@ -30,7 +31,7 @@ function getTypeLabel(type) {
 
 export const InstitutionDetailPage = () => {
   const { navigate, addToast, theme, routeParams, user, setUser, clubs, addClub, updateClub, removeClub } = useApp();
-  const { activeFees, addFee } = useEducationFees();
+  const { activeFees, addFee, addSemesterFee } = useEducationFees();
   const d = theme === 'dark';
 
   const { institutionName, institutionType, isNew } = routeParams || {};
@@ -39,7 +40,7 @@ export const InstitutionDetailPage = () => {
   const isInfoIncomplete = !user?.profile?.institutionInfo?.[institutionName]?.classYear;
 
   // Tab state — auto-open Student Info if new or incomplete
-  const [activeTab, setActiveTab] = useState('payments');
+  const [activeTab, setActiveTab] = useState('semesters');
   useEffect(() => {
     if (isNew || isInfoIncomplete) setActiveTab('info');
   }, []);
@@ -86,9 +87,10 @@ export const InstitutionDetailPage = () => {
   }
 
   const TABS = [
-    { id: 'payments', label: 'Payments' },
+    { id: 'semesters', label: 'Semesters' },
+    { id: 'expenses', label: 'Expenses' },
     { id: 'clubs', label: 'Clubs' },
-    { id: 'info', label: 'Student Info', dot: isInfoIncomplete },
+    { id: 'info', label: 'Info', dot: isInfoIncomplete },
   ];
 
   return (
@@ -125,7 +127,18 @@ export const InstitutionDetailPage = () => {
       </header>
 
       <main className="max-w-md mx-auto p-4">
-        {activeTab === 'payments' && (
+        {activeTab === 'semesters' && (
+          <SemestersTab
+            institutionName={institutionName}
+            activeFees={activeFees}
+            addSemesterFee={addSemesterFee}
+            navigate={navigate}
+            dark={d}
+            addToast={addToast}
+          />
+        )}
+
+        {activeTab === 'expenses' && (
           <PaymentsTab
             institutionName={institutionName}
             institutionFees={institutionFees}
