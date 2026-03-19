@@ -318,6 +318,14 @@ export const AppProvider = ({ children }) => {
     setClubsLocal(prev => [...prev, club]);
   }, []);
 
+  const updateClub = useCallback((id, updates) => {
+    setClubsLocal(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  }, []);
+
+  const removeClub = useCallback((id) => {
+    setClubsLocal(prev => prev.filter(c => c.id !== id));
+  }, []);
+
   // Helper: add semester and sync
   const addSemester = useCallback(async (semester) => {
     setSemestersLocal(prev => [...prev, semester]);
@@ -485,7 +493,7 @@ export const AppProvider = ({ children }) => {
     updateScheduledPayment, markScheduledAsPaid, getUpcomingPayments,
     entries, addEntry, updateEntry, deleteEntry, getEntriesByCategory,
     housings, addHousing, updateHousing, removeHousing,
-    clubs, addClub,
+    clubs, addClub, updateClub, removeClub,
     educationLevel, setEducationLevel,
     educationLevelAsked, setEducationLevelAsked,
   };

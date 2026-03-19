@@ -29,7 +29,7 @@ function getTypeLabel(type) {
 // ═══════════════════════════════════════════════════════════════
 
 export const InstitutionDetailPage = () => {
-  const { navigate, addToast, theme, routeParams, user, setUser, clubs, addClub } = useApp();
+  const { navigate, addToast, theme, routeParams, user, setUser, clubs, addClub, updateClub, removeClub } = useApp();
   const { activeFees, addFee } = useEducationFees();
   const d = theme === 'dark';
 
@@ -143,6 +143,8 @@ export const InstitutionDetailPage = () => {
             institutionName={institutionName}
             clubs={clubs}
             addClub={addClub}
+            updateClub={updateClub}
+            removeClub={removeClub}
             dark={d}
             addToast={addToast}
           />
@@ -155,6 +157,7 @@ export const InstitutionDetailPage = () => {
             setUser={setUser}
             dark={d}
             addToast={addToast}
+            onSaveComplete={() => setActiveTab('payments')}
           />
         )}
       </main>
