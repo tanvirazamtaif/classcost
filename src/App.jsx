@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useState } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { EducationFeeProvider } from './contexts/EducationFeeContext';
 import { ErrorBoundary, RoleSelection } from './components/feature';
-import { ToastContainer, DashboardSkeleton, ReportsSkeleton } from './components/ui';
+import { ToastContainer, DashboardSkeleton, ReportsSkeleton, LoadingOverlay } from './components/ui';
 import { Header, LayoutBottomNav, Sidebar } from './components/layout';
 
 // Keep these as regular imports (needed on first load)
@@ -46,14 +46,7 @@ const PageLoader = ({ view, dark }) => {
       </div>
     </div>
   );
-  return (
-    <div className={`min-h-screen ${dark ? 'bg-slate-950' : 'bg-slate-50'} flex items-center justify-center`}>
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className={`text-sm ${dark ? 'text-slate-400' : 'text-slate-500'}`}>Loading...</p>
-      </div>
-    </div>
-  );
+  return <LoadingOverlay />;
 };
 
 // ─── Inner pages with bottom nav (non-dashboard) ─────────────────────────────

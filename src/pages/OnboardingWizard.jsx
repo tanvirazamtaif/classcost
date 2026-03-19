@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { EDU, EDU_GROUPS, INSTITUTIONS } from '../constants/education';
 import { CURRENCIES } from '../constants/currencies';
-import { Btn, Input, Toggle } from '../components/ui';
+import { Btn, Input, Toggle, Logo } from '../components/ui';
 import { validateInstitution } from '../utils/guardian';
 
 export const OnboardingWizard = () => {
@@ -127,7 +127,10 @@ export const OnboardingWizard = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="flex items-center justify-between px-6 pt-6 pb-2">
-        <div className="text-sm font-bold text-indigo-600">ClassCost</div>
+        <div className="flex items-center gap-2">
+          <Logo size={24} animated />
+          <span className="text-sm font-bold text-indigo-600">ClassCost</span>
+        </div>
         <button onClick={() => { setUser((p) => ({ ...p, onboardingSkipped: true })); navigate("dashboard", { replace: true }); }} className="text-slate-400 text-sm">Skip</button>
       </div>
 

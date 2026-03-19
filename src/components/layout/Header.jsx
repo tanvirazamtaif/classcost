@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Menu, Bell, Settings, User, LogOut, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../contexts/AppContext';
+import { Logo } from '../ui';
 import { haptics } from '../../lib/haptics';
 
 export const Header = ({ onMenuClick }) => {
@@ -65,7 +66,10 @@ export const Header = ({ onMenuClick }) => {
           <Menu className="w-5 h-5 text-surface-700 dark:text-surface-300" />
         </button>
 
-        <h1 className="text-lg font-semibold text-surface-900 dark:text-white">ClassCost</h1>
+        <div className="flex items-center gap-2.5">
+          <Logo size={28} />
+          <h1 className="text-lg font-semibold text-surface-900 dark:text-white">ClassCost</h1>
+        </div>
 
         <div className="flex items-center gap-1">
           {/* Notifications */}

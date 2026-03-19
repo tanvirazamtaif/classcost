@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Home, GraduationCap, CreditCard, PieChart, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import { Logo } from '../ui';
 import { haptics } from '../../lib/haptics';
 
 const menuItems = [
@@ -55,6 +56,10 @@ export const Sidebar = ({ isOpen, onClose }) => {
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className="fixed top-0 left-0 h-full w-72 z-50 bg-white dark:bg-surface-900 shadow-xl"
           >
+            <div className="flex items-center gap-2.5 px-4 py-3">
+              <Logo size={28} />
+              <span className="text-lg font-bold text-surface-900 dark:text-white">ClassCost</span>
+            </div>
             <div className="p-5 border-b border-surface-200 dark:border-surface-800">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-white text-lg font-medium">

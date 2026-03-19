@@ -7,6 +7,7 @@ import {
   Edit, RefreshCw, Crown,
 } from 'lucide-react';
 import { useAdmin } from '../../contexts/AdminContext';
+import { LoadingOverlay } from '../../components/ui';
 
 export const AdminUserDetailPage = ({ userId, onBack }) => {
   const { adminFetch } = useAdmin();
@@ -35,11 +36,7 @@ export const AdminUserDetailPage = ({ userId, onBack }) => {
   }, [userId]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-surface-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-[3px] border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingOverlay message="Loading user..." />;
   }
 
   if (error || !user) {

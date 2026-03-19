@@ -23,3 +23,6 @@ export { FAB } from './FAB';
 export { BottomSheet } from './BottomSheet';
 export { Snackbar } from './Snackbar';
 export { SuccessCheck } from './SuccessCheck';
+export { Logo } from './Logo';
+export { LoadingSpinner } from './LoadingSpinner';
+export { LoadingOverlay } from './LoadingOverlay';

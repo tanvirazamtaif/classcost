@@ -7,6 +7,7 @@ import {
   Crown, Calendar, ExternalLink,
 } from 'lucide-react';
 import { useAdmin } from '../../contexts/AdminContext';
+import { LoadingSpinner } from '../../components/ui';
 import AdminUserDetailPage from './AdminUserDetailPage';
 
 export const AdminDashboardPage = () => {
@@ -275,7 +276,7 @@ export const AdminDashboardPage = () => {
                 {loading ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-surface-400">
-                      <div className="w-8 h-8 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto" />
+                      <LoadingSpinner size={32} message="" />
                     </td>
                   </tr>
                 ) : users.length === 0 ? (
