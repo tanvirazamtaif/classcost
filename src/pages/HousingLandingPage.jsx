@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, ChevronRight, Home, Calendar, Archive } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
@@ -6,33 +6,6 @@ import { GButton } from '../components/ui';
 import { LayoutBottomNav } from '../components/layout';
 import { haptics } from '../lib/haptics';
 import { pageTransition, fadeInUp } from '../lib/animations';
-
-// ═══════════════════════════════════════════════════════════════
-// HOUSING STORAGE (localStorage — lightweight, no schema change)
-// ═══════════════════════════════════════════════════════════════
-
-const HOUSING_KEY = 'classcost_housing_setups';
-
-export function getHousingSetups() {
-  try { return JSON.parse(localStorage.getItem(HOUSING_KEY) || '[]'); }
-  catch { return []; }
-}
-
-export function saveHousingSetups(setups) {
-  localStorage.setItem(HOUSING_KEY, JSON.stringify(setups));
-}
-
-export function addHousingSetup(setup) {
-  const all = getHousingSetups();
-  all.unshift(setup);
-  saveHousingSetups(all);
-  return setup;
-}
-
-export function updateHousingSetup(id, updates) {
-  const all = getHousingSetups().map(h => h.id === id ? { ...h, ...updates } : h);
-  saveHousingSetups(all);
-}
 
 // ═══════════════════════════════════════════════════════════════
 // HELPERS
@@ -54,13 +27,11 @@ function getTypeMeta(type) { return TYPE_META[type] || TYPE_META.other; }
 // ═══════════════════════════════════════════════════════════════
 
 export const HousingLandingPage = () => {
-  const { navigate, theme, expenses } = useApp();
+  const { navigate, theme, expenses, housings } = useApp();
   const d = theme === 'dark';
 
-  const [setups] = useState(() => getHousingSetups());
-
-  const activeSetups = useMemo(() => setups.filter(h => h.status === 'active'), [setups]);
-  const archivedSetups = useMemo(() => setups.filter(h => h.status === 'inactive'), [setups]);
+  const activeSetups = useMemo(() => (housings || []).filter(h => h.status === 'active'), [housings]);
+  const archivedSetups = useMemo(() => (housings || []).filter(h => h.status === 'inactive'), [housings]);
 
   // Housing expenses from the regular expense system
   const housingExpenses = useMemo(() => {

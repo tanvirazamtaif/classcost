@@ -16,6 +16,7 @@ const clubRoutes = require('./routes/clubs.cjs');
 const eventRoutes = require('./routes/events.cjs');
 const uniformRoutes = require('./routes/uniforms.cjs');
 const educationFeeRoutes = require('./routes/educationFees.cjs');
+const housingRoutes = require('./routes/housing.cjs');
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/clubs', clubRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/uniforms', uniformRoutes);
 app.use('/api/education-fees', educationFeeRoutes);
+app.use('/api/housing', housingRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {

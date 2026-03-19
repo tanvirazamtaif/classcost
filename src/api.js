@@ -171,6 +171,30 @@ export async function syncEducationFees(userId, fees) {
   });
 }
 
+// ── Housing ──────────────────────────────────────────────────────────────
+
+export async function getHousings(userId) {
+  return request(`/api/housing/${userId}`);
+}
+
+export async function createHousing(userId, housing) {
+  return request('/api/housing', {
+    method: 'POST',
+    body: JSON.stringify({ userId, housing }),
+  });
+}
+
+export async function updateHousing(id, housing) {
+  return request(`/api/housing/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ housing }),
+  });
+}
+
+export async function deleteHousing(id) {
+  return request(`/api/housing/${id}`, { method: 'DELETE' });
+}
+
 // ── Coaching Centers ──────────────────────────────────────────────────────
 
 export async function getCoachingCenters(userId) {

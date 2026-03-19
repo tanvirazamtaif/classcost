@@ -7,7 +7,6 @@ import { SuccessCheck } from '../components/ui/SuccessCheck';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 import { sanitizeAmount, createTransaction } from '../core/transactions';
-import { addHousingSetup } from './HousingLandingPage';
 
 // ═══════════════════════════════════════════════════════════════
 // HOUSING TYPES
@@ -27,7 +26,7 @@ const HOUSING_TYPES = [
 // ═══════════════════════════════════════════════════════════════
 
 export const AddHousingPage = () => {
-  const { navigate, addToast, addExpense, theme } = useApp();
+  const { navigate, addToast, addExpense, addHousing, theme } = useApp();
   const d = theme === 'dark';
 
   // Flow: type → basics → optional → success
@@ -101,7 +100,7 @@ export const AddHousingPage = () => {
         note: null,
       };
 
-      addHousingSetup(setup);
+      addHousing(setup);
       setCreatedId(id);
 
       // Record deposit as expense if entered

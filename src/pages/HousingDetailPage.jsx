@@ -8,7 +8,6 @@ import { AmountInput } from '../components/shared/AmountInput';
 import { haptics } from '../lib/haptics';
 import { pageTransition } from '../lib/animations';
 import { createTransaction, sanitizeAmount, formatTransactionDate, validateAmount } from '../core/transactions';
-import { getHousingSetups, updateHousingSetup } from './HousingLandingPage';
 
 // ═══════════════════════════════════════════════════════════════
 // HOUSING TYPE META
@@ -28,11 +27,11 @@ const TYPE_META = {
 // ═══════════════════════════════════════════════════════════════
 
 export const HousingDetailPage = () => {
-  const { navigate, addToast, addExpense, theme, routeParams, expenses } = useApp();
+  const { navigate, addToast, addExpense, theme, routeParams, expenses, housings, updateHousing } = useApp();
   const d = theme === 'dark';
 
   const { housingId } = routeParams || {};
-  const [setup, setSetup] = useState(() => getHousingSetups().find(h => h.id === housingId));
+  const setup = useMemo(() => (housings || []).find(h => h.id === housingId), [housings, housingId]);
 
   // Forms
   const [activeForm, setActiveForm] = useState(null); // null | 'rent' | 'cost' | 'deposit' | 'moveout'
@@ -123,8 +122,7 @@ export const HousingDetailPage = () => {
       }));
       // Update setup's deposit total
       const newDeposit = (setup.deposit || 0) + amt;
-      updateHousingSetup(housingId, { deposit: newDeposit });
-      setSetup(prev => ({ ...prev, deposit: newDeposit }));
+      updateHousing(housingId, { deposit: newDeposit });
       haptics.success();
       addToast(`Deposit ৳${amt.toLocaleString()} recorded`, 'success');
       closeForm();
@@ -154,8 +152,7 @@ export const HousingDetailPage = () => {
     const rent = parseFloat(newRent);
     if (!rent || rent <= 0) { haptics.error(); return; }
     haptics.success();
-    updateHousingSetup(housingId, { monthlyRent: rent });
-    setSetup(prev => ({ ...prev, monthlyRent: rent }));
+    updateHousing(housingId, { monthlyRent: rent });
     setEditingRent(false);
     addToast(`Rent updated to ৳${rent.toLocaleString()}`, 'success');
   };
@@ -175,13 +172,12 @@ export const HousingDetailPage = () => {
         }));
       }
 
-      updateHousingSetup(housingId, {
+      updateHousing(housingId, {
         status: 'inactive',
         moveOutDate,
         shiftingCostOnMove: shiftCost,
         depositUsed: useDepositForFinal,
       });
-      setSetup(prev => ({ ...prev, status: 'inactive', moveOutDate }));
 
       if (useDepositForFinal && setup.deposit > 0) {
         addToast(`Deposit ৳${setup.deposit.toLocaleString()} applied to final rent`, 'success');

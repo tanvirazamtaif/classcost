@@ -75,6 +75,7 @@ export const AppProvider = ({ children }) => {
   });
   const [scheduledPayments, setScheduledPaymentsLocal] = useLocalStorage("ut_v3_scheduled", []);
   const [entries, setEntriesLocal] = useLocalStorage("ut_v3_entries", []);
+  const [housings, setHousingsLocal] = useLocalStorage("ut_v3_housings", []);
   const [syncing, setSyncing] = useState(false);
   const [routeParams, setRouteParams] = useState(null); // params passed via navigate()
   const [pendingAccountType, setPendingAccountType] = useState(null); // temp during signup
@@ -142,11 +143,12 @@ export const AppProvider = ({ children }) => {
   // Sync user data from server on login
   const loadUserData = useCallback(async (userId) => {
     try {
-      const [expData, semData, loanData, setData] = await Promise.all([
+      const [expData, semData, loanData, setData, housingData] = await Promise.all([
         api.getExpenses(userId),
         api.getSemesters(userId),
         api.getLoans(userId),
         api.getSettings(userId),
+        api.getHousings(userId),
       ]);
       // Map DB fields back to frontend fields: note→details, meta.label→label
       setExpensesLocal((expData || []).map(exp => ({
@@ -156,7 +158,23 @@ export const AppProvider = ({ children }) => {
       })));
       setSemestersLocal(semData);
       setLoansLocal(loanData);
+      setHousingsLocal(housingData || []);
       if (setData?.notifications) setNotificationsLocal(setData.notifications);
+
+      // Migrate housing from localStorage to DB (one-time)
+      const localHousing = (() => {
+        try { return JSON.parse(localStorage.getItem('classcost_housing_setups') || '[]'); }
+        catch { return []; }
+      })();
+      if (localHousing.length > 0 && (!housingData || housingData.length === 0)) {
+        Promise.all(localHousing.map(h => api.createHousing(userId, h)))
+          .then(() => {
+            localStorage.removeItem('classcost_housing_setups');
+            // Reload housing data after migration
+            api.getHousings(userId).then(d => setHousingsLocal(d || []));
+          })
+          .catch(e => console.error('Housing migration failed:', e));
+      }
     } catch (e) {
       console.error('Failed to load user data:', e);
     }
@@ -267,6 +285,31 @@ export const AppProvider = ({ children }) => {
     setExpensesLocal(prev => prev.filter(e => e.id !== expenseId));
     try { await api.deleteExpense(expenseId); }
     catch (e) { console.error('Failed to delete expense:', e); throw e; }
+  }, []);
+
+  // Helper: add housing and sync to server
+  const addHousing = useCallback(async (housing) => {
+    setHousingsLocal(prev => [...prev, housing]);
+    if (user?.id) {
+      try { await api.createHousing(user.id, housing); }
+      catch (e) { console.error('Failed to sync housing:', e); }
+    }
+  }, [user?.id]);
+
+  // Helper: update housing and sync to server
+  const updateHousing = useCallback(async (id, updates) => {
+    setHousingsLocal(prev => prev.map(h => h.id === id ? { ...h, ...updates } : h));
+    try {
+      const current = housings.find(h => h.id === id);
+      await api.updateHousing(id, { ...current, ...updates });
+    } catch (e) { console.error('Failed to update housing:', e); }
+  }, [housings]);
+
+  // Helper: remove housing and sync to server
+  const removeHousing = useCallback(async (id) => {
+    setHousingsLocal(prev => prev.filter(h => h.id !== id));
+    try { await api.deleteHousing(id); }
+    catch (e) { console.error('Failed to delete housing:', e); }
   }, []);
 
   // Helper: add semester and sync
@@ -435,6 +478,7 @@ export const AppProvider = ({ children }) => {
     scheduledPayments, addScheduledPayment, deleteScheduledPayment,
     updateScheduledPayment, markScheduledAsPaid, getUpcomingPayments,
     entries, addEntry, updateEntry, deleteEntry, getEntriesByCategory,
+    housings, addHousing, updateHousing, removeHousing,
     educationLevel, setEducationLevel,
     educationLevelAsked, setEducationLevelAsked,
   };
