@@ -45,7 +45,7 @@ function getInstitutionTypeLabel(type) {
 // ═══════════════════════════════════════════════════════════════
 
 export const EducationHomePage = () => {
-  const { navigate, theme, user } = useApp();
+  const { navigate, theme, user, setUser } = useApp();
   const { activeFees } = useEducationFees();
   const { institutionName, educationLevel, institutionType } = useUserProfile();
   const d = theme === 'dark';
@@ -96,8 +96,23 @@ export const EducationHomePage = () => {
       }
     });
 
+    // 3. Include explicitly saved institutions from profile
+    const savedInstitutions = user?.profile?.institutions || [];
+    savedInstitutions.forEach(inst => {
+      const key = inst.name.toLowerCase();
+      if (!instMap.has(key)) {
+        instMap.set(key, {
+          name: inst.name,
+          type: inst.type || 'university',
+          source: 'saved',
+          feeCount: 0,
+          totalPaid: 0,
+        });
+      }
+    });
+
     return Array.from(instMap.values());
-  }, [activeFees, institutionName, user?.eduType, institutionType]);
+  }, [activeFees, institutionName, user?.eduType, institutionType, user?.profile?.institutions]);
 
   // ── General cost counts ─────────────────────────────────────
 
@@ -114,6 +129,27 @@ export const EducationHomePage = () => {
   const handleAddInstitution = () => {
     if (!newInstName.trim()) return;
     haptics.success();
+
+    // Save to user profile so it persists
+    const currentInstitutions = user?.profile?.institutions || [];
+    const alreadyExists = currentInstitutions.some(
+      inst => inst.name.toLowerCase() === newInstName.trim().toLowerCase()
+    );
+    if (!alreadyExists) {
+      setUser(p => ({
+        ...p,
+        profile: {
+          ...p.profile,
+          institutions: [...currentInstitutions, {
+            id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+            name: newInstName.trim(),
+            type: newInstType,
+            addedAt: new Date().toISOString(),
+          }],
+        },
+      }));
+    }
+
     navigate('institution-detail', { params: {
       institutionName: newInstName.trim(),
       institutionType: newInstType,

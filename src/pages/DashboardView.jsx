@@ -81,8 +81,16 @@ export const DashboardView = () => {
         }
       }
     });
+    // Include explicitly saved institutions from profile
+    (user?.profile?.institutions || []).forEach(inst => {
+      const key = inst.name.toLowerCase();
+      if (!instMap.has(key)) {
+        instMap.set(key, { name: inst.name, type: inst.type || 'university', source: 'saved', feeCount: 0, totalPaid: 0 });
+      }
+    });
+
     return Array.from(instMap.values());
-  }, [activeFees, institutionName, user?.eduType, institutionType]);
+  }, [activeFees, institutionName, user?.eduType, institutionType, user?.profile?.institutions]);
 
   const activeHousings = useMemo(() => (housings || []).filter(h => h.status === 'active'), [housings]);
   const hasPlaces = institutions.length > 0 || activeHousings.length > 0;
