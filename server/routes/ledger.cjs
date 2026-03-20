@@ -119,7 +119,7 @@ router.get('/:userId/summary', async (req, res) => {
     // All posted entries for user
     const allEntries = await prisma.ledgerEntry.findMany({
       where: { userId, status: 'POSTED' },
-      select: { amountMinor: true, direction: true, date: true, category: true, trackerId: true },
+      select: { amountMinor: true, direction: true, date: true, category: true, trackerId: true, entityId: true },
     });
 
     // Fetch trackers with entityId for per-entity grouping
@@ -149,7 +149,7 @@ router.get('/:userId/summary', async (req, res) => {
       if (date >= yearStart) { if (isDebit) yearlyDebit += amt; else yearlyCredit += amt; }
 
       // Per entity (null = personal)
-      const entityId = entry.trackerId ? (trackerEntityMap[entry.trackerId] || null) : null;
+      const entityId = entry.entityId || (entry.trackerId ? (trackerEntityMap[entry.trackerId] || null) : null);
       const eKey = entityId || '_personal';
       if (!perEntity[eKey]) perEntity[eKey] = { entityId: entityId || null, debit: 0, credit: 0 };
       if (isDebit) perEntity[eKey].debit += amt; else perEntity[eKey].credit += amt;
@@ -263,12 +263,17 @@ router.post('/:userId', async (req, res) => {
       const loan = await prisma.loan.findFirst({ where: { id: req.body.loanId, userId } });
       if (!loan) return res.status(400).json({ errors: ['loanId does not exist or does not belong to user'] });
     }
+    if (req.body.entityId) {
+      const entity = await prisma.entity.findFirst({ where: { id: req.body.entityId, userId } });
+      if (!entity) return res.status(400).json({ errors: ['entityId does not exist or does not belong to user'] });
+    }
 
     const entry = await prisma.ledgerEntry.create({
       data: {
         userId,
         trackerId: req.body.trackerId || null,
         obligationId: req.body.obligationId || null,
+        entityId: req.body.entityId || null,
         type: req.body.type,
         direction: req.body.direction,
         category: req.body.category,
