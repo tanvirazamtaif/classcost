@@ -240,6 +240,7 @@ enum EntityType {
 
 enum TrackerType {
   SEMESTER
+  MONTHLY
   RECURRING_MONTHLY
   RECURRING_YEARLY
   ONE_TIME
@@ -255,27 +256,33 @@ enum TrackerStatus {
   ACTIVE
   PAUSED
   COMPLETED
+  ARCHIVED
   CANCELLED
 }
 
 enum ObligationStatus {
   UPCOMING
   DUE
-  OVERDUE
-  PAID
+  PENDING
+  PARTIAL
   PARTIALLY_PAID
+  PAID
+  OVERDUE
   WAIVED
   SKIPPED
+  CANCELLED
   VOIDED
 }
 
 enum LedgerType {
+  EXPENSE
   PAYMENT
   INCOME
   REFUND
   WAIVER_CREDIT
   ADJUSTMENT
   CORRECTION
+  TRANSFER
 }
 
 enum LedgerDirection {
@@ -284,8 +291,10 @@ enum LedgerDirection {
 }
 
 enum LedgerStatus {
+  CONFIRMED
   POSTED
   PENDING
+  VOID
   VOIDED
 }
 
@@ -293,19 +302,22 @@ enum LedgerStatus {
 
 // Section 1: Entity — represents a real-world place the student pays money to
 model Entity {
-  id        String     @id @default(cuid())
-  userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      EntityType
-  name      String
-  subType   String? // university, school, college, hostel, apartment, mess
-  eduLevel  String? // Maps to EDU constants: private_uni, secondary, hsc, etc.
-  startDate DateTime?
-  endDate   DateTime?
-  isActive  Boolean    @default(true)
-  metadata  Json? // NON-FINANCIAL ONLY: classYear, semesterSystem, studentId, section
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       EntityType
+  name       String
+  shortName  String? // DEPRECATED — kept for migration safety
+  subType    String?
+  eduLevel   String?
+  startDate  DateTime?
+  endDate    DateTime?
+  isActive   Boolean    @default(true)
+  archivedAt DateTime? // DEPRECATED — kept for migration safety
+  meta       Json? // DEPRECATED — use metadata
+  metadata   Json?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   trackers      Tracker[]
   obligations   Obligation[]
@@ -324,7 +336,7 @@ model Tracker {
   entity      Entity?       @relation(fields: [entityId], references: [id], onDelete: SetNull)
   type        TrackerType
   label       String
-  category    String // semester_fee | rent | coaching_monthly | etc.
+  category    String        @default("other") // semester_fee | rent | coaching_monthly | etc.
   cadence     String? // monthly | yearly | per_semester | per_session | once
   startDate   DateTime
   endDate     DateTime?
@@ -354,8 +366,10 @@ model Obligation {
   category          String // from categories registry
   label             String
   amountMinor       Int // total obligation in minor units
+  paidMinor         Int              @default(0) // DEPRECATED — derived from ledger, kept for migration safety
   dueDate           DateTime?
   status            ObligationStatus @default(UPCOMING)
+  waiverPct         Int              @default(0) // DEPRECATED — use waiverAmountMinor
   waiverAmountMinor Int              @default(0) // Absolute waiver in minor units
   waiverReason      String? // "Merit scholarship", "Sports waiver 20%"
   period            String? // "2026-03", "2026-yearly", "spring-2026"
