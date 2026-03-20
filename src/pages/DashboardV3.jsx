@@ -164,17 +164,17 @@ export const DashboardV3 = () => {
 
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 backdrop-blur-xl"
-        style={{ height: 56, background: c.headerBg, borderBottom: `0.5px solid ${BORDER}` }}>
+        style={{ height: 56, background: c.headerBg, borderBottom: `0.5px solid ${c.border}` }}>
         <div className="flex items-center gap-3">
           <button onClick={() => { haptics.light(); setSidebarOpen(true); }} className="p-1">
-            <Menu size={20} color={TEXT2} />
+            <Menu size={20} color={c.text2} />
           </button>
           <Logo size={24} />
           <span className="text-sm" style={{ color: c.text2 }}>{greeting}, <span style={{ color: c.text1 }}>{firstName}</span></span>
         </div>
         <div className="flex items-center gap-3">
           <button className="relative p-1">
-            <Bell size={18} color={TEXT2} />
+            <Bell size={18} color={c.text2} />
             {overdue.length > 0 && (
               <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500" />
             )}
@@ -243,8 +243,8 @@ export const DashboardV3 = () => {
             <button key={s.id} onClick={() => { haptics.light(); setScope(s.id); }}
               className="flex-1 py-2 rounded-lg text-[11px] font-medium transition-all"
               style={{
-                background: scope === s.id ? ACCENT : 'transparent',
-                color: scope === s.id ? 'white' : TEXT3,
+                background: scope === s.id ? c.accent : 'transparent',
+                color: scope === s.id ? 'white' : c.text3,
               }}>
               {s.label}
             </button>
@@ -263,7 +263,7 @@ export const DashboardV3 = () => {
                 <CatIcon id="education" size={20} />
                 <span className="text-xs font-medium" style={{ color: c.text2 }}>Education</span>
               </div>
-              <ChevronRight size={14} color={TEXT3} />
+              <ChevronRight size={14} color={c.text3} />
             </div>
             <p className="text-lg font-semibold mt-2" style={{ color: c.text1 }}>
               {fmt((categoryTotals.education || 0) / 100)}
@@ -299,7 +299,7 @@ export const DashboardV3 = () => {
                   <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: c.border }}>
                     <div className="h-full rounded-full" style={{
                       width: `${Math.min(100, Math.round(((categoryTotals[cat.id] || 0) / scopeTotal) * 100))}%`,
-                      background: CAT_ICONS[cat.id]?.color || TEXT3,
+                      background: CAT_ICONS[cat.id]?.color || c.text3,
                     }} />
                   </div>
                 )}
@@ -323,7 +323,7 @@ export const DashboardV3 = () => {
                   <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: c.border }}>
                     <div className="h-full rounded-full" style={{
                       width: `${Math.min(100, Math.round(((categoryTotals[cat.id] || 0) / scopeTotal) * 100))}%`,
-                      background: CAT_ICONS[cat.id]?.color || TEXT3,
+                      background: CAT_ICONS[cat.id]?.color || c.text3,
                     }} />
                   </div>
                 )}
@@ -339,8 +339,8 @@ export const DashboardV3 = () => {
               <button key={tab.id} onClick={() => { haptics.light(); setEntityTab(tab.id); }}
                 className="flex-1 py-2 rounded-lg text-[11px] font-medium transition-all"
                 style={{
-                  background: entityTab === tab.id ? ACCENT : 'transparent',
-                  color: entityTab === tab.id ? 'white' : TEXT3,
+                  background: entityTab === tab.id ? c.accent : 'transparent',
+                  color: entityTab === tab.id ? 'white' : c.text3,
                 }}>
                 {tab.label}
               </button>
@@ -372,7 +372,7 @@ export const DashboardV3 = () => {
                         style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
                         Active
                       </span>
-                      <ChevronRight size={14} color={TEXT3} />
+                      <ChevronRight size={14} color={c.text3} />
                     </div>
                   </button>
                 ))
@@ -391,7 +391,7 @@ export const DashboardV3 = () => {
                   const isCredit = entry.direction === 'CREDIT';
                   return (
                     <div key={entry.id} className="flex items-center gap-3 px-3 py-2.5"
-                      style={{ borderTop: i > 0 ? `0.5px solid ${BORDER}` : 'none' }}>
+                      style={{ borderTop: i > 0 ? `0.5px solid ${c.border}` : 'none' }}>
                       <CatIcon id={displayCat} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm truncate" style={{ color: c.text1 }}>
@@ -399,7 +399,7 @@ export const DashboardV3 = () => {
                         </p>
                         <p className="text-[10px]" style={{ color: c.text3 }}>{fmtDate(entry.date)}</p>
                       </div>
-                      <span className="text-sm font-medium" style={{ color: isCredit ? '#22c55e' : TEXT1 }}>
+                      <span className="text-sm font-medium" style={{ color: isCredit ? '#22c55e' : c.text1 }}>
                         {isCredit ? '+' : ''}{fmt(entry.amountMinor / 100)}
                       </span>
                     </div>

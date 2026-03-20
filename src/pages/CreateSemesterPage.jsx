@@ -482,7 +482,7 @@ export const CreateSemesterPage = () => {
         {/* 5. Create Button */}
         <button onClick={handleCreate} disabled={creating || !name || grossMinor <= 0}
           className="w-full py-3.5 rounded-xl text-sm font-medium text-white transition-all"
-          style={{ background: creating || !name || grossMinor <= 0 ? TEXT3 : ACCENT }}>
+          style={{ background: creating || !name || grossMinor <= 0 ? c.text3 : c.accent }}>
           {creating ? 'Creating...' : `Create ${name || 'semester'}`}
         </button>
       </div>

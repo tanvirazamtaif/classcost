@@ -156,7 +156,7 @@ export const EntityDetailV3 = () => {
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => { haptics.light(); setActiveTab(tab.id); }}
             className="flex-1 py-3 text-[12px] font-medium text-center relative flex items-center justify-center gap-1"
-            style={{ color: activeTab === tab.id ? ACCENT : TEXT3, borderBottom: activeTab === tab.id ? `2px solid ${ACCENT}` : '2px solid transparent' }}>
+            style={{ color: activeTab === tab.id ? c.accent : c.text3, borderBottom: activeTab === tab.id ? `2px solid ${c.accent}` : '2px solid transparent' }}>
             {tab.label}
             {tab.id === 'info' && isInfoIncomplete && (
               <span className="w-2 h-2 rounded-full bg-red-500" style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
@@ -198,7 +198,7 @@ export const EntityDetailV3 = () => {
                       <span className="text-[10px] px-2 py-0.5 rounded-full"
                         style={{
                           background: isCompleted ? 'rgba(99,102,241,0.1)' : 'rgba(34,197,94,0.1)',
-                          color: isCompleted ? ACCENT : '#22c55e',
+                          color: isCompleted ? c.accent : '#22c55e',
                         }}>
                         {isCompleted ? 'Completed' : 'Active'}
                       </span>
@@ -284,7 +284,7 @@ export const EntityDetailV3 = () => {
                       {club.subType || 'Club'}
                     </span>
                   </div>
-                  <ChevronRight size={14} color={TEXT3} />
+                  <ChevronRight size={14} color={c.text3} />
                 </div>
               ))
             )}
