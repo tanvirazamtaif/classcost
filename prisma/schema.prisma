@@ -50,6 +50,8 @@ model User {
   allocationsReceived Allocation[]
   linkedAsParent      LinkedAccount[] @relation("ParentLink")
   linkedAsChild       LinkedAccount[] @relation("ChildLink")
+  feeItems            FeeItem[]
+  waivers             Waiver[]
 }
 
 model PromoCode {
@@ -278,6 +280,7 @@ enum LedgerType {
   EXPENSE
   PAYMENT
   INCOME
+  SCHOLARSHIP_CASH
   REFUND
   WAIVER_CREDIT
   ADJUSTMENT
@@ -302,22 +305,23 @@ enum LedgerStatus {
 
 // Section 1: Entity — represents a real-world place the student pays money to
 model Entity {
-  id         String     @id @default(cuid())
-  userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       EntityType
-  name       String
-  shortName  String? // DEPRECATED — kept for migration safety
-  subType    String?
-  eduLevel   String?
-  startDate  DateTime?
-  endDate    DateTime?
-  isActive   Boolean    @default(true)
-  archivedAt DateTime? // DEPRECATED — kept for migration safety
-  meta       Json? // DEPRECATED — use metadata
-  metadata   Json?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           EntityType
+  name           String
+  shortName      String? // DEPRECATED — kept for migration safety
+  subType        String?
+  eduLevel       String?
+  startDate      DateTime?
+  endDate        DateTime?
+  isActive       Boolean    @default(true)
+  archivedAt     DateTime? // DEPRECATED — kept for migration safety
+  meta           Json? // DEPRECATED — use metadata
+  metadata       Json?
+  parentEntityId String? // For club-to-institution linkage
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   trackers      Tracker[]
   obligations   Obligation[]
@@ -329,25 +333,32 @@ model Entity {
 
 // Section 2: Tracker — a time-bound cost container (e.g. "Fall 2025 semester")
 model Tracker {
-  id          String        @id @default(cuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entityId    String?
-  entity      Entity?       @relation(fields: [entityId], references: [id], onDelete: SetNull)
-  type        TrackerType
-  label       String
-  category    String        @default("other") // semester_fee | rent | coaching_monthly | etc.
-  cadence     String? // monthly | yearly | per_semester | per_session | once
-  startDate   DateTime
-  endDate     DateTime?
-  status      TrackerStatus @default(ACTIVE)
-  meta        Json? // credits, semester number, custom fields
-  budgetMinor Int? // optional budget cap in minor units
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                 String        @id @default(cuid())
+  userId             String
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityId           String?
+  entity             Entity?       @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  type               TrackerType
+  label              String
+  category           String        @default("other") // semester_fee | rent | coaching_monthly | etc.
+  cadence            String? // monthly | yearly | per_semester | per_session | once
+  startDate          DateTime
+  endDate            DateTime?
+  status             TrackerStatus @default(ACTIVE)
+  meta               Json? // credits, semester number, custom fields
+  budgetMinor        Int? // optional budget cap in minor units
+  academicPeriodType String? // semester | session | phase | term
+  obligationMode     String        @default("pooled") // pooled | fee_linked
+  installmentCount   Int? // 1-4 for pooled mode
+  grossMinor         Int? // cached gross total of all FeeItems (for display, recomputed on change)
+  netMinor           Int? // cached net after waivers (for display, recomputed on change)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   obligations   Obligation[]
   ledgerEntries LedgerEntry[]
+  feeItems      FeeItem[]
+  waivers       Waiver[]
 
   @@index([userId, status])
   @@index([entityId, status])
@@ -460,4 +471,77 @@ model LinkedAccount {
   createdAt DateTime @default(now())
 
   @@unique([parentId, childId])
+}
+
+// Section 7: FeeItem — individual fee line items within a tracker/semester
+model FeeItem {
+  id        String  @id @default(cuid())
+  trackerId String
+  tracker   Tracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  label        String // "Tuition", "Lab fee", "Cambridge Physics"
+  feeCategory  String // tuition | lab | exam | library | development | registration | deposit | fine | retake | thesis | hostel | transport | activity | medical | custom
+  billingBasis String // per_credit | fixed | yearly | one_time | per_subject | per_class | per_exam
+
+  amountMinor Int // Positive = charge. Negative = adjustment/reduction.
+
+  creditCount   Int?
+  ratePerCredit Int?
+  creditType    String? // standard | lab | retake
+
+  coveragePeriod  String? // "2026" for yearly, "spring-2026" for semester
+  chargedInPeriod String?
+
+  reportingTreatment String  @default("cost") // cost | deposit_refundable | excluded
+  isWaiverEligible   Boolean @default(true)
+
+  adjustmentOf   String? // Points to original FeeItem id
+  adjustmentType String? // course_drop | rate_change | addition | fine | correction
+
+  subjectCode String?
+  subjectName String?
+  examBoard   String?
+  examSession String?
+
+  isActive  Boolean  @default(true)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([trackerId])
+  @@index([userId, feeCategory])
+  @@index([trackerId, feeCategory, coveragePeriod])
+}
+
+// Section 8: Waiver — scholarship, discount, or fee reduction
+model Waiver {
+  id        String  @id @default(cuid())
+  trackerId String
+  tracker   Tracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  label       String // "Merit scholarship", "Sibling discount"
+  waiverType  String // flat | percentage
+  amountMinor Int? // For flat waivers
+  percentage  Int? // For percentage waivers (20 = 20%)
+
+  appliesTo   String // total | fee_category | fee_item
+  feeCategory String? // If appliesTo = fee_category
+  feeItemId   String? // If appliesTo = fee_item
+
+  resolvedMinor Int @default(0) // System-computed actual reduction
+  priority      Int @default(0) // Lower = applied first
+
+  condition    String? // full_payment_discount | cgpa_threshold | null
+  conditionMet Boolean @default(true)
+
+  isActive      Boolean   @default(true)
+  reason        String?
+  effectiveDate DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([trackerId])
 }
