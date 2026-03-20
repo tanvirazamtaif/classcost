@@ -6,14 +6,7 @@ import { useV3 } from '../contexts/V3Context';
 import { LayoutBottomNav } from '../components/layout/LayoutBottomNav';
 import { haptics } from '../lib/haptics';
 import { makeFmt } from '../utils/format';
-
-const BG = '#0a0a14';
-const CARD = '#12121a';
-const BORDER = '#1e1e2e';
-const ACCENT = '#6366f1';
-const TEXT1 = '#f4f4f5';
-const TEXT2 = '#71717a';
-const TEXT3 = '#52525b';
+import { getThemeColors } from '../lib/themeColors';
 
 const CATEGORY_CONFIG = {
   transport: {
@@ -48,8 +41,9 @@ function dayLabel(dateStr) {
 }
 
 export const CategoryPage = ({ category }) => {
-  const { goBack, addToast, user } = useApp();
-  const { allEntries, recordPayment, scopedTotals } = useV3();
+  const { goBack, addToast, user, theme } = useApp();
+  const { allEntries, recordPayment, scopedTotals, entities } = useV3();
+  const c = getThemeColors(theme === 'dark');
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
   const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.other;
 
@@ -58,6 +52,9 @@ export const CategoryPage = ({ category }) => {
   const [subCat, setSubCat] = useState('');
   const [saving, setSaving] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const savedEntity = localStorage.getItem('cc_last_entity_' + category);
+  const [entityId, setEntityId] = useState(savedEntity && savedEntity !== 'personal' ? savedEntity : null);
 
   // Stats
   const thisMonth = scopedTotals.thisMonth?.byCategory?.[category] || 0;
@@ -92,29 +89,31 @@ export const CategoryPage = ({ category }) => {
         amountMinor: Math.round(num * 100),
         date: new Date().toISOString(),
         note: note || null,
+        entityId: entityId || null,
       });
       setAmount('');
       setNote('');
       setSubCat('');
       haptics.success();
       addToast('Saved!', 'success');
+      localStorage.setItem('cc_last_entity_' + category, entityId || 'personal');
     } catch (err) {
       addToast('Failed to save', 'error');
     } finally {
       setSaving(false);
     }
-  }, [amount, note, subCat, category, recordPayment, addToast]);
+  }, [amount, note, subCat, category, recordPayment, addToast, entityId]);
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: BG }}>
+    <div className="min-h-screen pb-24" style={{ background: c.bg }}>
       {/* Header */}
       <header className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 backdrop-blur-xl"
-        style={{ background: 'rgba(10,10,20,0.9)', borderBottom: `0.5px solid ${BORDER}` }}>
+        style={{ background: c.headerBg, borderBottom: `0.5px solid ${c.border}` }}>
         <button onClick={() => { haptics.light(); goBack(); }} className="p-1">
-          <ArrowLeft size={20} color={TEXT2} />
+          <ArrowLeft size={20} color={c.text2} />
         </button>
         <span className="text-lg">{config.icon}</span>
-        <p className="text-[15px] font-medium" style={{ color: TEXT1 }}>{config.label}</p>
+        <p className="text-[15px] font-medium" style={{ color: c.text1 }}>{config.label}</p>
       </header>
 
       <div className="max-w-[420px] mx-auto px-4 pt-4 space-y-5">
@@ -125,9 +124,9 @@ export const CategoryPage = ({ category }) => {
             { label: 'Last month', value: lastMonth },
             { label: 'Daily avg', value: dailyAvg },
           ].map(s => (
-            <div key={s.label} className="flex-1 rounded-xl p-3 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-              <p className="text-[10px]" style={{ color: TEXT3 }}>{s.label}</p>
-              <p className="text-sm font-bold mt-0.5" style={{ color: TEXT1 }}>{fmt(s.value / 100)}</p>
+            <div key={s.label} className="flex-1 rounded-xl p-3 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+              <p className="text-[10px]" style={{ color: c.text3 }}>{s.label}</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: c.text1 }}>{fmt(s.value / 100)}</p>
             </div>
           ))}
         </div>
@@ -137,13 +136,13 @@ export const CategoryPage = ({ category }) => {
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button onClick={() => setSubCat('')}
               className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-medium"
-              style={{ background: !subCat ? config.color : 'transparent', color: !subCat ? 'white' : TEXT3, border: `0.5px solid ${!subCat ? config.color : BORDER}` }}>
+              style={{ background: !subCat ? config.color : 'transparent', color: !subCat ? 'white' : c.text3, border: `0.5px solid ${!subCat ? config.color : c.border}` }}>
               All
             </button>
             {config.subs.map(s => (
               <button key={s} onClick={() => { haptics.light(); setSubCat(subCat === s ? '' : s); }}
                 className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-medium capitalize"
-                style={{ background: subCat === s ? config.color : 'transparent', color: subCat === s ? 'white' : TEXT3, border: `0.5px solid ${subCat === s ? config.color : BORDER}` }}>
+                style={{ background: subCat === s ? config.color : 'transparent', color: subCat === s ? 'white' : c.text3, border: `0.5px solid ${subCat === s ? config.color : c.border}` }}>
                 {s}
               </button>
             ))}
@@ -151,22 +150,37 @@ export const CategoryPage = ({ category }) => {
         )}
 
         {/* Quick add */}
-        <div className="rounded-xl p-4" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-          <div className="flex items-center rounded-xl overflow-hidden mb-3" style={{ background: BG, border: `0.5px solid ${BORDER}` }}>
-            <span className="pl-3 text-lg" style={{ color: TEXT3 }}>৳</span>
+        <div className="rounded-xl p-4" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+          {/* Entity attribution */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <button onClick={() => setEntityId(null)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium"
+              style={!entityId ? { background: c.accent, color: 'white' } : { color: c.text3, border: '1px solid ' + c.border }}>
+              Personal
+            </button>
+            {(entities || []).filter(e => e.isActive).map(entity => (
+              <button key={entity.id} onClick={() => setEntityId(entity.id)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium"
+                style={entityId === entity.id ? { background: c.accent, color: 'white' } : { color: c.text3, border: '1px solid ' + c.border }}>
+                {entity.name}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center rounded-xl overflow-hidden mb-3" style={{ background: c.bg, border: `0.5px solid ${c.border}` }}>
+            <span className="pl-3 text-lg" style={{ color: c.text3 }}>৳</span>
             <input type="text" inputMode="decimal" value={amount}
               onChange={e => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               placeholder="0" autoFocus
               className="flex-1 px-2 py-3 text-2xl font-semibold bg-transparent outline-none"
-              style={{ color: TEXT1 }} />
+              style={{ color: c.text1 }} />
           </div>
           <input type="text" value={note} onChange={e => setNote(e.target.value)}
             placeholder="Note (optional)" maxLength={80}
             className="w-full px-3 py-2 rounded-xl text-sm outline-none mb-3"
-            style={{ background: BG, border: `0.5px solid ${BORDER}`, color: TEXT1 }} />
+            style={{ background: c.bg, border: `0.5px solid ${c.border}`, color: c.text1 }} />
           <button onClick={handleSave} disabled={saving}
             className="w-full py-3 rounded-xl text-sm font-medium text-white"
-            style={{ background: saving ? TEXT3 : config.color }}>
+            style={{ background: saving ? c.text3 : config.color }}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -174,15 +188,15 @@ export const CategoryPage = ({ category }) => {
         {/* History */}
         {history.length > 0 && (
           <div>
-            <p className="text-xs font-medium mb-3" style={{ color: TEXT2 }}>History</p>
+            <p className="text-xs font-medium mb-3" style={{ color: c.text2 }}>History</p>
             <div className="space-y-3">
               {history.map((group, gi) => (
                 <div key={gi}>
-                  <p className="text-[11px] font-medium mb-1.5" style={{ color: TEXT3 }}>{dayLabel(group.date)}</p>
+                  <p className="text-[11px] font-medium mb-1.5" style={{ color: c.text3 }}>{dayLabel(group.date)}</p>
                   <div className="space-y-1">
                     {group.entries.map(entry => (
                       <div key={entry.id} className="flex items-center justify-between rounded-lg px-3 py-2"
-                        style={{ background: CARD }}>
+                        style={{ background: c.card }}>
                         <div className="flex items-center gap-2">
                           {entry.subCategory && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded capitalize"
@@ -190,9 +204,9 @@ export const CategoryPage = ({ category }) => {
                               {entry.subCategory}
                             </span>
                           )}
-                          <span className="text-[11px]" style={{ color: TEXT3 }}>{fmtTime(entry.date)}</span>
+                          <span className="text-[11px]" style={{ color: c.text3 }}>{fmtTime(entry.date)}</span>
                         </div>
-                        <span className="text-sm font-medium" style={{ color: TEXT1 }}>{fmt(entry.amountMinor / 100)}</span>
+                        <span className="text-sm font-medium" style={{ color: c.text1 }}>{fmt(entry.amountMinor / 100)}</span>
                       </div>
                     ))}
                   </div>

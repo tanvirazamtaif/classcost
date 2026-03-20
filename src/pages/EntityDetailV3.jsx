@@ -3,19 +3,12 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, ChevronRight } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
+import { getThemeColors } from '../lib/themeColors';
 import { AddPaymentV3 } from '../components/feature';
 import { LayoutBottomNav } from '../components/layout/LayoutBottomNav';
 import { haptics } from '../lib/haptics';
 import { makeFmt } from '../utils/format';
 import * as api from '../api';
-
-const BG = '#0a0a14';
-const CARD = '#12121a';
-const BORDER = '#1e1e2e';
-const ACCENT = '#6366f1';
-const TEXT1 = '#f4f4f5';
-const TEXT2 = '#71717a';
-const TEXT3 = '#52525b';
 
 const TYPE_LABELS = { INSTITUTION: 'Institution', RESIDENCE: 'Residence', COACHING: 'Coaching' };
 
@@ -29,8 +22,9 @@ const TABS = [
 const OTHER_FEE_CATEGORIES = ['admission_fee', 'registration_fee', 'id_card', 'development_fee', 'library_fee'];
 
 export const EntityDetailV3 = () => {
-  const { goBack, navigate, addToast, routeParams, user } = useApp();
+  const { goBack, navigate, addToast, routeParams, user, theme } = useApp();
   const { entities, trackers, ledgerSummary, addEntity } = useV3();
+  const c = getThemeColors(theme === 'dark');
   const { entityId } = routeParams || {};
 
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
@@ -116,9 +110,9 @@ export const EntityDetailV3 = () => {
 
   if (!entity) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: BG }}>
-        <p style={{ color: TEXT3 }}>Entity not found</p>
-        <button onClick={() => navigate('dashboard')} className="mt-4 px-4 py-2 rounded-xl text-sm text-white" style={{ background: ACCENT }}>Back</button>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: c.bg }}>
+        <p style={{ color: c.text3 }}>Entity not found</p>
+        <button onClick={() => navigate('dashboard')} className="mt-4 px-4 py-2 rounded-xl text-sm text-white" style={{ background: c.accent }}>Back</button>
       </div>
     );
   }
@@ -139,26 +133,26 @@ export const EntityDetailV3 = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: BG }}>
+    <div className="min-h-screen pb-24" style={{ background: c.bg }}>
       {/* Header */}
       <header className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 backdrop-blur-xl"
-        style={{ background: 'rgba(10,10,20,0.9)', borderBottom: `0.5px solid ${BORDER}` }}>
+        style={{ background: c.headerBg, borderBottom: `0.5px solid ${c.border}` }}>
         <button onClick={() => { haptics.light(); goBack(); }} className="p-1">
-          <ArrowLeft size={20} color={TEXT2} />
+          <ArrowLeft size={20} color={c.text2} />
         </button>
-        <div className="w-9 h-9 rounded-[10px] flex items-center justify-center text-sm" style={{ background: ACCENT }}>
+        <div className="w-9 h-9 rounded-[10px] flex items-center justify-center text-sm" style={{ background: c.accent }}>
           🎓
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[15px] font-medium truncate" style={{ color: TEXT1 }}>{entity.name}</p>
-          <p className="text-[11px]" style={{ color: TEXT3 }}>
+          <p className="text-[15px] font-medium truncate" style={{ color: c.text1 }}>{entity.name}</p>
+          <p className="text-[11px]" style={{ color: c.text3 }}>
             {TYPE_LABELS[entity.type] || entity.type} · {fmt(entityTotal / 100)}
           </p>
         </div>
       </header>
 
       {/* Tabs */}
-      <div className="flex sticky top-[57px] z-30" style={{ background: BG, borderBottom: `0.5px solid ${BORDER}` }}>
+      <div className="flex sticky top-[57px] z-30" style={{ background: c.bg, borderBottom: `0.5px solid ${c.border}` }}>
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => { haptics.light(); setActiveTab(tab.id); }}
             className="flex-1 py-3 text-[12px] font-medium text-center relative flex items-center justify-center gap-1"
@@ -181,9 +175,9 @@ export const EntityDetailV3 = () => {
                 <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" />
               </div>
             ) : semesters.length === 0 ? (
-              <div className="rounded-xl p-8 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-                <p className="text-sm" style={{ color: TEXT3 }}>No semesters yet</p>
-                <p className="text-xs mt-1" style={{ color: TEXT3 }}>Create your first semester to start tracking fees</p>
+              <div className="rounded-xl p-8 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                <p className="text-sm" style={{ color: c.text3 }}>No semesters yet</p>
+                <p className="text-xs mt-1" style={{ color: c.text3 }}>Create your first semester to start tracking fees</p>
               </div>
             ) : (
               semesters.map(sem => {
@@ -198,9 +192,9 @@ export const EntityDetailV3 = () => {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate('semester-detail-v3', { params: { trackerId: sem.id } })}
                     className="w-full text-left rounded-xl p-4"
-                    style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                    style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold" style={{ color: TEXT1 }}>{sem.label}</p>
+                      <p className="text-sm font-semibold" style={{ color: c.text1 }}>{sem.label}</p>
                       <span className="text-[10px] px-2 py-0.5 rounded-full"
                         style={{
                           background: isCompleted ? 'rgba(99,102,241,0.1)' : 'rgba(34,197,94,0.1)',
@@ -209,11 +203,11 @@ export const EntityDetailV3 = () => {
                         {isCompleted ? 'Completed' : 'Active'}
                       </span>
                     </div>
-                    <p className="text-xs mt-1.5" style={{ color: TEXT2 }}>
+                    <p className="text-xs mt-1.5" style={{ color: c.text2 }}>
                       {fmt(paid / 100)} paid of {fmt(total / 100)}
                     </p>
-                    <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ background: BORDER }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: ACCENT }} />
+                    <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ background: c.border }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: c.accent }} />
                     </div>
                     {overdueInfo && (
                       <p className="text-[11px] mt-2" style={{ color: '#f59e0b' }}>
@@ -228,7 +222,7 @@ export const EntityDetailV3 = () => {
             {/* Create new semester */}
             <button onClick={() => navigate('create-semester', { params: { entityId: entity.id, entityName: entity.name } })}
               className="w-full py-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
-              style={{ border: '1.5px dashed #2a2a3a', color: ACCENT }}>
+              style={{ border: '1.5px dashed #2a2a3a', color: c.accent }}>
               <Plus size={16} /> Create new semester
             </button>
           </div>
@@ -238,20 +232,20 @@ export const EntityDetailV3 = () => {
         {activeTab === 'other' && (
           <div className="space-y-3">
             {otherTrackers.length === 0 ? (
-              <div className="rounded-xl p-8 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-                <p className="text-sm" style={{ color: TEXT3 }}>No other fees yet</p>
-                <p className="text-xs mt-1" style={{ color: TEXT3 }}>Add admission, registration, or other one-time fees</p>
+              <div className="rounded-xl p-8 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                <p className="text-sm" style={{ color: c.text3 }}>No other fees yet</p>
+                <p className="text-xs mt-1" style={{ color: c.text3 }}>Add admission, registration, or other one-time fees</p>
               </div>
             ) : (
               otherTrackers.map(trk => (
                 <div key={trk.id} className="rounded-xl p-4 flex items-center justify-between"
-                  style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                  style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                   <div>
-                    <p className="text-sm font-medium" style={{ color: TEXT1 }}>{trk.label}</p>
-                    <p className="text-xs mt-0.5" style={{ color: TEXT3 }}>{trk.category}</p>
+                    <p className="text-sm font-medium" style={{ color: c.text1 }}>{trk.label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: c.text3 }}>{trk.category}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium" style={{ color: TEXT1 }}>
+                    <p className="text-sm font-medium" style={{ color: c.text1 }}>
                       {fmt((trk.budgetMinor || 0) / 100)}
                     </p>
                     <span className="text-[10px] px-2 py-0.5 rounded-full"
@@ -264,7 +258,7 @@ export const EntityDetailV3 = () => {
             )}
             <button onClick={() => navigate('education-fee-form', { params: { entityId, entityName: entity.name } })}
               className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
-              style={{ border: '1.5px dashed #2a2a3a', color: ACCENT }}>
+              style={{ border: '1.5px dashed #2a2a3a', color: c.accent }}>
               <Plus size={16} /> Add fee
             </button>
           </div>
@@ -274,18 +268,18 @@ export const EntityDetailV3 = () => {
         {activeTab === 'clubs' && (
           <div className="space-y-3">
             {clubs.length === 0 ? (
-              <div className="rounded-xl p-8 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-                <p className="text-sm" style={{ color: TEXT3 }}>No clubs yet</p>
-                <p className="text-xs mt-1" style={{ color: TEXT3 }}>Add clubs, committees, or teams connected to this institution</p>
+              <div className="rounded-xl p-8 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                <p className="text-sm" style={{ color: c.text3 }}>No clubs yet</p>
+                <p className="text-xs mt-1" style={{ color: c.text3 }}>Add clubs, committees, or teams connected to this institution</p>
               </div>
             ) : (
               clubs.map(club => (
                 <div key={club.id} className="rounded-xl p-4 flex items-center gap-3"
-                  style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                  style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm"
                     style={{ background: 'rgba(236,72,153,0.1)' }}>📖</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: TEXT1 }}>{club.name}</p>
+                    <p className="text-sm font-medium truncate" style={{ color: c.text1 }}>{club.name}</p>
                     <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(236,72,153,0.1)', color: '#ec4899' }}>
                       {club.subType || 'Club'}
                     </span>
@@ -296,7 +290,7 @@ export const EntityDetailV3 = () => {
             )}
             <button onClick={handleAddClub}
               className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
-              style={{ border: '1.5px dashed #2a2a3a', color: ACCENT }}>
+              style={{ border: '1.5px dashed #2a2a3a', color: c.accent }}>
               <Plus size={16} /> Add club
             </button>
           </div>
@@ -313,19 +307,19 @@ export const EntityDetailV3 = () => {
               { key: 'section', label: 'Section / Batch', placeholder: 'Optional' },
             ].map(field => (
               <div key={field.key}>
-                <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>{field.label}</label>
+                <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>{field.label}</label>
                 <input
                   value={infoForm[field.key] || ''}
                   onChange={e => setInfoForm(prev => ({ ...prev, [field.key]: e.target.value }))}
                   placeholder={field.placeholder}
                   className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                  style={{ background: CARD, border: `0.5px solid ${BORDER}`, color: TEXT1 }}
+                  style={{ background: c.card, border: `0.5px solid ${c.border}`, color: c.text1 }}
                 />
               </div>
             ))}
             <button onClick={handleSaveInfo} disabled={saving}
               className="w-full py-3 rounded-xl text-sm font-medium text-white"
-              style={{ background: ACCENT, opacity: saving ? 0.6 : 1 }}>
+              style={{ background: c.accent, opacity: saving ? 0.6 : 1 }}>
               {saving ? 'Saving...' : 'Save info'}
             </button>
           </div>

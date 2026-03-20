@@ -2,17 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
+import { getThemeColors } from '../lib/themeColors';
 import { haptics } from '../lib/haptics';
 import { makeFmt } from '../utils/format';
-
-const BG = '#0a0a14';
-const CARD = '#12121a';
-const BORDER = '#1e1e2e';
-const ACCENT = '#6366f1';
-const TEXT1 = '#f4f4f5';
-const TEXT2 = '#71717a';
-const TEXT3 = '#52525b';
-const AMBER = '#f59e0b';
 
 const METHODS = [
   { id: 'bkash', label: 'bKash' },
@@ -27,8 +19,9 @@ function fmtShortDate(d) {
 }
 
 export const RecordPaymentPage = () => {
-  const { goBack, navigate, addToast, routeParams, user } = useApp();
+  const { goBack, navigate, addToast, routeParams, user, theme } = useApp();
   const { recordPayment, upcomingObligations } = useV3();
+  const c = getThemeColors(theme === 'dark');
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
 
   const { obligationId, trackerId } = routeParams || {};
@@ -82,18 +75,18 @@ export const RecordPaymentPage = () => {
   }
 
   return (
-    <div className="min-h-screen pb-8" style={{ background: BG }}>
+    <div className="min-h-screen pb-8" style={{ background: c.bg }}>
       {/* Header */}
       <header className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 backdrop-blur-xl"
-        style={{ background: 'rgba(10,10,20,0.9)', borderBottom: `0.5px solid ${BORDER}` }}>
+        style={{ background: c.headerBg, borderBottom: `0.5px solid ${c.border}` }}>
         <button onClick={() => { haptics.light(); goBack(); }} className="p-1">
-          <ArrowLeft size={20} color={TEXT2} />
+          <ArrowLeft size={20} color={c.text2} />
         </button>
         <div>
-          <p className="text-[15px] font-medium" style={{ color: TEXT1 }}>
+          <p className="text-[15px] font-medium" style={{ color: c.text1 }}>
             Pay {obligation?.label || 'installment'}
           </p>
-          <p className="text-[11px]" style={{ color: TEXT3 }}>
+          <p className="text-[11px]" style={{ color: c.text3 }}>
             {obligation?.entity?.name || 'Semester payment'}
           </p>
         </div>
@@ -102,19 +95,19 @@ export const RecordPaymentPage = () => {
       <div className="max-w-[420px] mx-auto px-4 pt-4 space-y-5">
         {/* Info card */}
         {obligation && (
-          <div className="rounded-xl p-4" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+          <div className="rounded-xl p-4" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px]" style={{ color: TEXT3 }}>Amount due</p>
-                <p className="text-xl font-bold" style={{ color: AMBER }}>
+                <p className="text-[11px]" style={{ color: c.text3 }}>Amount due</p>
+                <p className="text-xl font-bold" style={{ color: c.amber }}>
                   {fmt((obligation.amountRemaining ?? obligation.amountMinor) / 100)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[11px]" style={{ color: TEXT3 }}>Due date</p>
-                <p className="text-sm" style={{ color: TEXT1 }}>{fmtShortDate(obligation.dueDate)}</p>
+                <p className="text-[11px]" style={{ color: c.text3 }}>Due date</p>
+                <p className="text-sm" style={{ color: c.text1 }}>{fmtShortDate(obligation.dueDate)}</p>
                 {daysOverdue > 0 && (
-                  <p className="text-[11px] mt-0.5" style={{ color: AMBER }}>{daysOverdue} days overdue</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: c.amber }}>{daysOverdue} days overdue</p>
                 )}
               </div>
             </div>
@@ -123,36 +116,36 @@ export const RecordPaymentPage = () => {
 
         {/* Amount */}
         <div>
-          <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>Payment amount</label>
-          <div className="flex items-center rounded-xl overflow-hidden" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-            <span className="pl-3 text-lg" style={{ color: TEXT3 }}>৳</span>
+          <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>Payment amount</label>
+          <div className="flex items-center rounded-xl overflow-hidden" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+            <span className="pl-3 text-lg" style={{ color: c.text3 }}>৳</span>
             <input type="text" inputMode="decimal" value={amount}
               onChange={e => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               className="flex-1 px-2 py-3 text-2xl font-semibold bg-transparent outline-none"
-              style={{ color: TEXT1 }} />
+              style={{ color: c.text1 }} />
           </div>
-          <p className="text-[11px] mt-1" style={{ color: TEXT3 }}>Auto-filled from obligation. Change if paying partial.</p>
+          <p className="text-[11px] mt-1" style={{ color: c.text3 }}>Auto-filled from obligation. Change if paying partial.</p>
         </div>
 
         {/* Date */}
         <div>
-          <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>Payment date</label>
+          <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>Payment date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-            style={{ background: CARD, border: `0.5px solid ${BORDER}`, color: TEXT1, colorScheme: 'dark' }} />
+            style={{ background: c.card, border: `0.5px solid ${c.border}`, color: c.text1, colorScheme: 'dark' }} />
         </div>
 
         {/* Method */}
         <div>
-          <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>Payment method</label>
+          <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>Payment method</label>
           <div className="grid grid-cols-4 gap-2">
             {METHODS.map(m => (
               <button key={m.id} onClick={() => { haptics.light(); setMethod(m.id); }}
                 className="py-2.5 rounded-xl text-[12px] font-medium"
                 style={{
-                  background: method === m.id ? ACCENT : CARD,
-                  color: method === m.id ? 'white' : TEXT3,
-                  border: `0.5px solid ${method === m.id ? ACCENT : BORDER}`,
+                  background: method === m.id ? c.accent : c.card,
+                  color: method === m.id ? 'white' : c.text3,
+                  border: `0.5px solid ${method === m.id ? c.accent : c.border}`,
                 }}>
                 {m.label}
               </button>
@@ -162,29 +155,29 @@ export const RecordPaymentPage = () => {
 
         {/* Receipt */}
         <div>
-          <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>Receipt number</label>
+          <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>Receipt number</label>
           <input type="text" value={receipt} onChange={e => setReceipt(e.target.value)}
             placeholder="Optional"
             className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-            style={{ background: CARD, border: `0.5px solid ${BORDER}`, color: TEXT1 }} />
+            style={{ background: c.card, border: `0.5px solid ${c.border}`, color: c.text1 }} />
         </div>
 
         {/* Note */}
         <div>
-          <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>Note</label>
+          <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>Note</label>
           <input type="text" value={note} onChange={e => setNote(e.target.value)}
             placeholder="Optional" maxLength={100}
             className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-            style={{ background: CARD, border: `0.5px solid ${BORDER}`, color: TEXT1 }} />
+            style={{ background: c.card, border: `0.5px solid ${c.border}`, color: c.text1 }} />
         </div>
 
         {/* Confirm */}
         <button onClick={handleConfirm} disabled={saving || !amount || Number(amount) <= 0}
           className="w-full py-3.5 rounded-xl text-sm font-medium text-white"
-          style={{ background: saving ? TEXT3 : ACCENT }}>
+          style={{ background: saving ? c.text3 : c.accent }}>
           {saving ? 'Recording...' : `Confirm ${fmt(Number(amount) || 0)} payment`}
         </button>
-        <p className="text-[11px] text-center" style={{ color: TEXT3 }}>
+        <p className="text-[11px] text-center" style={{ color: c.text3 }}>
           This will update your outstanding balance.
         </p>
       </div>

@@ -1,5 +1,7 @@
 import React from 'react';
 import { haptics } from '../../lib/haptics';
+import { getThemeColors } from '../../lib/themeColors';
+import { useApp } from '../../contexts/AppContext';
 
 // SVG icon paths (16x16 viewBox)
 const icons = {
@@ -40,20 +42,39 @@ function NavIcon({ name, active, isCenter }) {
 }
 
 export const BottomNavV3 = React.memo(({ active, navigate, onAddPress }) => {
+  const { theme } = useApp();
+  const c = getThemeColors(theme === 'dark');
+  const isDashboard = active === 'dashboard';
+
+  const items = isDashboard
+    ? [
+        { id: 'dashboard', icon: 'home', label: 'Home' },
+        { id: 'records', icon: 'records', label: 'Records' },
+        { id: '_add', icon: 'plus', label: '' },
+        { id: 'reports', icon: 'reports', label: 'Reports' },
+        { id: 'settings', icon: 'settings', label: 'Settings' },
+      ]
+    : [
+        { id: 'dashboard', icon: 'home', label: 'Home' },
+        { id: 'records', icon: 'records', label: 'Records' },
+        { id: 'reports', icon: 'reports', label: 'Reports' },
+        { id: 'settings', icon: 'settings', label: 'Settings' },
+      ];
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl safe-area-pb"
-      style={{ background: 'rgba(10,10,20,0.95)', borderTop: '0.5px solid #1e1e2e' }}
+      style={{ background: c.navBg, borderTop: `0.5px solid ${c.navBorder}` }}
       role="tablist" aria-label="Main navigation">
       <div className="flex items-end justify-around max-w-[420px] mx-auto py-1.5">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const isCenter = item.id === '_add';
-          const isActive = active === item.id || (item.id === 'reports-view' && active === 'reports');
+          const isActive = active === item.id || (item.id === 'reports' && active === 'reports');
 
           if (isCenter) {
             return (
               <button key={item.id} onClick={() => { haptics.medium(); onAddPress(); }}
-                className="flex items-center justify-center rounded-[14px]"
-                style={{ width: 44, height: 44, background: '#6366f1' }}
+                className="flex items-center justify-center rounded-full -mt-2"
+                style={{ width: 40, height: 40, background: c.accent }}
                 aria-label="Add payment">
                 <NavIcon name="plus" isCenter />
               </button>
@@ -62,14 +83,14 @@ export const BottomNavV3 = React.memo(({ active, navigate, onAddPress }) => {
 
           return (
             <button key={item.id}
-              onClick={() => { haptics.light(); navigate(item.id === 'reports-view' ? 'reports' : item.id); }}
+              onClick={() => { haptics.light(); navigate(item.id === 'records' ? 'reports' : item.id); }}
               role="tab" aria-selected={isActive}
               className="flex flex-col items-center gap-0.5 py-1.5 px-3 min-w-[52px]">
               <NavIcon name={item.icon} active={isActive} />
-              <span className="text-[10px]" style={{ color: isActive ? '#6366f1' : '#64748b' }}>
+              <span className="text-[10px]" style={{ color: isActive ? c.accent : c.text3 }}>
                 {item.label}
               </span>
-              {isActive && <div className="w-1 h-1 rounded-full" style={{ background: '#6366f1' }} />}
+              {isActive && <div className="w-1 h-1 rounded-full" style={{ background: c.accent }} />}
             </button>
           );
         })}

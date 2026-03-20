@@ -2,18 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import { getThemeColors } from '../lib/themeColors';
 import { haptics } from '../lib/haptics';
 import { makeFmt } from '../utils/format';
 import * as api from '../api';
-
-const BG = '#0a0a14';
-const CARD = '#12121a';
-const BORDER = '#1e1e2e';
-const ACCENT = '#6366f1';
-const TEXT1 = '#f4f4f5';
-const TEXT2 = '#71717a';
-const TEXT3 = '#52525b';
-const GREEN = '#22c55e';
 
 const FEE_MODES = [
   { id: 'quick', label: 'Quick total' },
@@ -35,23 +27,24 @@ const INSTALLMENT_OPTIONS = [
   { count: 4, label: '4 parts' },
 ];
 
-function Input({ label, value, onChange, placeholder, type = 'text', prefix, small, ...props }) {
-  return (
-    <div className={small ? '' : 'mb-3'}>
-      {label && <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>{label}</label>}
-      <div className="flex items-center rounded-xl overflow-hidden" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-        {prefix && <span className="pl-3 text-sm" style={{ color: TEXT3 }}>{prefix}</span>}
-        <input type={type} value={value} onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none"
-          style={{ color: TEXT1 }} {...props} />
-      </div>
-    </div>
-  );
-}
-
 export const CreateSemesterPage = () => {
-  const { goBack, navigate, addToast, routeParams, user } = useApp();
+  const { goBack, navigate, addToast, routeParams, user, theme } = useApp();
+  const c = getThemeColors(theme === 'dark');
+
+  function Input({ label, value, onChange, placeholder, type = 'text', prefix, small, ...props }) {
+    return (
+      <div className={small ? '' : 'mb-3'}>
+        {label && <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>{label}</label>}
+        <div className="flex items-center rounded-xl overflow-hidden" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+          {prefix && <span className="pl-3 text-sm" style={{ color: c.text3 }}>{prefix}</span>}
+          <input type={type} value={value} onChange={e => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none"
+            style={{ color: c.text1 }} {...props} />
+        </div>
+      </div>
+    );
+  }
   const { entityId, entityName } = routeParams || {};
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
 
@@ -98,10 +91,10 @@ export const CreateSemesterPage = () => {
 
     if (feeMode === 'credit') {
       const items = [];
-      const c = Number(credits) || 0;
+      const cr = Number(credits) || 0;
       const r = Math.round((Number(ratePerCredit) || 0) * 100);
-      if (c > 0 && r > 0) {
-        items.push({ label: 'Tuition', feeCategory: 'tuition', billingBasis: 'per_credit', amountMinor: c * r, creditCount: c, ratePerCredit: r, creditType: 'standard' });
+      if (cr > 0 && r > 0) {
+        items.push({ label: 'Tuition', feeCategory: 'tuition', billingBasis: 'per_credit', amountMinor: cr * r, creditCount: cr, ratePerCredit: r, creditType: 'standard' });
       }
       const lc = Number(labCredits) || 0;
       const lr = Math.round((Number(labRate) || 0) * 100);
@@ -214,16 +207,16 @@ export const CreateSemesterPage = () => {
   }
 
   return (
-    <div className="min-h-screen pb-8" style={{ background: BG }}>
+    <div className="min-h-screen pb-8" style={{ background: c.bg }}>
       {/* Header */}
       <header className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 backdrop-blur-xl"
-        style={{ background: 'rgba(10,10,20,0.9)', borderBottom: `0.5px solid ${BORDER}` }}>
+        style={{ background: c.headerBg, borderBottom: `0.5px solid ${c.border}` }}>
         <button onClick={() => { haptics.light(); goBack(); }} className="p-1">
-          <ArrowLeft size={20} color={TEXT2} />
+          <ArrowLeft size={20} color={c.text2} />
         </button>
         <div>
-          <p className="text-[15px] font-medium" style={{ color: TEXT1 }}>New semester</p>
-          <p className="text-[11px]" style={{ color: TEXT3 }}>{entityName || 'Institution'}</p>
+          <p className="text-[15px] font-medium" style={{ color: c.text1 }}>New semester</p>
+          <p className="text-[11px]" style={{ color: c.text3 }}>{entityName || 'Institution'}</p>
         </div>
       </header>
 
@@ -240,12 +233,12 @@ export const CreateSemesterPage = () => {
 
         {/* 2. Fee Entry */}
         <section>
-          <p className="text-xs font-medium mb-2" style={{ color: TEXT2 }}>Fees</p>
-          <div className="flex rounded-xl p-[3px] mb-4" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
+          <p className="text-xs font-medium mb-2" style={{ color: c.text2 }}>Fees</p>
+          <div className="flex rounded-xl p-[3px] mb-4" style={{ background: c.heroBg, border: `0.5px solid ${c.border}` }}>
             {FEE_MODES.map(m => (
               <button key={m.id} onClick={() => { haptics.light(); setFeeMode(m.id); }}
                 className="flex-1 py-2 rounded-lg text-[11px] font-medium transition-all"
-                style={{ background: feeMode === m.id ? ACCENT : 'transparent', color: feeMode === m.id ? 'white' : TEXT3 }}>
+                style={{ background: feeMode === m.id ? c.accent : 'transparent', color: feeMode === m.id ? 'white' : c.text3 }}>
                 {m.label}
               </button>
             ))}
@@ -254,26 +247,26 @@ export const CreateSemesterPage = () => {
           {feeMode === 'quick' && (
             <div>
               <Input label="Total semester cost" value={quickAmount} onChange={setQuickAmount} prefix="৳" placeholder="85,000" inputMode="decimal" />
-              <p className="text-[11px] mt-1" style={{ color: TEXT3 }}>You can add detailed breakdown anytime later.</p>
+              <p className="text-[11px] mt-1" style={{ color: c.text3 }}>You can add detailed breakdown anytime later.</p>
             </div>
           )}
 
           {feeMode === 'credit' && (
             <div>
-              <div className="rounded-xl p-4 mb-3" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+              <div className="rounded-xl p-4 mb-3" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                 <div className="grid grid-cols-2 gap-3">
                   <Input label="Credits" value={credits} onChange={setCredits} placeholder="15" type="number" small />
                   <Input label="Rate/credit (৳)" value={ratePerCredit} onChange={setRatePerCredit} placeholder="5,500" inputMode="decimal" small />
                 </div>
                 {Number(credits) > 0 && Number(ratePerCredit) > 0 && (
-                  <p className="text-xs mt-2" style={{ color: ACCENT }}>
+                  <p className="text-xs mt-2" style={{ color: c.accent }}>
                     Tuition: {fmt(Number(credits) * Number(ratePerCredit))}
                   </p>
                 )}
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => setLabCredits(labCredits ? '' : '0')}
                     className="text-[11px] px-3 py-1.5 rounded-lg"
-                    style={{ background: labCredits ? 'rgba(99,102,241,0.15)' : 'transparent', color: labCredits ? ACCENT : TEXT3, border: `0.5px solid ${BORDER}` }}>
+                    style={{ background: labCredits ? 'rgba(99,102,241,0.15)' : 'transparent', color: labCredits ? c.accent : c.text3, border: `0.5px solid ${c.border}` }}>
                     + Lab credits
                   </button>
                 </div>
@@ -285,17 +278,17 @@ export const CreateSemesterPage = () => {
                 )}
               </div>
 
-              <p className="text-xs font-medium mb-2" style={{ color: TEXT2 }}>Other fees</p>
+              <p className="text-xs font-medium mb-2" style={{ color: c.text2 }}>Other fees</p>
               {otherFees.map((of2, i) => (
                 <div key={i} className="grid grid-cols-[1fr_100px_32px] gap-2 mb-2 items-end">
                   <Input value={of2.label} onChange={v => { const u = [...otherFees]; u[i].label = v; setOtherFees(u); }} placeholder="Fee name" small />
                   <Input value={of2.amount} onChange={v => { const u = [...otherFees]; u[i].amount = v; setOtherFees(u); }} prefix="৳" placeholder="0" inputMode="decimal" small />
                   <button onClick={() => setOtherFees(prev => prev.filter((_, j) => j !== i))} className="p-1.5 mb-0.5">
-                    <X size={14} color={TEXT3} />
+                    <X size={14} color={c.text3} />
                   </button>
                 </div>
               ))}
-              <button onClick={addOtherFee} className="text-[11px] font-medium flex items-center gap-1 mt-1" style={{ color: ACCENT }}>
+              <button onClick={addOtherFee} className="text-[11px] font-medium flex items-center gap-1 mt-1" style={{ color: c.accent }}>
                 <Plus size={12} /> Add fee
               </button>
             </div>
@@ -305,43 +298,43 @@ export const CreateSemesterPage = () => {
             <div>
               {detailedFees.map((f, i) => (
                 <div key={i} className="flex items-center justify-between rounded-xl p-3 mb-2"
-                  style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                  style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                   <div>
-                    <p className="text-sm" style={{ color: TEXT1 }}>{f.label}</p>
-                    <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.1)', color: ACCENT }}>{f.billingBasis}</span>
+                    <p className="text-sm" style={{ color: c.text1 }}>{f.label}</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.1)', color: c.accent }}>{f.billingBasis}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium" style={{ color: TEXT1 }}>{fmt(f.amountMinor / 100)}</p>
+                    <p className="text-sm font-medium" style={{ color: c.text1 }}>{fmt(f.amountMinor / 100)}</p>
                     <button onClick={() => setDetailedFees(prev => prev.filter((_, j) => j !== i))}>
-                      <X size={14} color={TEXT3} />
+                      <X size={14} color={c.text3} />
                     </button>
                   </div>
                 </div>
               ))}
 
               {showAddFee ? (
-                <div className="rounded-xl p-3 mb-2 space-y-2" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                <div className="rounded-xl p-3 mb-2 space-y-2" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                   <Input value={newFee.label} onChange={v => setNewFee(p => ({ ...p, label: v }))} placeholder="Fee name" small />
                   <div className="grid grid-cols-2 gap-2">
                     <select value={newFee.feeCategory} onChange={e => setNewFee(p => ({ ...p, feeCategory: e.target.value }))}
-                      className="text-xs px-2 py-2 rounded-lg outline-none" style={{ background: BG, color: TEXT1, border: `0.5px solid ${BORDER}` }}>
+                      className="text-xs px-2 py-2 rounded-lg outline-none" style={{ background: c.bg, color: c.text1, border: `0.5px solid ${c.border}` }}>
                       {FEE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <select value={newFee.billingBasis} onChange={e => setNewFee(p => ({ ...p, billingBasis: e.target.value }))}
-                      className="text-xs px-2 py-2 rounded-lg outline-none" style={{ background: BG, color: TEXT1, border: `0.5px solid ${BORDER}` }}>
+                      className="text-xs px-2 py-2 rounded-lg outline-none" style={{ background: c.bg, color: c.text1, border: `0.5px solid ${c.border}` }}>
                       {BILLING_BASES.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
                   <Input value={newFee.amount} onChange={v => setNewFee(p => ({ ...p, amount: v }))} prefix="৳" placeholder="0" inputMode="decimal" small />
                   <div className="flex gap-2">
-                    <button onClick={addDetailedFee} className="text-xs px-4 py-2 rounded-lg text-white" style={{ background: ACCENT }}>Add</button>
-                    <button onClick={() => setShowAddFee(false)} className="text-xs px-4 py-2 rounded-lg" style={{ color: TEXT3 }}>Cancel</button>
+                    <button onClick={addDetailedFee} className="text-xs px-4 py-2 rounded-lg text-white" style={{ background: c.accent }}>Add</button>
+                    <button onClick={() => setShowAddFee(false)} className="text-xs px-4 py-2 rounded-lg" style={{ color: c.text3 }}>Cancel</button>
                   </div>
                 </div>
               ) : (
                 <button onClick={() => setShowAddFee(true)}
                   className="w-full py-3 rounded-xl text-[12px] font-medium flex items-center justify-center gap-1"
-                  style={{ border: `1.5px dashed #2a2a3a`, color: ACCENT }}>
+                  style={{ border: `1.5px dashed #2a2a3a`, color: c.accent }}>
                   <Plus size={14} /> Add fee
                 </button>
               )}
@@ -350,16 +343,16 @@ export const CreateSemesterPage = () => {
 
           {/* Running total */}
           {grossMinor > 0 && (
-            <div className="mt-3 px-3 py-2 rounded-lg" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
-              <p className="text-xs" style={{ color: TEXT2 }}>Gross total: <span style={{ color: TEXT1 }}>{fmt(grossMinor / 100)}</span></p>
+            <div className="mt-3 px-3 py-2 rounded-lg" style={{ background: c.heroBg, border: `0.5px solid ${c.border}` }}>
+              <p className="text-xs" style={{ color: c.text2 }}>Gross total: <span style={{ color: c.text1 }}>{fmt(grossMinor / 100)}</span></p>
             </div>
           )}
         </section>
 
         {/* 3. Waivers */}
         <section>
-          <p className="text-xs font-medium mb-1" style={{ color: TEXT2 }}>Waivers & scholarships</p>
-          <p className="text-[11px] mb-3" style={{ color: TEXT3 }}>Reduces what you owe. Add multiple if needed.</p>
+          <p className="text-xs font-medium mb-1" style={{ color: c.text2 }}>Waivers & scholarships</p>
+          <p className="text-[11px] mb-3" style={{ color: c.text3 }}>Reduces what you owe. Add multiple if needed.</p>
 
           {waivers.map((w, i) => {
             let desc = '';
@@ -375,24 +368,24 @@ export const CreateSemesterPage = () => {
               <div key={i} className="flex items-center justify-between rounded-xl p-3 mb-2"
                 style={{ background: 'rgba(34,197,94,0.05)', border: `0.5px solid rgba(34,197,94,0.15)` }}>
                 <div>
-                  <p className="text-sm" style={{ color: TEXT1 }}>{w.label}</p>
-                  <p className="text-[11px]" style={{ color: GREEN }}>{desc}</p>
+                  <p className="text-sm" style={{ color: c.text1 }}>{w.label}</p>
+                  <p className="text-[11px]" style={{ color: c.green }}>{desc}</p>
                 </div>
                 <button onClick={() => setWaivers(prev => prev.filter((_, j) => j !== i))}>
-                  <X size={14} color={TEXT3} />
+                  <X size={14} color={c.text3} />
                 </button>
               </div>
             );
           })}
 
           {showAddWaiver ? (
-            <div className="rounded-xl p-3 mb-2 space-y-2" style={{ background: CARD, border: `0.5px solid rgba(34,197,94,0.2)` }}>
+            <div className="rounded-xl p-3 mb-2 space-y-2" style={{ background: c.card, border: `0.5px solid rgba(34,197,94,0.2)` }}>
               <Input value={newWaiver.label} onChange={v => setNewWaiver(p => ({ ...p, label: v }))} placeholder="Merit scholarship" small />
               <div className="flex gap-2">
                 {['percentage', 'flat'].map(t => (
                   <button key={t} onClick={() => setNewWaiver(p => ({ ...p, waiverType: t }))}
                     className="text-[11px] px-3 py-1.5 rounded-lg"
-                    style={{ background: newWaiver.waiverType === t ? ACCENT : 'transparent', color: newWaiver.waiverType === t ? 'white' : TEXT3, border: `0.5px solid ${BORDER}` }}>
+                    style={{ background: newWaiver.waiverType === t ? c.accent : 'transparent', color: newWaiver.waiverType === t ? 'white' : c.text3, border: `0.5px solid ${c.border}` }}>
                     {t === 'percentage' ? 'Percentage' : 'Flat amount'}
                   </button>
                 ))}
@@ -406,46 +399,46 @@ export const CreateSemesterPage = () => {
                 {['total', 'fee_category'].map(s => (
                   <button key={s} onClick={() => setNewWaiver(p => ({ ...p, appliesTo: s }))}
                     className="text-[11px] px-3 py-1.5 rounded-lg"
-                    style={{ background: newWaiver.appliesTo === s ? ACCENT : 'transparent', color: newWaiver.appliesTo === s ? 'white' : TEXT3, border: `0.5px solid ${BORDER}` }}>
+                    style={{ background: newWaiver.appliesTo === s ? c.accent : 'transparent', color: newWaiver.appliesTo === s ? 'white' : c.text3, border: `0.5px solid ${c.border}` }}>
                     {s === 'total' ? 'On total' : 'On category'}
                   </button>
                 ))}
               </div>
               {newWaiver.appliesTo === 'fee_category' && (
                 <select value={newWaiver.feeCategory} onChange={e => setNewWaiver(p => ({ ...p, feeCategory: e.target.value }))}
-                  className="text-xs px-2 py-2 rounded-lg outline-none w-full" style={{ background: BG, color: TEXT1, border: `0.5px solid ${BORDER}` }}>
+                  className="text-xs px-2 py-2 rounded-lg outline-none w-full" style={{ background: c.bg, color: c.text1, border: `0.5px solid ${c.border}` }}>
                   <option value="">Select category</option>
                   {FEE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               )}
               <Input value={newWaiver.reason} onChange={v => setNewWaiver(p => ({ ...p, reason: v }))} placeholder="Reason (optional)" small />
               <div className="flex gap-2">
-                <button onClick={addWaiverItem} className="text-xs px-4 py-2 rounded-lg text-white" style={{ background: GREEN }}>Add</button>
-                <button onClick={() => setShowAddWaiver(false)} className="text-xs px-4 py-2 rounded-lg" style={{ color: TEXT3 }}>Cancel</button>
+                <button onClick={addWaiverItem} className="text-xs px-4 py-2 rounded-lg text-white" style={{ background: c.green }}>Add</button>
+                <button onClick={() => setShowAddWaiver(false)} className="text-xs px-4 py-2 rounded-lg" style={{ color: c.text3 }}>Cancel</button>
               </div>
             </div>
           ) : (
             <button onClick={() => setShowAddWaiver(true)}
               className="w-full py-3 rounded-xl text-[12px] font-medium flex items-center justify-center gap-1"
-              style={{ border: `1.5px dashed rgba(34,197,94,0.3)`, color: GREEN }}>
+              style={{ border: `1.5px dashed rgba(34,197,94,0.3)`, color: c.green }}>
               <Plus size={14} /> Add waiver
             </button>
           )}
 
           {/* Summary strip */}
           {grossMinor > 0 && (
-            <div className="mt-3 rounded-xl p-3 space-y-1" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
+            <div className="mt-3 rounded-xl p-3 space-y-1" style={{ background: c.heroBg, border: `0.5px solid ${c.border}` }}>
               <div className="flex justify-between text-xs">
-                <span style={{ color: TEXT3 }}>Gross</span>
-                <span style={{ color: TEXT2 }}>{fmt(grossMinor / 100)}</span>
+                <span style={{ color: c.text3 }}>Gross</span>
+                <span style={{ color: c.text2 }}>{fmt(grossMinor / 100)}</span>
               </div>
               {waiverMinor > 0 && (
                 <div className="flex justify-between text-xs">
-                  <span style={{ color: GREEN }}>Waivers</span>
-                  <span style={{ color: GREEN }}>-{fmt(waiverMinor / 100)}</span>
+                  <span style={{ color: c.green }}>Waivers</span>
+                  <span style={{ color: c.green }}>-{fmt(waiverMinor / 100)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm font-medium pt-1" style={{ borderTop: `0.5px solid ${BORDER}` }}>
+              <div className="flex justify-between text-sm font-medium pt-1" style={{ borderTop: `0.5px solid ${c.border}` }}>
                 <span style={{ color: '#f59e0b' }}>You owe</span>
                 <span style={{ color: '#f59e0b' }}>{fmt(netMinor / 100)}</span>
               </div>
@@ -456,14 +449,14 @@ export const CreateSemesterPage = () => {
         {/* 4. Payment Plan */}
         {netMinor > 0 && (
           <section>
-            <p className="text-xs font-medium mb-1" style={{ color: TEXT2 }}>Payment plan</p>
-            <p className="text-[11px] mb-3" style={{ color: TEXT3 }}>How will you pay {fmt(netMinor / 100)}?</p>
+            <p className="text-xs font-medium mb-1" style={{ color: c.text2 }}>Payment plan</p>
+            <p className="text-[11px] mb-3" style={{ color: c.text3 }}>How will you pay {fmt(netMinor / 100)}?</p>
 
             <div className="grid grid-cols-4 gap-2 mb-4">
               {INSTALLMENT_OPTIONS.map(opt => (
                 <button key={opt.count} onClick={() => { haptics.light(); setInstallmentCount(opt.count); }}
                   className="py-2.5 rounded-xl text-[12px] font-medium transition-all"
-                  style={{ background: installmentCount === opt.count ? ACCENT : CARD, color: installmentCount === opt.count ? 'white' : TEXT3, border: `0.5px solid ${installmentCount === opt.count ? ACCENT : BORDER}` }}>
+                  style={{ background: installmentCount === opt.count ? c.accent : c.card, color: installmentCount === opt.count ? 'white' : c.text3, border: `0.5px solid ${installmentCount === opt.count ? c.accent : c.border}` }}>
                   {opt.label}
                 </button>
               ))}
@@ -472,14 +465,14 @@ export const CreateSemesterPage = () => {
             <div className="space-y-2">
               {installments.map((inst, i) => (
                 <div key={i} className="flex items-center justify-between rounded-xl p-3"
-                  style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                  style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                   <div>
-                    <p className="text-sm font-medium" style={{ color: TEXT1 }}>
+                    <p className="text-sm font-medium" style={{ color: c.text1 }}>
                       {installmentCount === 1 ? 'Full payment' : `Part ${inst.seq}`}
                     </p>
-                    <p className="text-[11px]" style={{ color: TEXT3 }}>Due 15th of month {inst.seq}</p>
+                    <p className="text-[11px]" style={{ color: c.text3 }}>Due 15th of month {inst.seq}</p>
                   </div>
-                  <p className="text-sm font-semibold" style={{ color: TEXT1 }}>{fmt(inst.amount / 100)}</p>
+                  <p className="text-sm font-semibold" style={{ color: c.text1 }}>{fmt(inst.amount / 100)}</p>
                 </div>
               ))}
             </div>

@@ -6,6 +6,7 @@ import { SuccessCheck } from '../ui/SuccessCheck';
 import { useApp } from '../../contexts/AppContext';
 import { useV3 } from '../../contexts/V3Context';
 import { haptics } from '../../lib/haptics';
+import { getThemeColors } from '../../lib/themeColors';
 import {
   CATEGORIES,
   SUB_CATEGORIES,
@@ -30,13 +31,14 @@ function catBg(cat) {
 const QUICK_AMOUNTS = [20, 50, 100, 200, 500];
 
 export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselectedObligation }) => {
-  const { user, addToast, theme } = useApp();
+  const { user, addToast, theme, navigate } = useApp();
   const {
     entities, trackers, upcomingObligations,
     recordPayment, addTracker,
   } = useV3();
 
   const d = theme === 'dark';
+  const c = getThemeColors(d);
   const profile = user?.profile;
   const currencySymbol = profile?.currency === 'USD' ? '$' : profile?.currency === 'INR' ? '₹' : '৳';
 
@@ -122,11 +124,29 @@ export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselected
 
   function handleCategoryTap(catId) {
     haptics.light();
+
+    const personalNavMap = {
+      transport: 'transport-page',
+      food: 'food-page',
+      books: 'materials-page',
+      stationery: 'materials-page',
+      devices: 'other-page',
+      medical: 'other-page',
+      internet: 'other-page',
+      loan_repayment: 'other-page',
+      other: 'other-page',
+    };
+
+    if (!selectedEntityId && personalNavMap[catId]) {
+      onClose();
+      navigate(personalNavMap[catId]);
+      return;
+    }
+
     setSelectedCategory(catId);
     setSelectedSubCategory('');
     setErrors((prev) => ({ ...prev, category: undefined }));
 
-    // Auto-select tracker if only one exists
     if (selectedEntityId) {
       const matching = entityTrackers.filter((t) => {
         const meta = t.meta || {};
@@ -239,33 +259,25 @@ export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselected
       {/* ── STEP: Form ─────────────────────────────────────────── */}
       {step === 'form' && (
         <>
-          {/* Entity selector chips */}
-          <div className="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-1 px-1 scrollbar-none">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleEntityTap(null)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                !selectedEntityId
-                  ? 'bg-primary-600 text-white'
-                  : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-600'
+          {/* Entity attribution */}
+          <div className="flex items-center gap-2 flex-wrap mb-4">
+            <button
+              onClick={() => { setSelectedEntityId(null); haptics.light(); }}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                !selectedEntityId ? 'text-white' : d ? 'text-zinc-400 border border-zinc-700' : 'text-zinc-500 border border-zinc-300'
               }`}
-            >
+              style={!selectedEntityId ? { background: c.accent } : {}}>
               Personal
-            </motion.button>
-            {activeEntities.map((entity) => (
-              <motion.button
-                key={entity.id}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleEntityTap(entity.id)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
-                  selectedEntityId === entity.id
-                    ? 'bg-primary-600 text-white'
-                    : d ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-600'
+            </button>
+            {activeEntities.map(entity => (
+              <button key={entity.id}
+                onClick={() => { handleEntityTap(entity.id); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  selectedEntityId === entity.id ? 'text-white' : d ? 'text-zinc-400 border border-zinc-700' : 'text-zinc-500 border border-zinc-300'
                 }`}
-              >
-                <span>{ENTITY_ICONS[entity.type] || '🏛️'}</span>
-                <span className="truncate max-w-[100px]">{entity.name}</span>
-              </motion.button>
+                style={selectedEntityId === entity.id ? { background: c.accent } : {}}>
+                {entity.type === 'INSTITUTION' ? '🎓 ' : entity.type === 'RESIDENCE' ? '🏠 ' : '📖 '}{entity.name}
+              </button>
             ))}
           </div>
 

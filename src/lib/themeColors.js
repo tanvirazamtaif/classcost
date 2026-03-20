@@ -1,0 +1,28 @@
+export function getThemeColors(isDark) {
+  return {
+    bg: isDark ? '#0a0a14' : '#f8f9fa',
+    card: isDark ? '#12121a' : '#ffffff',
+    border: isDark ? '#1e1e2e' : '#e5e7eb',
+    accent: '#6366f1',
+    accentLight: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)',
+    text1: isDark ? '#f4f4f5' : '#18181b',
+    text2: isDark ? '#71717a' : '#52525b',
+    text3: isDark ? '#52525b' : '#a1a1aa',
+    green: '#22c55e',
+    amber: '#f59e0b',
+    red: '#ef4444',
+    heroBg: isDark ? '#0f0f1a' : '#ffffff',
+    heroBorder: isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)',
+    inputBg: isDark ? '#12121a' : '#f4f4f5',
+    inputBorder: isDark ? '#2a2a3a' : '#d4d4d8',
+    pillBg: isDark ? '#0f0f1a' : '#f4f4f5',
+    pillActive: '#6366f1',
+    pillActiveText: '#ffffff',
+    pillInactiveText: isDark ? '#52525b' : '#71717a',
+    navBg: isDark ? 'rgba(10,10,20,0.95)' : 'rgba(255,255,255,0.95)',
+    navBorder: isDark ? '#1e1e2e' : '#e5e7eb',
+    headerBg: isDark ? 'rgba(10,10,20,0.9)' : 'rgba(255,255,255,0.9)',
+    sheetBg: isDark ? '#12121a' : '#ffffff',
+    cardShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.08)',
+  };
+}

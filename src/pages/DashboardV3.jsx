@@ -9,15 +9,7 @@ import { AddPaymentV3 } from '../components/feature';
 import { Logo } from '../components/ui';
 import { makeFmt } from '../utils/format';
 import { haptics } from '../lib/haptics';
-
-// ─── Theme constants ──────────────────────────────────────────
-const BG = '#0a0a14';
-const CARD = '#12121a';
-const BORDER = '#1e1e2e';
-const ACCENT = '#6366f1';
-const TEXT1 = '#f4f4f5';
-const TEXT2 = '#71717a';
-const TEXT3 = '#52525b';
+import { getThemeColors } from '../lib/themeColors';
 
 // ─── Category SVG icons (16x16) ──────────────────────────────
 const CAT_ICONS = {
@@ -88,6 +80,9 @@ export const DashboardV3 = () => {
     entities, upcomingObligations, ledgerSummary, recentEntries,
     loading, scopedTotals, monthTrend, recordPayment,
   } = useV3();
+
+  const d = theme === 'dark';
+  const c = getThemeColors(d);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -164,18 +159,18 @@ export const DashboardV3 = () => {
   }, [ledgerSummary, activeEntities, fmt]);
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: BG }}>
+    <div className="min-h-screen pb-24" style={{ background: c.bg }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 backdrop-blur-xl"
-        style={{ height: 56, background: 'rgba(10,10,20,0.9)', borderBottom: `0.5px solid ${BORDER}` }}>
+        style={{ height: 56, background: c.headerBg, borderBottom: `0.5px solid ${BORDER}` }}>
         <div className="flex items-center gap-3">
           <button onClick={() => { haptics.light(); setSidebarOpen(true); }} className="p-1">
             <Menu size={20} color={TEXT2} />
           </button>
           <Logo size={24} />
-          <span className="text-sm" style={{ color: TEXT2 }}>{greeting}, <span style={{ color: TEXT1 }}>{firstName}</span></span>
+          <span className="text-sm" style={{ color: c.text2 }}>{greeting}, <span style={{ color: c.text1 }}>{firstName}</span></span>
         </div>
         <div className="flex items-center gap-3">
           <button className="relative p-1">
@@ -184,10 +179,10 @@ export const DashboardV3 = () => {
               <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500" />
             )}
           </button>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white"
-            style={{ background: ACCENT }}>
+          <button onClick={() => navigate('settings')} className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white"
+            style={{ background: c.accent }}>
             {(user?.name || 'U')[0].toUpperCase()}
-          </div>
+          </button>
         </div>
       </header>
 
@@ -196,17 +191,17 @@ export const DashboardV3 = () => {
         {/* ── Hero Card (4 quadrants) ──────────────────────── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
           className="rounded-2xl p-4 mb-4"
-          style={{ background: '#0f0f1a', border: '0.5px solid rgba(99,102,241,0.2)' }}>
+          style={{ background: c.heroBg, border: `0.5px solid ${c.heroBorder}` }}>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-[10px] font-medium" style={{ color: '#8b5cf6' }}>Lifetime</p>
-              <p className="text-[22px] font-medium mt-0.5" style={{ color: TEXT1 }}>
+              <p className="text-[22px] font-medium mt-0.5" style={{ color: c.text1 }}>
                 {fmt((scopedTotals.lifetime?.total || 0) / 100)}
               </p>
             </div>
             <div className="text-right">
               <p className="text-[10px] font-medium" style={{ color: '#8b5cf6' }}>This month</p>
-              <p className="text-[22px] font-medium mt-0.5" style={{ color: TEXT1 }}>
+              <p className="text-[22px] font-medium mt-0.5" style={{ color: c.text1 }}>
                 {fmt((scopedTotals.thisMonth?.total || 0) / 100)}
               </p>
               {monthTrend.direction !== 'flat' && (
@@ -216,14 +211,14 @@ export const DashboardV3 = () => {
               )}
             </div>
             <div>
-              <p className="text-[10px]" style={{ color: TEXT3 }}>This year</p>
-              <p className="text-sm font-medium" style={{ color: TEXT2 }}>
+              <p className="text-[10px]" style={{ color: c.text3 }}>This year</p>
+              <p className="text-sm font-medium" style={{ color: c.text2 }}>
                 {fmt((scopedTotals.thisYear?.total || 0) / 100)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[10px]" style={{ color: TEXT3 }}>Last month</p>
-              <p className="text-sm font-medium" style={{ color: TEXT2 }}>
+              <p className="text-[10px]" style={{ color: c.text3 }}>Last month</p>
+              <p className="text-sm font-medium" style={{ color: c.text2 }}>
                 {fmt((scopedTotals.lastMonth?.total || 0) / 100)}
               </p>
             </div>
@@ -234,16 +229,16 @@ export const DashboardV3 = () => {
         {!loading && activeEntities.length === 0 && recentList.length === 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="rounded-xl p-4 mb-4 text-center"
-            style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-            <p className="text-sm font-medium" style={{ color: TEXT1 }}>Welcome to ClassCost</p>
-            <p className="text-xs mt-1" style={{ color: TEXT3 }}>
-              Tap the <span style={{ color: ACCENT }}>+</span> button below to add your first expense
+            style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+            <p className="text-sm font-medium" style={{ color: c.text1 }}>Welcome to ClassCost</p>
+            <p className="text-xs mt-1" style={{ color: c.text3 }}>
+              Tap the <span style={{ color: c.accent }}>+</span> button below to add your first expense
             </p>
           </motion.div>
         )}
 
         {/* ── Scope Switcher ───────────────────────────────── */}
-        <div className="rounded-xl p-[3px] mb-4 flex" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
+        <div className="rounded-xl p-[3px] mb-4 flex" style={{ background: c.heroBg, border: `0.5px solid ${c.border}` }}>
           {SCOPES.map(s => (
             <button key={s.id} onClick={() => { haptics.light(); setScope(s.id); }}
               className="flex-1 py-2 rounded-lg text-[11px] font-medium transition-all"
@@ -262,29 +257,29 @@ export const DashboardV3 = () => {
           <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }} whileTap={{ scale: 0.98 }}
             onClick={() => navigate('education-home')}
-            className="w-full text-left rounded-xl p-4" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+            className="w-full text-left rounded-xl p-4" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <CatIcon id="education" size={20} />
-                <span className="text-xs font-medium" style={{ color: TEXT2 }}>Education</span>
+                <span className="text-xs font-medium" style={{ color: c.text2 }}>Education</span>
               </div>
               <ChevronRight size={14} color={TEXT3} />
             </div>
-            <p className="text-lg font-semibold mt-2" style={{ color: TEXT1 }}>
+            <p className="text-lg font-semibold mt-2" style={{ color: c.text1 }}>
               {fmt((categoryTotals.education || 0) / 100)}
             </p>
             {scopeTotal > 0 && (
               <div className="mt-2">
-                <div className="h-[2px] rounded-full overflow-hidden" style={{ background: BORDER }}>
+                <div className="h-[2px] rounded-full overflow-hidden" style={{ background: c.border }}>
                   <div className="h-full rounded-full transition-all" style={{
                     width: `${Math.min(100, Math.round(((categoryTotals.education || 0) / scopeTotal) * 100))}%`,
-                    background: ACCENT,
+                    background: c.accent,
                   }} />
                 </div>
               </div>
             )}
             {instBreakdown && (
-              <p className="text-[10px] mt-1.5 truncate" style={{ color: TEXT3 }}>{instBreakdown}</p>
+              <p className="text-[10px] mt-1.5 truncate" style={{ color: c.text3 }}>{instBreakdown}</p>
             )}
           </motion.button>
 
@@ -294,14 +289,14 @@ export const DashboardV3 = () => {
               <motion.button key={cat.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.05 }} whileTap={{ scale: 0.96 }}
                 onClick={() => navigate(cat.nav)}
-                className="rounded-xl p-3 text-left" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                className="rounded-xl p-3 text-left" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                 <CatIcon id={cat.id} />
-                <p className="text-[11px] mt-1.5" style={{ color: TEXT2 }}>{cat.label}</p>
-                <p className="text-sm font-semibold mt-0.5" style={{ color: TEXT1 }}>
+                <p className="text-[11px] mt-1.5" style={{ color: c.text2 }}>{cat.label}</p>
+                <p className="text-sm font-semibold mt-0.5" style={{ color: c.text1 }}>
                   {fmt((categoryTotals[cat.id] || 0) / 100)}
                 </p>
                 {scopeTotal > 0 && (
-                  <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: BORDER }}>
+                  <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: c.border }}>
                     <div className="h-full rounded-full" style={{
                       width: `${Math.min(100, Math.round(((categoryTotals[cat.id] || 0) / scopeTotal) * 100))}%`,
                       background: CAT_ICONS[cat.id]?.color || TEXT3,
@@ -318,14 +313,14 @@ export const DashboardV3 = () => {
               <motion.button key={cat.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 + i * 0.05 }} whileTap={{ scale: 0.96 }}
                 onClick={() => navigate(cat.nav)}
-                className="rounded-xl p-3 text-left" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                className="rounded-xl p-3 text-left" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                 <CatIcon id={cat.id} />
-                <p className="text-[11px] mt-1.5" style={{ color: TEXT2 }}>{cat.label}</p>
-                <p className="text-sm font-semibold mt-0.5" style={{ color: TEXT1 }}>
+                <p className="text-[11px] mt-1.5" style={{ color: c.text2 }}>{cat.label}</p>
+                <p className="text-sm font-semibold mt-0.5" style={{ color: c.text1 }}>
                   {fmt((categoryTotals[cat.id] || 0) / 100)}
                 </p>
                 {scopeTotal > 0 && (
-                  <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: BORDER }}>
+                  <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: c.border }}>
                     <div className="h-full rounded-full" style={{
                       width: `${Math.min(100, Math.round(((categoryTotals[cat.id] || 0) / scopeTotal) * 100))}%`,
                       background: CAT_ICONS[cat.id]?.color || TEXT3,
@@ -339,7 +334,7 @@ export const DashboardV3 = () => {
 
         {/* ── Entity Tabs ──────────────────────────────────── */}
         <div className="mb-4">
-          <div className="flex gap-1 mb-3 rounded-xl p-[3px]" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
+          <div className="flex gap-1 mb-3 rounded-xl p-[3px]" style={{ background: c.heroBg, border: `0.5px solid ${c.border}` }}>
             {ENTITY_TABS.map(tab => (
               <button key={tab.id} onClick={() => { haptics.light(); setEntityTab(tab.id); }}
                 className="flex-1 py-2 rounded-lg text-[11px] font-medium transition-all"
@@ -355,22 +350,22 @@ export const DashboardV3 = () => {
           {entityTab !== 'expenses' ? (
             <div className="space-y-2">
               {tabEntities.length === 0 ? (
-                <div className="rounded-xl p-6 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
-                  <p className="text-sm" style={{ color: TEXT3 }}>No {entityTab} yet</p>
+                <div className="rounded-xl p-6 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                  <p className="text-sm" style={{ color: c.text3 }}>No {entityTab} yet</p>
                 </div>
               ) : (
                 tabEntities.map(entity => (
                   <button key={entity.id}
                     onClick={() => navigate('institution-detail', { params: { entityId: entity.id } })}
                     className="w-full flex items-center gap-3 rounded-xl p-3 text-left transition hover:opacity-90"
-                    style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                    style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm"
                       style={{ background: 'rgba(99,102,241,0.1)' }}>
                       {entity.type === 'INSTITUTION' ? '🎓' : entity.type === 'RESIDENCE' ? '🏠' : '📖'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: TEXT1 }}>{entity.name}</p>
-                      <p className="text-[11px]" style={{ color: TEXT3 }}>{fmt((entityTotals[entity.id] || 0) / 100)}</p>
+                      <p className="text-sm font-medium truncate" style={{ color: c.text1 }}>{entity.name}</p>
+                      <p className="text-[11px]" style={{ color: c.text3 }}>{fmt((entityTotals[entity.id] || 0) / 100)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] px-2 py-0.5 rounded-full"
@@ -385,10 +380,10 @@ export const DashboardV3 = () => {
             </div>
           ) : (
             /* Expenses tab: recent entries */
-            <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+            <div className="rounded-xl overflow-hidden" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
               {recentList.length === 0 ? (
                 <div className="p-6 text-center">
-                  <p className="text-sm" style={{ color: TEXT3 }}>No transactions yet</p>
+                  <p className="text-sm" style={{ color: c.text3 }}>No transactions yet</p>
                 </div>
               ) : (
                 recentList.map((entry, i) => {
@@ -399,10 +394,10 @@ export const DashboardV3 = () => {
                       style={{ borderTop: i > 0 ? `0.5px solid ${BORDER}` : 'none' }}>
                       <CatIcon id={displayCat} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate" style={{ color: TEXT1 }}>
+                        <p className="text-sm truncate" style={{ color: c.text1 }}>
                           {entry.note || entry.category}
                         </p>
-                        <p className="text-[10px]" style={{ color: TEXT3 }}>{fmtDate(entry.date)}</p>
+                        <p className="text-[10px]" style={{ color: c.text3 }}>{fmtDate(entry.date)}</p>
                       </div>
                       <span className="text-sm font-medium" style={{ color: isCredit ? '#22c55e' : TEXT1 }}>
                         {isCredit ? '+' : ''}{fmt(entry.amountMinor / 100)}
