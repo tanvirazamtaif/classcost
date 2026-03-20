@@ -39,6 +39,8 @@ export const EntityDetailV3 = () => {
   const [semLoading, setSemLoading] = useState(false);
   const [infoForm, setInfoForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [clubName, setClubName] = useState('');
+  const [showClubForm, setShowClubForm] = useState(false);
 
   const entity = useMemo(() => (entities || []).find(e => e.id === entityId), [entities, entityId]);
   const activeEntities = useMemo(() => (entities || []).filter(e => e.isActive), [entities]);
@@ -108,12 +110,12 @@ export const EntityDetailV3 = () => {
   }
 
   async function handleAddClub() {
-    if (!user?.id || !entity) return;
-    const name = prompt('Club name:');
-    if (!name) return;
+    if (!user?.id || !entity || !clubName.trim()) return;
     try {
-      await addEntity({ type: 'COACHING', name, parentEntityId: entity.id });
+      await addEntity({ type: 'COACHING', name: clubName.trim(), parentEntityId: entity.id });
       addToast('Club added', 'success');
+      setClubName('');
+      setShowClubForm(false);
     } catch (err) {
       addToast('Failed to add club', 'error');
     }
@@ -313,11 +315,28 @@ export const EntityDetailV3 = () => {
                 </div>
               ))
             )}
-            <button onClick={handleAddClub}
-              className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
-              style={{ border: `1.5px dashed ${c.border}`, color: c.accent }}>
-              <Plus size={16} /> Add club
-            </button>
+            {showClubForm ? (
+              <div className="rounded-xl p-3 flex gap-2" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                <input value={clubName} onChange={e => setClubName(e.target.value)}
+                  placeholder="Club name" autoFocus
+                  className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ background: c.bg, border: `0.5px solid ${c.border}`, color: c.text1 }}
+                  onKeyDown={e => e.key === 'Enter' && handleAddClub()} />
+                <button onClick={handleAddClub} disabled={!clubName.trim()}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-white"
+                  style={{ background: clubName.trim() ? c.accent : c.text3 }}>Create</button>
+                <button onClick={() => { setShowClubForm(false); setClubName(''); }}
+                  className="px-2 py-2 rounded-lg text-xs" style={{ color: c.text3 }}>
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowClubForm(true)}
+                className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+                style={{ border: `1.5px dashed ${c.border}`, color: c.accent }}>
+                <Plus size={16} /> Add club
+              </button>
+            )}
           </div>
         )}
 

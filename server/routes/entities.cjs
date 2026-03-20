@@ -73,6 +73,7 @@ router.post('/:userId', async (req, res) => {
         startDate: req.body.startDate ? new Date(req.body.startDate) : null,
         endDate: req.body.endDate ? new Date(req.body.endDate) : null,
         metadata: req.body.metadata || null,
+        parentEntityId: req.body.parentEntityId || null,
       },
     });
     res.status(201).json(entity);
