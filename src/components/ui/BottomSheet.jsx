@@ -40,7 +40,8 @@ export const BottomSheet = ({ isOpen, onClose, title, children }) => {
                 onClose();
               }
             }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-surface-900 rounded-t-3xl max-h-[90vh] overflow-hidden"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-surface-900 rounded-t-3xl max-h-[70vh] overflow-hidden mx-auto"
+            style={{ maxWidth: 480 }}
           >
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-10 h-1 bg-surface-300 dark:bg-surface-700 rounded-full" />
@@ -57,7 +58,7 @@ export const BottomSheet = ({ isOpen, onClose, title, children }) => {
                 </button>
               </div>
             )}
-            <div className="px-5 pb-8 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <div className="px-5 pb-8 overflow-y-auto max-h-[calc(70vh-80px)]">
               {children}
             </div>
           </motion.div>
