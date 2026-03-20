@@ -85,7 +85,7 @@ const InnerPage = () => {
 
 // ─── View Router ──────────────────────────────────────────────────────────────
 const ViewRouter = () => {
-  const { view, toasts, user, theme } = useApp();
+  const { view, toasts, user, theme, routeParams } = useApp();
   const isParent = user?.accountType === 'parent';
   const dark = theme === 'dark';
 
@@ -127,6 +127,7 @@ const ViewRouter = () => {
         {view === "food-page" && <CategoryPage category="food" />}
         {view === "materials-page" && <CategoryPage category="books" />}
         {view === "other-page" && <CategoryPage category="other" />}
+        {view === "category-scoped" && <CategoryPage category={routeParams?.category} scopedEntityId={routeParams?.scopedEntityId} />}
         {view === "record-payment" && <RecordPaymentPage />}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
         {view === "club-detail" && <ClubDetailPage />}
