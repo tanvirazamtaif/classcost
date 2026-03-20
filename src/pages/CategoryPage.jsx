@@ -11,19 +11,36 @@ import { getThemeColors } from '../lib/themeColors';
 const CATEGORY_CONFIG = {
   transport: {
     label: 'Transport', icon: '🚌', color: '#3b82f6',
-    subs: ['bus', 'pathao', 'rickshaw', 'cng', 'train', 'uber', 'walking'],
+    subs: ['bus', 'pathao', 'rickshaw', 'cng', 'train', 'uber'],
+    quickDefaults: [
+      { label: 'Bus', sub: 'bus', amount: 20 },
+      { label: 'Pathao', sub: 'pathao', amount: 100 },
+      { label: 'Rickshaw', sub: 'rickshaw', amount: 30 },
+      { label: 'CNG', sub: 'cng', amount: 50 },
+    ],
   },
   food: {
     label: 'Food', icon: '🍽️', color: '#f97316',
     subs: ['breakfast', 'lunch', 'dinner', 'snacks', 'tiffin'],
+    quickDefaults: [
+      { label: 'Lunch', sub: 'lunch', amount: 80 },
+      { label: 'Breakfast', sub: 'breakfast', amount: 50 },
+      { label: 'Dinner', sub: 'dinner', amount: 100 },
+      { label: 'Snacks', sub: 'snacks', amount: 30 },
+    ],
   },
   books: {
     label: 'Materials', icon: '📚', color: '#eab308',
     subs: ['textbooks', 'stationery', 'digital'],
+    quickDefaults: [
+      { label: 'Photocopy', sub: 'stationery', amount: 20 },
+      { label: 'Pen/Pencil', sub: 'stationery', amount: 15 },
+    ],
   },
   other: {
     label: 'Other', icon: '📦', color: '#64748b',
     subs: [],
+    quickDefaults: [],
   },
 };
 
@@ -74,6 +91,38 @@ export const CategoryPage = ({ category }) => {
     }
     return Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 30);
   }, [allEntries, category]);
+
+  const quickEntries = useMemo(() => {
+    const defaults = (config.quickDefaults || []).map(q => ({ ...q, source: 'default' }));
+    const freq = {};
+    for (const group of history) {
+      for (const entry of group.entries) {
+        const key = (entry.subCategory || 'none') + '_' + entry.amountMinor;
+        if (!freq[key]) freq[key] = { sub: entry.subCategory, amount: entry.amountMinor / 100, count: 0 };
+        freq[key].count++;
+      }
+    }
+    const repeated = Object.values(freq)
+      .filter(f => f.count >= 2)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(f => ({ label: f.sub ? f.sub.charAt(0).toUpperCase() + f.sub.slice(1) : 'Quick', sub: f.sub || '', amount: f.amount, source: 'repeated' }));
+    const recentEntry = history[0]?.entries?.[0];
+    const recent = recentEntry ? [{
+      label: recentEntry.subCategory ? recentEntry.subCategory.charAt(0).toUpperCase() + recentEntry.subCategory.slice(1) : 'Last',
+      sub: recentEntry.subCategory || '',
+      amount: recentEntry.amountMinor / 100,
+      source: 'recent',
+    }] : [];
+    const all = [...recent, ...repeated, ...defaults];
+    const seen = new Set();
+    return all.filter(q => {
+      const key = q.label + '_' + q.amount;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 6);
+  }, [history, config]);
 
   const handleSave = useCallback(async () => {
     const num = Number(amount);
@@ -133,16 +182,15 @@ export const CategoryPage = ({ category }) => {
 
         {/* Sub-category chips */}
         {config.subs.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            <button onClick={() => setSubCat('')}
-              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-medium"
-              style={{ background: !subCat ? config.color : 'transparent', color: !subCat ? 'white' : c.text3, border: `0.5px solid ${!subCat ? config.color : c.border}` }}>
-              All
-            </button>
+          <div className="flex flex-wrap gap-2">
             {config.subs.map(s => (
               <button key={s} onClick={() => { haptics.light(); setSubCat(subCat === s ? '' : s); }}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-medium capitalize"
-                style={{ background: subCat === s ? config.color : 'transparent', color: subCat === s ? 'white' : c.text3, border: `0.5px solid ${subCat === s ? config.color : c.border}` }}>
+                className="px-4 py-2 rounded-xl text-xs font-medium capitalize"
+                style={{
+                  background: subCat === s ? config.color : c.card,
+                  color: subCat === s ? 'white' : c.text2,
+                  border: `0.5px solid ${subCat === s ? config.color : c.border}`,
+                }}>
                 {s}
               </button>
             ))}
@@ -166,6 +214,18 @@ export const CategoryPage = ({ category }) => {
               </button>
             ))}
           </div>
+          {/* Quick entry chips */}
+          {quickEntries.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {quickEntries.map((q, i) => (
+                <button key={i} onClick={() => { haptics.light(); setAmount(String(q.amount)); setSubCat(q.sub); }}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
+                  style={{ background: c.card, border: `0.5px solid ${c.border}`, color: c.text2 }}>
+                  {q.label} <span style={{ color: config.color }}>৳{q.amount}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center rounded-xl overflow-hidden mb-3" style={{ background: c.bg, border: `0.5px solid ${c.border}` }}>
             <span className="pl-3 text-lg" style={{ color: c.text3 }}>৳</span>
             <input type="text" inputMode="decimal" value={amount}
