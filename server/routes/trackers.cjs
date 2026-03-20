@@ -129,7 +129,7 @@ router.post('/:userId', async (req, res) => {
           dueDate,
           status,
           isRecurring: true,
-          recurrenceRule: 'MONTHLY',
+          recurrenceRule: 'RECURRING_MONTHLY',
         },
       });
     }

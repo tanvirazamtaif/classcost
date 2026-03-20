@@ -202,7 +202,7 @@ export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselected
     try {
       await addTracker({
         entityId: selectedEntityId,
-        type: type === 'monthly' ? 'MONTHLY' : 'SEMESTER',
+        type: type === 'monthly' ? 'RECURRING_MONTHLY' : 'SEMESTER',
         label: CATEGORIES[selectedCategory]?.label || selectedCategory,
         category: selectedCategory,
         startDate: new Date().toISOString(),
