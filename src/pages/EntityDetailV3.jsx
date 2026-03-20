@@ -16,6 +16,7 @@ function getTabsForEntity(entity) {
   if (!entity) return [];
   const isClub = !!entity.parentEntityId;
   if (isClub) return [
+    { id: 'fees', label: 'Fees' },
     { id: 'daily', label: 'Daily Costs' },
     { id: 'others', label: 'Others' },
   ];
@@ -291,6 +292,50 @@ export const EntityDetailV3 = () => {
         )}
 
         {/* ── Tab 2: Daily Costs ────────────────────────── */}
+        {/* ── Tab: Fees (clubs) ──────────────────────── */}
+        {activeTab === 'fees' && (
+          <div className="space-y-3">
+            {(() => {
+              const feeEntries = (allEntries || [])
+                .filter(e => e.entityId === entityId && e.direction === 'DEBIT' &&
+                  ['coaching_monthly', 'batch_fee', 'registration_fee', 'admission_fee'].includes(e.category))
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+              const totalFees = feeEntries.reduce((s, e) => s + e.amountMinor, 0);
+              return (
+                <>
+                  <div className="rounded-xl p-4" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                    <p className="text-[10px]" style={{ color: c.text3 }}>Total fees paid</p>
+                    <p className="text-lg font-semibold" style={{ color: c.text1 }}>{fmt(totalFees / 100)}</p>
+                  </div>
+                  {feeEntries.length === 0 ? (
+                    <div className="rounded-xl p-6 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                      <p className="text-sm" style={{ color: c.text3 }}>No fees recorded yet</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl overflow-hidden" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                      {feeEntries.map((entry, i) => (
+                        <div key={entry.id} className="flex items-center justify-between px-3 py-2.5"
+                          style={{ borderTop: i > 0 ? `0.5px solid ${c.border}` : 'none' }}>
+                          <div>
+                            <p className="text-sm" style={{ color: c.text1 }}>{entry.note || entry.category.replace(/_/g, ' ')}</p>
+                            <p className="text-[10px]" style={{ color: c.text3 }}>{fmtDate(entry.date)}</p>
+                          </div>
+                          <span className="text-sm font-medium" style={{ color: c.text1 }}>{fmt(entry.amountMinor / 100)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={() => setSheetOpen(true)}
+                    className="w-full py-3 rounded-xl text-sm font-medium"
+                    style={{ border: `1.5px dashed ${c.border}`, color: c.accent }}>
+                    + Add fee for {entity.name}
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
         {activeTab === 'daily' && (
           <div className="space-y-3">
             {[
