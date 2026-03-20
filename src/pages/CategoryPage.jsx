@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
@@ -57,32 +56,59 @@ function dayLabel(dateStr) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-export const CategoryPage = ({ category }) => {
-  const { goBack, addToast, user, theme = 'dark' } = useApp();
-  const { allEntries, recordPayment, scopedTotals, entities } = useV3();
+export const CategoryPage = ({ category, scopedEntityId = null }) => {
+  const { goBack, addToast, user, theme = 'dark', routeParams } = useApp();
+  const { allEntries, recordPayment, entities } = useV3();
   const c = getThemeColors(theme === 'dark');
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
   const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.other;
+
+  const lockedEntity = scopedEntityId || routeParams?.scopedEntityId || null;
+  const isScoped = !!lockedEntity;
 
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [subCat, setSubCat] = useState('');
   const [saving, setSaving] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('all');
 
-  const savedEntity = localStorage.getItem('cc_last_entity_' + category);
-  const [entityId, setEntityId] = useState(savedEntity && savedEntity !== 'personal' ? savedEntity : null);
+  const savedDefault = localStorage.getItem('cc_last_entity_' + category);
+  const [entityId, setEntityId] = useState(
+    lockedEntity || (savedDefault && savedDefault !== 'personal' ? savedDefault : null)
+  );
 
-  // Stats
-  const thisMonth = scopedTotals.thisMonth?.byCategory?.[category] || 0;
-  const lastMonth = scopedTotals.lastMonth?.byCategory?.[category] || 0;
-  const now = new Date();
-  const dayOfMonth = now.getDate();
-  const dailyAvg = dayOfMonth > 0 ? Math.round(thisMonth / dayOfMonth) : 0;
+  const activeEntities = useMemo(() => (entities || []).filter(e => e.isActive), [entities]);
 
-  // History: entries for this category, grouped by day
+  const scopedEntityName = useMemo(() => {
+    if (!lockedEntity) return null;
+    return activeEntities.find(e => e.id === lockedEntity)?.name || null;
+  }, [lockedEntity, activeEntities]);
+
+  // Stats — scoped to entity if in institution mode
+  const stats = useMemo(() => {
+    const filtered = (allEntries || []).filter(e => {
+      if (e.category !== category || e.direction !== 'DEBIT') return false;
+      if (isScoped) return e.entityId === lockedEntity;
+      return true;
+    });
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const thisMonth = filtered.filter(e => new Date(e.date) >= monthStart).reduce((s, e) => s + e.amountMinor, 0);
+    const lastMonth = filtered.filter(e => new Date(e.date) >= lastMonthStart && new Date(e.date) < monthStart).reduce((s, e) => s + e.amountMinor, 0);
+    const dailyAvg = now.getDate() > 0 ? Math.round(thisMonth / now.getDate()) : 0;
+    return { thisMonth, lastMonth, dailyAvg };
+  }, [allEntries, category, isScoped, lockedEntity]);
+
+  // History — filtered by entity in dashboard mode
   const history = useMemo(() => {
-    const filtered = (allEntries || []).filter(e => e.category === category && e.direction === 'DEBIT');
+    const filtered = (allEntries || []).filter(e => {
+      if (e.category !== category || e.direction !== 'DEBIT') return false;
+      if (isScoped) return e.entityId === lockedEntity;
+      if (historyFilter === 'all') return true;
+      if (historyFilter === 'personal') return !e.entityId;
+      return e.entityId === historyFilter;
+    });
     const groups = {};
     for (const e of filtered) {
       const key = new Date(e.date).toDateString();
@@ -90,8 +116,9 @@ export const CategoryPage = ({ category }) => {
       groups[key].entries.push(e);
     }
     return Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 30);
-  }, [allEntries, category]);
+  }, [allEntries, category, historyFilter, isScoped, lockedEntity]);
 
+  // Smart quick entries
   const quickEntries = useMemo(() => {
     const defaults = (config.quickDefaults || []).map(q => ({ ...q, source: 'default' }));
     const freq = {};
@@ -138,20 +165,20 @@ export const CategoryPage = ({ category }) => {
         amountMinor: Math.round(num * 100),
         date: new Date().toISOString(),
         note: note || null,
-        entityId: entityId || null,
+        entityId: isScoped ? lockedEntity : (entityId || null),
       });
       setAmount('');
       setNote('');
       setSubCat('');
       haptics.success();
       addToast('Saved!', 'success');
-      localStorage.setItem('cc_last_entity_' + category, entityId || 'personal');
+      localStorage.setItem('cc_last_entity_' + category, isScoped ? lockedEntity : (entityId || 'personal'));
     } catch (err) {
       addToast('Failed to save', 'error');
     } finally {
       setSaving(false);
     }
-  }, [amount, note, subCat, category, recordPayment, addToast, entityId]);
+  }, [amount, note, subCat, category, recordPayment, addToast, entityId, isScoped, lockedEntity]);
 
   return (
     <div className="min-h-screen pb-24" style={{ background: c.bg }}>
@@ -162,16 +189,21 @@ export const CategoryPage = ({ category }) => {
           <ArrowLeft size={20} color={c.text2} />
         </button>
         <span className="text-lg">{config.icon}</span>
-        <p className="text-[15px] font-medium" style={{ color: c.text1 }}>{config.label}</p>
+        <div>
+          <p className="text-[15px] font-medium" style={{ color: c.text1 }}>{config.label}</p>
+          {scopedEntityName && (
+            <p className="text-[11px]" style={{ color: c.text3 }}>{scopedEntityName}</p>
+          )}
+        </div>
       </header>
 
       <div className="max-w-[420px] mx-auto px-4 pt-4 space-y-5">
         {/* Stats */}
         <div className="flex gap-2">
           {[
-            { label: 'This month', value: thisMonth },
-            { label: 'Last month', value: lastMonth },
-            { label: 'Daily avg', value: dailyAvg },
+            { label: 'This month', value: stats.thisMonth },
+            { label: 'Last month', value: stats.lastMonth },
+            { label: 'Daily avg', value: stats.dailyAvg },
           ].map(s => (
             <div key={s.label} className="flex-1 rounded-xl p-3 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
               <p className="text-[10px]" style={{ color: c.text3 }}>{s.label}</p>
@@ -197,35 +229,40 @@ export const CategoryPage = ({ category }) => {
           </div>
         )}
 
-        {/* Quick add */}
+        {/* Quick add card */}
         <div className="rounded-xl p-4" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
-          {/* Entity attribution */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <button onClick={() => setEntityId(null)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium"
-              style={!entityId ? { background: c.accent, color: 'white' } : { color: c.text3, border: '1px solid ' + c.border }}>
-              Personal
-            </button>
-            {(entities || []).filter(e => e.isActive).map(entity => (
-              <button key={entity.id} onClick={() => setEntityId(entity.id)}
-                className="px-3 py-1.5 rounded-full text-xs font-medium"
-                style={entityId === entity.id ? { background: c.accent, color: 'white' } : { color: c.text3, border: '1px solid ' + c.border }}>
-                {entity.name}
+          {/* Entity attribution — dashboard mode only, hidden when no entities */}
+          {!isScoped && activeEntities.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button onClick={() => setEntityId(null)}
+                className="px-3 py-1.5 rounded-full text-[11px] font-medium"
+                style={!entityId ? { background: c.accent, color: 'white' } : { color: c.text3, border: `0.5px solid ${c.border}` }}>
+                Personal
               </button>
-            ))}
-          </div>
+              {activeEntities.map(entity => (
+                <button key={entity.id} onClick={() => setEntityId(entity.id)}
+                  className="px-3 py-1.5 rounded-full text-[11px] font-medium"
+                  style={entityId === entity.id ? { background: c.accent, color: 'white' } : { color: c.text3, border: `0.5px solid ${c.border}` }}>
+                  {entity.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Quick entry chips */}
           {quickEntries.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {quickEntries.map((q, i) => (
                 <button key={i} onClick={() => { haptics.light(); setAmount(String(q.amount)); setSubCat(q.sub); }}
                   className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
-                  style={{ background: c.card, border: `0.5px solid ${c.border}`, color: c.text2 }}>
+                  style={{ background: c.bg, border: `0.5px solid ${c.border}`, color: c.text2 }}>
                   {q.label} <span style={{ color: config.color }}>৳{q.amount}</span>
                 </button>
               ))}
             </div>
           )}
+
+          {/* Amount input */}
           <div className="flex items-center rounded-xl overflow-hidden mb-3" style={{ background: c.bg, border: `0.5px solid ${c.border}` }}>
             <span className="pl-3 text-lg" style={{ color: c.text3 }}>৳</span>
             <input type="text" inputMode="decimal" value={amount}
@@ -246,38 +283,78 @@ export const CategoryPage = ({ category }) => {
         </div>
 
         {/* History */}
-        {history.length > 0 && (
+        {(history.length > 0 || !isScoped) && (
           <div>
             <p className="text-xs font-medium mb-3" style={{ color: c.text2 }}>History</p>
-            <div className="space-y-3">
-              {history.map((group, gi) => (
-                <div key={gi}>
-                  <p className="text-[11px] font-medium mb-1.5" style={{ color: c.text3 }}>{dayLabel(group.date)}</p>
-                  <div className="space-y-1">
-                    {group.entries.map(entry => (
-                      <div key={entry.id} className="flex items-center justify-between rounded-lg px-3 py-2"
-                        style={{ background: c.card }}>
-                        <div className="flex items-center gap-2">
-                          {entry.subCategory && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded capitalize"
-                              style={{ background: `${config.color}15`, color: config.color }}>
-                              {entry.subCategory}
-                            </span>
-                          )}
-                          <span className="text-[11px]" style={{ color: c.text3 }}>{fmtTime(entry.date)}</span>
+
+            {/* Entity filter tabs — dashboard mode only */}
+            {!isScoped && activeEntities.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <button onClick={() => setHistoryFilter('all')}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
+                  style={{ background: historyFilter === 'all' ? c.accent : c.card, color: historyFilter === 'all' ? 'white' : c.text3, border: `0.5px solid ${historyFilter === 'all' ? c.accent : c.border}` }}>
+                  All
+                </button>
+                {activeEntities.map(entity => (
+                  <button key={entity.id} onClick={() => setHistoryFilter(historyFilter === entity.id ? 'all' : entity.id)}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
+                    style={{ background: historyFilter === entity.id ? c.accent : c.card, color: historyFilter === entity.id ? 'white' : c.text3, border: `0.5px solid ${historyFilter === entity.id ? c.accent : c.border}` }}>
+                    {entity.name}
+                  </button>
+                ))}
+                <button onClick={() => setHistoryFilter(historyFilter === 'personal' ? 'all' : 'personal')}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
+                  style={{ background: historyFilter === 'personal' ? c.accent : c.card, color: historyFilter === 'personal' ? 'white' : c.text3, border: `0.5px solid ${historyFilter === 'personal' ? c.accent : c.border}` }}>
+                  Personal
+                </button>
+              </div>
+            )}
+
+            {history.length === 0 ? (
+              <div className="rounded-xl p-6 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                <p className="text-sm" style={{ color: c.text3 }}>No entries yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {history.map((group, gi) => (
+                  <div key={gi}>
+                    <p className="text-[11px] font-medium mb-1.5" style={{ color: c.text3 }}>{dayLabel(group.date)}</p>
+                    <div className="space-y-1">
+                      {group.entries.map(entry => (
+                        <div key={entry.id} className="flex items-center justify-between rounded-lg px-3 py-2"
+                          style={{ background: c.card }}>
+                          <div className="flex items-center gap-2">
+                            {entry.subCategory && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded capitalize"
+                                style={{ background: `${config.color}15`, color: config.color }}>
+                                {entry.subCategory}
+                              </span>
+                            )}
+                            {!isScoped && entry.entityId && (
+                              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 6, background: c.accentLight, color: c.accent }}>
+                                {activeEntities.find(e => e.id === entry.entityId)?.name || 'Unknown'}
+                              </span>
+                            )}
+                            {!isScoped && !entry.entityId && (
+                              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 6, background: c.border, color: c.text3 }}>
+                                Personal
+                              </span>
+                            )}
+                            <span className="text-[11px]" style={{ color: c.text3 }}>{fmtTime(entry.date)}</span>
+                          </div>
+                          <span className="text-sm font-medium" style={{ color: c.text1 }}>{fmt(entry.amountMinor / 100)}</span>
                         </div>
-                        <span className="text-sm font-medium" style={{ color: c.text1 }}>{fmt(entry.amountMinor / 100)}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      <LayoutBottomNav onAddPress={() => setSheetOpen(true)} />
+      <LayoutBottomNav />
     </div>
   );
 };
