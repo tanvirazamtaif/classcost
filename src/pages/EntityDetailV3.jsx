@@ -509,7 +509,7 @@ export const EntityDetailV3 = () => {
         </motion.div>
       )}
 
-      <AddPaymentV3 isOpen={sheetOpen} onClose={() => setSheetOpen(false)} preselectedEntityId={entityId} />
+      <AddPaymentV3 isOpen={sheetOpen} onClose={() => setSheetOpen(false)} preselectedEntityId={entityId} lockEntity={true} />
       <LayoutBottomNav />
       <style>{`@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }`}</style>
     </div>

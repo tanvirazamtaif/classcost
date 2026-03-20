@@ -30,7 +30,7 @@ function catBg(cat) {
 
 const QUICK_AMOUNTS = [20, 50, 100, 200, 500];
 
-export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselectedObligation }) => {
+export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselectedObligation, lockEntity = false }) => {
   const { user, addToast, theme = 'dark', navigate } = useApp();
   const {
     entities, trackers, upcomingObligations,
@@ -259,8 +259,17 @@ export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselected
       {/* ── STEP: Form ─────────────────────────────────────────── */}
       {step === 'form' && (
         <>
-          {/* Entity attribution — only show when user has entities */}
-          {activeEntities.length > 0 && (
+          {/* Locked entity badge */}
+          {lockEntity && selectedEntity && (
+            <div className="mb-3">
+              <span className="px-3 py-1.5 rounded-full text-[11px] font-medium text-white" style={{ background: c.accent }}>
+                {selectedEntity.name}
+              </span>
+            </div>
+          )}
+
+          {/* Entity attribution — only show when not locked and user has entities */}
+          {!lockEntity && activeEntities.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap mb-4">
               <button
                 onClick={() => { setSelectedEntityId(null); haptics.light(); }}
