@@ -117,6 +117,11 @@ const ViewRouter = () => {
             ? <EntityDetailV3 />
             : <InstitutionDetailPage />
         )}
+        {view === "create-semester" && (
+          <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0a14' }}>
+            <p style={{ color: '#71717a' }}>Create Semester — coming in Prompt 5</p>
+          </div>
+        )}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
         {view === "club-detail" && <ClubDetailPage />}
         {["reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (

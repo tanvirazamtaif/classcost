@@ -1,421 +1,341 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Filter } from 'lucide-react';
+import { ArrowLeft, Plus, ChevronRight } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
-import { ClubsTab } from '../components/institution/ClubsTab';
-import { StudentInfoTab } from '../components/institution/StudentInfoTab';
 import { AddPaymentV3 } from '../components/feature';
-import { FAB } from '../components/ui';
-import { CATEGORIES as V3_CATEGORIES } from '../core/categories';
+import { LayoutBottomNav } from '../components/layout/LayoutBottomNav';
 import { haptics } from '../lib/haptics';
-import { pageTransition } from '../lib/animations';
 import { makeFmt } from '../utils/format';
 import * as api from '../api';
 
-const TYPE_ICONS = { INSTITUTION: '🎓', RESIDENCE: '🏠', COACHING: '📖' };
+const BG = '#0a0a14';
+const CARD = '#12121a';
+const BORDER = '#1e1e2e';
+const ACCENT = '#6366f1';
+const TEXT1 = '#f4f4f5';
+const TEXT2 = '#71717a';
+const TEXT3 = '#52525b';
+
 const TYPE_LABELS = { INSTITUTION: 'Institution', RESIDENCE: 'Residence', COACHING: 'Coaching' };
 
-const TRACKER_TYPE_BADGES = {
-  MONTHLY: { label: 'Monthly', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
-  SEMESTER: { label: 'Semester', bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300' },
-  ONE_TIME: { label: 'One-time', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' },
-  CUSTOM: { label: 'Custom', bg: 'bg-surface-100 dark:bg-surface-800', text: 'text-surface-600 dark:text-surface-400' },
-};
+const TABS = [
+  { id: 'semesters', label: 'Semesters' },
+  { id: 'other', label: 'Other fees' },
+  { id: 'clubs', label: 'Clubs' },
+  { id: 'info', label: 'Info' },
+];
+
+const OTHER_FEE_CATEGORIES = ['admission_fee', 'registration_fee', 'id_card', 'development_fee', 'library_fee'];
 
 export const EntityDetailV3 = () => {
-  const { goBack, navigate, addToast, theme, routeParams, user, setUser, clubs, addClub, updateClub, removeClub } = useApp();
-  const { entities, trackers, upcomingObligations, ledgerSummary } = useV3();
-  const d = theme === 'dark';
+  const { goBack, navigate, addToast, routeParams, user } = useApp();
+  const { entities, trackers, ledgerSummary, addEntity } = useV3();
   const { entityId } = routeParams || {};
 
-  const profile = user?.profile;
-  const fmt = makeFmt(profile?.currency || 'BDT');
+  const fmt = makeFmt(user?.profile?.currency || 'BDT');
 
-  const [activeTab, setActiveTab] = useState('trackers');
+  const [activeTab, setActiveTab] = useState('semesters');
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [expandedTracker, setExpandedTracker] = useState(null);
-  const [timeline, setTimeline] = useState([]);
-  const [timelineLoading, setTimelineLoading] = useState(false);
-  const [filterCategory, setFilterCategory] = useState(null);
+  const [semesters, setSemesters] = useState([]);
+  const [semLoading, setSemLoading] = useState(false);
+  const [infoForm, setInfoForm] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  // Find entity
-  const entity = useMemo(
-    () => (entities || []).find((e) => e.id === entityId) || null,
-    [entities, entityId]
-  );
+  const entity = useMemo(() => (entities || []).find(e => e.id === entityId), [entities, entityId]);
 
-  // Entity trackers
-  const entityTrackers = useMemo(
-    () => (trackers || []).filter((t) => t.entityId === entityId && t.status === 'ACTIVE'),
-    [trackers, entityId]
-  );
-
-  // Entity obligations grouped by tracker
-  const obligationsByTracker = useMemo(() => {
-    const map = {};
-    (upcomingObligations || []).forEach((obl) => {
-      if (obl.trackerId && entityTrackers.some((t) => t.id === obl.trackerId)) {
-        if (!map[obl.trackerId]) map[obl.trackerId] = [];
-        map[obl.trackerId].push(obl);
-      }
-    });
-    return map;
-  }, [upcomingObligations, entityTrackers]);
-
-  // Entity total from summary
   const entityTotal = useMemo(() => {
     if (!ledgerSummary?.perEntity) return 0;
-    const entry = ledgerSummary.perEntity.find((e) => e.entityId === entityId);
+    const entry = ledgerSummary.perEntity.find(e => e.entityId === entityId);
     return entry ? entry.net : 0;
   }, [ledgerSummary, entityId]);
 
-  // Load timeline when tab switches
-  const loadTimeline = useCallback(async () => {
-    if (!entityId || !user?.id) return;
-    setTimelineLoading(true);
+  // Other fees: non-semester trackers for this entity
+  const otherTrackers = useMemo(
+    () => (trackers || []).filter(t => t.entityId === entityId && t.type !== 'SEMESTER'),
+    [trackers, entityId]
+  );
+
+  // Clubs: entities with parentEntityId = this entity
+  const clubs = useMemo(
+    () => (entities || []).filter(e => e.parentEntityId === entityId),
+    [entities, entityId]
+  );
+
+  // Info completeness
+  const metadata = entity?.metadata || {};
+  const isInfoIncomplete = !metadata.classYear;
+
+  // Load semesters
+  const loadSemesters = useCallback(async () => {
+    if (!entityId) return;
+    setSemLoading(true);
     try {
-      const result = await api.getLedgerEntries(user.id, { entityId });
-      setTimeline(result?.data || []);
+      const data = await api.getSemestersForEntity(entityId);
+      setSemesters(data || []);
     } catch (err) {
-      console.error('Load timeline error:', err);
+      console.error('Load semesters error:', err);
     } finally {
-      setTimelineLoading(false);
+      setSemLoading(false);
     }
-  }, [entityId, user?.id]);
+  }, [entityId]);
 
+  useEffect(() => { loadSemesters(); }, [loadSemesters]);
+
+  // Init info form from metadata
   useEffect(() => {
-    if (activeTab === 'timeline') loadTimeline();
-  }, [activeTab, loadTimeline]);
+    if (entity?.metadata) setInfoForm(entity.metadata);
+  }, [entity?.metadata]);
 
-  // Student info completeness
-  const isInfoIncomplete = entity?.type === 'INSTITUTION' && !user?.profile?.institutionInfo?.[entity?.name]?.classYear;
+  async function handleSaveInfo() {
+    if (!entity || !user?.id) return;
+    setSaving(true);
+    try {
+      await api.updateEntity(user.id, entity.id, {
+        ...entity, metadata: infoForm,
+      });
+      addToast('Info saved', 'success');
+    } catch (err) {
+      addToast('Failed to save', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAddClub() {
+    if (!user?.id || !entity) return;
+    const name = prompt('Club name:');
+    if (!name) return;
+    try {
+      await addEntity({ type: 'COACHING', name, parentEntityId: entity.id });
+      addToast('Club added', 'success');
+    } catch (err) {
+      addToast('Failed to add club', 'error');
+    }
+  }
 
   if (!entity) {
     return (
-      <motion.div {...pageTransition} className={`min-h-screen flex flex-col items-center justify-center px-6 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
-        <p className={`text-sm ${d ? 'text-surface-400' : 'text-surface-500'}`}>Entity not found</p>
-        <button onClick={() => navigate('dashboard', { replace: true })}
-          className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm">Back</button>
-      </motion.div>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: BG }}>
+        <p style={{ color: TEXT3 }}>Entity not found</p>
+        <button onClick={() => navigate('dashboard')} className="mt-4 px-4 py-2 rounded-xl text-sm text-white" style={{ background: ACCENT }}>Back</button>
+      </div>
     );
   }
 
-  const isInstitution = entity.type === 'INSTITUTION';
-
-  const TABS = [
-    { id: 'trackers', label: 'Trackers' },
-    { id: 'timeline', label: 'Timeline' },
-    ...(isInstitution ? [{ id: 'clubs', label: 'Clubs' }] : []),
-    ...(isInstitution ? [{ id: 'info', label: 'Info', dot: isInfoIncomplete }] : []),
-  ];
-
-  function fmtDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  function getSemesterPaid(sem) {
+    return (sem.obligations || []).reduce((s, o) => s + (o.amountPaid || 0), 0);
   }
 
-  function getNextDue(trackerId) {
-    const obls = obligationsByTracker[trackerId] || [];
-    const pending = obls.filter((o) => ['UPCOMING', 'DUE', 'OVERDUE'].includes(o.status)).sort((a, b) => {
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return new Date(a.dueDate) - new Date(b.dueDate);
-    });
-    return pending[0] || null;
+  function getSemesterTotal(sem) {
+    return sem.netMinor || sem.grossMinor || (sem.obligations || []).reduce((s, o) => s + o.amountMinor, 0);
   }
 
-  function getTrackerProgress(trackerId) {
-    const obls = obligationsByTracker[trackerId] || [];
-    const total = obls.reduce((s, o) => s + o.amountMinor, 0);
-    const paid = obls.reduce((s, o) => s + (o.amountPaid || 0), 0);
-    return { total, paid, remaining: total - paid };
+  function getOverdueInfo(sem) {
+    const overdue = (sem.obligations || []).find(o => o.status === 'OVERDUE');
+    if (!overdue) return null;
+    const days = Math.max(0, Math.floor((Date.now() - new Date(overdue.dueDate).getTime()) / 86400000));
+    return { label: overdue.label, days };
   }
-
-  const filteredTimeline = useMemo(() => {
-    if (!filterCategory) return timeline;
-    return timeline.filter((e) => e.category === filterCategory);
-  }, [timeline, filterCategory]);
-
-  const timelineCategories = useMemo(() => {
-    const cats = new Set(timeline.map((e) => e.category));
-    return [...cats];
-  }, [timeline]);
 
   return (
-    <motion.div {...pageTransition} className={`min-h-screen pb-20 ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
+    <div className="min-h-screen pb-24" style={{ background: BG }}>
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-b border-surface-200 dark:border-surface-800">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => { haptics.light(); goBack(); }}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition">
-            <ArrowLeft className="w-5 h-5 text-surface-700 dark:text-surface-300" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className={`text-lg font-semibold truncate ${d ? 'text-white' : 'text-surface-900'}`}>
-              {entity.name}
-            </h1>
-            <p className={`text-xs ${d ? 'text-surface-400' : 'text-surface-500'}`}>
-              {TYPE_ICONS[entity.type]} {TYPE_LABELS[entity.type]}
-            </p>
-          </div>
+      <header className="sticky top-0 z-40 px-4 py-3 flex items-center gap-3 backdrop-blur-xl"
+        style={{ background: 'rgba(10,10,20,0.9)', borderBottom: `0.5px solid ${BORDER}` }}>
+        <button onClick={() => { haptics.light(); goBack(); }} className="p-1">
+          <ArrowLeft size={20} color={TEXT2} />
+        </button>
+        <div className="w-9 h-9 rounded-[10px] flex items-center justify-center text-sm" style={{ background: ACCENT }}>
+          🎓
         </div>
-
-        {/* Tab bar */}
-        <div className={`flex border-t ${d ? 'border-surface-800' : 'border-surface-200'}`}>
-          {TABS.map((t) => (
-            <button key={t.id} onClick={() => { haptics.light(); setActiveTab(t.id); }}
-              className={`flex-1 py-2.5 text-xs font-medium text-center transition-all flex items-center justify-center gap-1 ${
-                activeTab === t.id
-                  ? `${d ? 'text-white' : 'text-surface-900'} border-b-2 border-primary-600`
-                  : `${d ? 'text-surface-500' : 'text-surface-400'} border-b-2 border-transparent`
-              }`}>
-              {t.label}
-              {t.dot && <span className="inline-block w-2 h-2 rounded-full bg-red-500" style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />}
-            </button>
-          ))}
+        <div className="flex-1 min-w-0">
+          <p className="text-[15px] font-medium truncate" style={{ color: TEXT1 }}>{entity.name}</p>
+          <p className="text-[11px]" style={{ color: TEXT3 }}>
+            {TYPE_LABELS[entity.type] || entity.type} · {fmt(entityTotal / 100)}
+          </p>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto p-4">
-        {/* Summary card */}
-        <div className={`rounded-2xl p-4 mb-5 ${d ? 'bg-surface-900 border border-surface-800' : 'bg-white border border-surface-200'}`}>
-          <p className={`text-xs ${d ? 'text-surface-400' : 'text-surface-500'}`}>Total paid</p>
-          <p className={`text-2xl font-bold mt-0.5 ${d ? 'text-white' : 'text-surface-900'}`}>
-            {fmt(entityTotal / 100)}
-          </p>
-        </div>
+      {/* Tabs */}
+      <div className="flex sticky top-[57px] z-30" style={{ background: BG, borderBottom: `0.5px solid ${BORDER}` }}>
+        {TABS.map(tab => (
+          <button key={tab.id} onClick={() => { haptics.light(); setActiveTab(tab.id); }}
+            className="flex-1 py-3 text-[12px] font-medium text-center relative flex items-center justify-center gap-1"
+            style={{ color: activeTab === tab.id ? ACCENT : TEXT3, borderBottom: activeTab === tab.id ? `2px solid ${ACCENT}` : '2px solid transparent' }}>
+            {tab.label}
+            {tab.id === 'info' && isInfoIncomplete && (
+              <span className="w-2 h-2 rounded-full bg-red-500" style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
+            )}
+          </button>
+        ))}
+      </div>
 
-        {/* ── TAB 1: Trackers ──────────────────────────────────── */}
-        {activeTab === 'trackers' && (
-          <div>
-            {entityTrackers.length === 0 ? (
-              <div className={`text-center py-12 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                <p className="text-3xl mb-3">📋</p>
-                <p className="text-sm">No fee streams yet</p>
-                <p className="text-xs mt-1">Add your first fee to start tracking</p>
+      <div className="max-w-[420px] mx-auto px-4 pt-4">
+
+        {/* ── Tab 1: Semesters ─────────────────────────────── */}
+        {activeTab === 'semesters' && (
+          <div className="space-y-3">
+            {semLoading ? (
+              <div className="py-12 text-center">
+                <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" />
+              </div>
+            ) : semesters.length === 0 ? (
+              <div className="rounded-xl p-8 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                <p className="text-sm" style={{ color: TEXT3 }}>No semesters yet</p>
+                <p className="text-xs mt-1" style={{ color: TEXT3 }}>Create your first semester to start tracking fees</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {entityTrackers.map((tracker) => {
-                  const badge = TRACKER_TYPE_BADGES[tracker.type];
-                  const nextDue = getNextDue(tracker.id);
-                  const { total, paid, remaining } = getTrackerProgress(tracker.id);
-                  const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
-                  const isExpanded = expandedTracker === tracker.id;
-                  const obls = obligationsByTracker[tracker.id] || [];
+              semesters.map(sem => {
+                const paid = getSemesterPaid(sem);
+                const total = getSemesterTotal(sem);
+                const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+                const overdueInfo = getOverdueInfo(sem);
+                const isCompleted = sem.status === 'COMPLETED';
 
-                  return (
-                    <div key={tracker.id}>
-                      <button
-                        onClick={() => { haptics.light(); setExpandedTracker(isExpanded ? null : tracker.id); }}
-                        className={`w-full text-left rounded-xl p-4 border transition ${
-                          d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                              {tracker.label}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {badge && (
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
-                                  {badge.label}
-                                </span>
-                              )}
-                              {nextDue && (
-                                <span className={`text-[10px] ${
-                                  nextDue.status === 'OVERDUE' ? 'text-red-500' : d ? 'text-surface-500' : 'text-surface-400'
-                                }`}>
-                                  {nextDue.status === 'OVERDUE' ? 'Overdue' : 'Due ' + fmtDate(nextDue.dueDate)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right ml-3">
-                            <p className={`text-sm font-bold ${remaining > 0 ? (d ? 'text-amber-400' : 'text-amber-600') : (d ? 'text-emerald-400' : 'text-emerald-600')}`}>
-                              {remaining > 0 ? fmt(remaining / 100) : 'Paid'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Progress bar */}
-                        {total > 0 && (
-                          <div className="mt-3">
-                            <div className={`h-1.5 rounded-full overflow-hidden ${d ? 'bg-surface-800' : 'bg-surface-100'}`}>
-                              <div
-                                className="h-full rounded-full bg-primary-500 transition-all"
-                                style={{ width: pct + '%' }}
-                              />
-                            </div>
-                            <p className={`text-[10px] mt-1 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                              {fmt(paid / 100)} of {fmt(total / 100)} ({pct}%)
-                            </p>
-                          </div>
-                        )}
-                      </button>
-
-                      {/* Expanded: obligations list */}
-                      {isExpanded && obls.length > 0 && (
-                        <div className={`ml-4 mt-1 space-y-1.5 border-l-2 pl-3 ${d ? 'border-surface-800' : 'border-surface-200'}`}>
-                          {obls.map((obl) => (
-                            <div key={obl.id} className={`flex items-center justify-between py-2 px-3 rounded-lg ${
-                              d ? 'bg-surface-800/50' : 'bg-surface-50'
-                            }`}>
-                              <div className="min-w-0 flex-1">
-                                <p className={`text-xs truncate ${d ? 'text-surface-300' : 'text-surface-600'}`}>
-                                  {obl.label}
-                                </p>
-                                {obl.dueDate && (
-                                  <p className={`text-[10px] ${
-                                    obl.status === 'OVERDUE' ? 'text-red-500' : d ? 'text-surface-500' : 'text-surface-400'
-                                  }`}>
-                                    {obl.status === 'OVERDUE' ? 'Overdue' : fmtDate(obl.dueDate)}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="text-right ml-2">
-                                <span className={`text-xs font-medium ${
-                                  obl.status === 'PAID' ? 'text-emerald-500' :
-                                  obl.status === 'OVERDUE' ? 'text-red-500' :
-                                  d ? 'text-surface-300' : 'text-surface-600'
-                                }`}>
-                                  {obl.status === 'PAID' ? '✓ Paid' : fmt((obl.amountRemaining ?? obl.amountMinor) / 100)}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                return (
+                  <motion.button key={sem.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('semester-detail', { params: { trackerId: sem.id } })}
+                    className="w-full text-left rounded-xl p-4"
+                    style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold" style={{ color: TEXT1 }}>{sem.label}</p>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full"
+                        style={{
+                          background: isCompleted ? 'rgba(99,102,241,0.1)' : 'rgba(34,197,94,0.1)',
+                          color: isCompleted ? ACCENT : '#22c55e',
+                        }}>
+                        {isCompleted ? 'Completed' : 'Active'}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                    <p className="text-xs mt-1.5" style={{ color: TEXT2 }}>
+                      {fmt(paid / 100)} paid of {fmt(total / 100)}
+                    </p>
+                    <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ background: BORDER }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: ACCENT }} />
+                    </div>
+                    {overdueInfo && (
+                      <p className="text-[11px] mt-2" style={{ color: '#f59e0b' }}>
+                        {overdueInfo.label} overdue by {overdueInfo.days} days
+                      </p>
+                    )}
+                  </motion.button>
+                );
+              })
             )}
 
-            <button
-              onClick={() => navigate('education-fee-form', { params: { entityId, entityName: entity.name, entityType: entity.type } })}
-              className={`w-full mt-4 py-3 rounded-xl border border-dashed text-sm flex items-center justify-center gap-2 transition ${
-                d ? 'border-surface-700 text-surface-400 hover:border-surface-600' : 'border-surface-300 text-surface-500 hover:border-surface-400'
-              }`}
-            >
-              <Plus size={16} /> Add fee stream
+            {/* Create new semester */}
+            <button onClick={() => navigate('create-semester', { params: { entityId: entity.id, entityName: entity.name } })}
+              className="w-full py-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+              style={{ border: '1.5px dashed #2a2a3a', color: ACCENT }}>
+              <Plus size={16} /> Create new semester
             </button>
           </div>
         )}
 
-        {/* ── TAB 2: Timeline ──────────────────────────────────── */}
-        {activeTab === 'timeline' && (
-          <div>
-            {/* Category filter */}
-            {timelineCategories.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-3 mb-3 scrollbar-none">
-                <button
-                  onClick={() => setFilterCategory(null)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs transition ${
-                    !filterCategory
-                      ? 'bg-primary-600 text-white'
-                      : d ? 'bg-surface-800 text-surface-400' : 'bg-surface-100 text-surface-600'
-                  }`}
-                >
-                  All
-                </button>
-                {timelineCategories.map((catId) => {
-                  const cat = V3_CATEGORIES[catId];
-                  return (
-                    <button
-                      key={catId}
-                      onClick={() => setFilterCategory(filterCategory === catId ? null : catId)}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs transition ${
-                        filterCategory === catId
-                          ? 'bg-primary-600 text-white'
-                          : d ? 'bg-surface-800 text-surface-400' : 'bg-surface-100 text-surface-600'
-                      }`}
-                    >
-                      {cat?.icon} {cat?.label || catId}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {timelineLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin w-6 h-6 border-3 border-primary-500 border-t-transparent rounded-full mx-auto" />
-              </div>
-            ) : filteredTimeline.length === 0 ? (
-              <div className={`text-center py-12 ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                <p className="text-3xl mb-3">📜</p>
-                <p className="text-sm">No transactions yet</p>
+        {/* ── Tab 2: Other fees ────────────────────────────── */}
+        {activeTab === 'other' && (
+          <div className="space-y-3">
+            {otherTrackers.length === 0 ? (
+              <div className="rounded-xl p-8 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                <p className="text-sm" style={{ color: TEXT3 }}>No other fees yet</p>
+                <p className="text-xs mt-1" style={{ color: TEXT3 }}>Add admission, registration, or other one-time fees</p>
               </div>
             ) : (
-              <div className={`rounded-xl border divide-y ${
-                d ? 'bg-surface-900 border-surface-800 divide-surface-800' : 'bg-white border-surface-200 divide-surface-100'
-              }`}>
-                {filteredTimeline.map((entry) => {
-                  const cat = V3_CATEGORIES[entry.category];
-                  const isCredit = entry.direction === 'CREDIT';
-                  return (
-                    <div key={entry.id} className="flex items-center gap-3 px-4 py-3">
-                      <span className="text-lg flex-shrink-0">{cat?.icon || '📦'}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm truncate ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                          {entry.note || cat?.label || entry.category}
-                        </p>
-                        <span className={`text-[10px] ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                          {fmtDate(entry.date)}
-                        </span>
-                      </div>
-                      <span className={`text-sm font-semibold flex-shrink-0 ${
-                        isCredit ? 'text-emerald-600 dark:text-emerald-400' : (d ? 'text-surface-100' : 'text-surface-800')
-                      }`}>
-                        {isCredit ? '+' : ''}{fmt(entry.amountMinor / 100)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              otherTrackers.map(trk => (
+                <div key={trk.id} className="rounded-xl p-4 flex items-center justify-between"
+                  style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: TEXT1 }}>{trk.label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: TEXT3 }}>{trk.category}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium" style={{ color: TEXT1 }}>
+                      {fmt((trk.budgetMinor || 0) / 100)}
+                    </p>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
+                      {trk.status}
+                    </span>
+                  </div>
+                </div>
+              ))
             )}
+            <button onClick={() => navigate('education-fee-form', { params: { entityId, entityName: entity.name } })}
+              className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+              style={{ border: '1.5px dashed #2a2a3a', color: ACCENT }}>
+              <Plus size={16} /> Add fee
+            </button>
           </div>
         )}
 
-        {/* ── TAB 3: Clubs (institution only) ──────────────────── */}
-        {activeTab === 'clubs' && isInstitution && (
-          <ClubsTab
-            institutionName={entity.name}
-            clubs={clubs}
-            addClub={addClub}
-            updateClub={updateClub}
-            removeClub={removeClub}
-            navigate={navigate}
-            dark={d}
-            addToast={addToast}
-          />
+        {/* ── Tab 3: Clubs ─────────────────────────────────── */}
+        {activeTab === 'clubs' && (
+          <div className="space-y-3">
+            {clubs.length === 0 ? (
+              <div className="rounded-xl p-8 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                <p className="text-sm" style={{ color: TEXT3 }}>No clubs yet</p>
+                <p className="text-xs mt-1" style={{ color: TEXT3 }}>Add clubs, committees, or teams connected to this institution</p>
+              </div>
+            ) : (
+              clubs.map(club => (
+                <div key={club.id} className="rounded-xl p-4 flex items-center gap-3"
+                  style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm"
+                    style={{ background: 'rgba(236,72,153,0.1)' }}>📖</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: TEXT1 }}>{club.name}</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(236,72,153,0.1)', color: '#ec4899' }}>
+                      {club.subType || 'Club'}
+                    </span>
+                  </div>
+                  <ChevronRight size={14} color={TEXT3} />
+                </div>
+              ))
+            )}
+            <button onClick={handleAddClub}
+              className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+              style={{ border: '1.5px dashed #2a2a3a', color: ACCENT }}>
+              <Plus size={16} /> Add club
+            </button>
+          </div>
         )}
 
-        {/* ── TAB 4: Info (institution only) ───────────────────── */}
-        {activeTab === 'info' && isInstitution && (
-          <StudentInfoTab
-            institutionName={entity.name}
-            user={user}
-            setUser={setUser}
-            dark={d}
-            addToast={addToast}
-            onSaveComplete={() => setActiveTab('trackers')}
-          />
+        {/* ── Tab 4: Info ──────────────────────────────────── */}
+        {activeTab === 'info' && (
+          <div className="space-y-4">
+            {[
+              { key: 'classYear', label: 'Year / Class', placeholder: '3rd Year' },
+              { key: 'semesterSystem', label: 'Semester system', placeholder: 'Trimester / Semester' },
+              { key: 'studentId', label: 'Student ID', placeholder: 'Optional' },
+              { key: 'enrollmentYear', label: 'Enrollment year', placeholder: '2024' },
+              { key: 'section', label: 'Section / Batch', placeholder: 'Optional' },
+            ].map(field => (
+              <div key={field.key}>
+                <label className="text-xs font-medium mb-1 block" style={{ color: TEXT2 }}>{field.label}</label>
+                <input
+                  value={infoForm[field.key] || ''}
+                  onChange={e => setInfoForm(prev => ({ ...prev, [field.key]: e.target.value }))}
+                  placeholder={field.placeholder}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                  style={{ background: CARD, border: `0.5px solid ${BORDER}`, color: TEXT1 }}
+                />
+              </div>
+            ))}
+            <button onClick={handleSaveInfo} disabled={saving}
+              className="w-full py-3 rounded-xl text-sm font-medium text-white"
+              style={{ background: ACCENT, opacity: saving ? 0.6 : 1 }}>
+              {saving ? 'Saving...' : 'Save info'}
+            </button>
+          </div>
         )}
-      </main>
+      </div>
 
-      {/* FAB + Payment sheet */}
-      <FAB onClick={() => setSheetOpen(true)} />
-      <AddPaymentV3
-        isOpen={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        preselectedEntityId={entityId}
-      />
-
+      <AddPaymentV3 isOpen={sheetOpen} onClose={() => setSheetOpen(false)} preselectedEntityId={entityId} />
+      <LayoutBottomNav onAddPress={() => setSheetOpen(true)} />
       <style>{`@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }`}</style>
-    </motion.div>
+    </div>
   );
 };
 
