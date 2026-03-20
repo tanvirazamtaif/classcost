@@ -301,10 +301,12 @@ export const EntityDetailV3 = () => {
               </div>
             ) : (
               clubs.map(club => (
-                <div key={club.id} className="rounded-xl p-4 flex items-center gap-3"
+                <button key={club.id}
+                  onClick={() => navigate('institution-detail', { params: { entityId: club.id } })}
+                  className="w-full rounded-xl p-4 flex items-center gap-3 text-left"
                   style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm"
-                    style={{ background: 'rgba(236,72,153,0.1)' }}>📖</div>
+                    style={{ background: c.accentLight }}>⚽</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: c.text1 }}>{club.name}</p>
                     <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(236,72,153,0.1)', color: '#ec4899' }}>
@@ -312,7 +314,7 @@ export const EntityDetailV3 = () => {
                     </span>
                   </div>
                   <ChevronRight size={14} style={{ color: c.text3 }} />
-                </div>
+                </button>
               ))
             )}
             {showClubForm ? (
