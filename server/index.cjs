@@ -22,6 +22,7 @@ const trackerRoutes = require('./routes/trackers.cjs');
 const obligationRoutes = require('./routes/obligations.cjs');
 const ledgerRoutes = require('./routes/ledger.cjs');
 const allocationRoutes = require('./routes/allocations.cjs');
+const semesterEngineRoutes = require('./routes/semesterEngine.cjs');
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/api/trackers', trackerRoutes);
 app.use('/api/obligations', obligationRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/allocations', allocationRoutes);
+app.use('/api/semester-engine', semesterEngineRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {

@@ -443,3 +443,41 @@ export async function createAllocation(userId, data) {
     body: JSON.stringify(data),
   });
 }
+
+// ── v3: Semester Engine ─────────────────────────────────────────────────────
+
+export async function createSemesterV3(userId, data) {
+  return request(`/api/semester-engine?userId=${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getSemesterSummaryV3(trackerId) {
+  return request(`/api/semester-engine/${trackerId}/summary`);
+}
+
+export async function getSemestersForEntity(entityId) {
+  return request(`/api/semester-engine/entity/${entityId}`);
+}
+
+export async function addFeeItem(trackerId, userId, data) {
+  return request(`/api/semester-engine/${trackerId}/fee-items?userId=${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function addAdjustment(trackerId, userId, data) {
+  return request(`/api/semester-engine/${trackerId}/adjustments?userId=${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function addWaiver(trackerId, userId, data) {
+  return request(`/api/semester-engine/${trackerId}/waivers?userId=${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
