@@ -199,13 +199,31 @@ export const EntityDetailV3 = () => {
             </p>
           </div>
         </div>
-        <button onClick={() => setShowInfo(true)} className="relative p-2">
-          <User size={18} style={{ color: c.text2 }} />
-          {isInfoIncomplete && (
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500"
-              style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
-          )}
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowInfo(true)} className="relative p-2">
+            <User size={18} style={{ color: c.text2 }} />
+            {isInfoIncomplete && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500"
+                style={{ animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
+            )}
+          </button>
+          <button onClick={async () => {
+            if (!confirm('Delete ' + entity.name + '? This cannot be undone.')) return;
+            try {
+              await api.deleteEntity(user.id, entity.id, true);
+              addToast(entity.name + ' deleted', 'success');
+              if (entity.parentEntityId) {
+                navigate('institution-detail', { params: { entityId: entity.parentEntityId } });
+              } else {
+                navigate('dashboard');
+              }
+            } catch (err) {
+              addToast('Failed to delete', 'error');
+            }
+          }} className="p-2">
+            <X size={18} style={{ color: c.red || '#ef4444' }} />
+          </button>
+        </div>
       </header>
 
       {/* Tabs */}

@@ -336,8 +336,8 @@ export async function updateEntity(userId, id, data) {
   });
 }
 
-export async function deleteEntity(userId, id) {
-  return request(`/api/entities/${userId}/${id}`, { method: 'DELETE' });
+export async function deleteEntity(userId, id, hard = false) {
+  return request(`/api/entities/${userId}/${id}${hard ? '?hard=true' : ''}`, { method: 'DELETE' });
 }
 
 // ── v3: Trackers ────────────────────────────────────────────────────────────

@@ -112,6 +112,14 @@ router.put('/:userId/:id', async (req, res) => {
 // Soft delete entity
 router.delete('/:userId/:id', async (req, res) => {
   try {
+    if (req.query.hard === 'true') {
+      const entity = await prisma.entity.findFirst({
+        where: { id: req.params.id, userId: req.params.userId },
+      });
+      if (!entity) return res.status(404).json({ error: 'Entity not found' });
+      await prisma.entity.delete({ where: { id: req.params.id } });
+      return res.json({ deleted: true });
+    }
     const entity = await prisma.entity.update({
       where: { id: req.params.id },
       data: {
