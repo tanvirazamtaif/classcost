@@ -19,7 +19,7 @@ const menuItems = [
 ];
 
 export const Sidebar = ({ isOpen, onClose }) => {
-  const { user, setUser, navigate, theme, toggleTheme, addToast } = useApp();
+  const { user, setUser, navigate, theme = 'dark', toggleTheme, addToast } = useApp();
   const profile = user?.profile;
   const isDark = theme === 'dark';
   const colors = getThemeColors(isDark);

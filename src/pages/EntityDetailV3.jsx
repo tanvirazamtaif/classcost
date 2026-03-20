@@ -22,7 +22,7 @@ const TABS = [
 const OTHER_FEE_CATEGORIES = ['admission_fee', 'registration_fee', 'id_card', 'development_fee', 'library_fee'];
 
 export const EntityDetailV3 = () => {
-  const { goBack, navigate, addToast, routeParams, user, theme } = useApp();
+  const { goBack, navigate, addToast, routeParams, user, theme = 'dark' } = useApp();
   const { entities, trackers, ledgerSummary, addEntity } = useV3();
   const c = getThemeColors(theme === 'dark');
   const { entityId } = routeParams || {};

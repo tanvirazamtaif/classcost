@@ -31,7 +31,7 @@ function catBg(cat) {
 const QUICK_AMOUNTS = [20, 50, 100, 200, 500];
 
 export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselectedObligation }) => {
-  const { user, addToast, theme, navigate } = useApp();
+  const { user, addToast, theme = 'dark', navigate } = useApp();
   const {
     entities, trackers, upcomingObligations,
     recordPayment, addTracker,

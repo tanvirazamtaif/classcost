@@ -28,7 +28,7 @@ const INSTALLMENT_OPTIONS = [
 ];
 
 export const CreateSemesterPage = () => {
-  const { goBack, navigate, addToast, routeParams, user, theme } = useApp();
+  const { goBack, navigate, addToast, routeParams, user, theme = 'dark' } = useApp();
   const c = getThemeColors(theme === 'dark');
 
   function Input({ label, value, onChange, placeholder, type = 'text', prefix, small, ...props }) {

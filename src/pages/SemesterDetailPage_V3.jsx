@@ -24,7 +24,7 @@ function daysFromNow(d) {
 }
 
 export const SemesterDetailPageV3 = () => {
-  const { goBack, navigate, addToast, routeParams, user, theme } = useApp();
+  const { goBack, navigate, addToast, routeParams, user, theme = 'dark' } = useApp();
   const c = getThemeColors(theme === 'dark');
   const { trackerId } = routeParams || {};
   const fmt = makeFmt(user?.profile?.currency || 'BDT');

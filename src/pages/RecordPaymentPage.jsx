@@ -19,7 +19,7 @@ function fmtShortDate(d) {
 }
 
 export const RecordPaymentPage = () => {
-  const { goBack, navigate, addToast, routeParams, user, theme } = useApp();
+  const { goBack, navigate, addToast, routeParams, user, theme = 'dark' } = useApp();
   const { recordPayment, upcomingObligations } = useV3();
   const c = getThemeColors(theme === 'dark');
   const fmt = makeFmt(user?.profile?.currency || 'BDT');

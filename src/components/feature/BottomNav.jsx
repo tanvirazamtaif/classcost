@@ -42,7 +42,7 @@ function NavIcon({ name, active, isCenter }) {
 }
 
 export const BottomNavV3 = React.memo(({ active, navigate, onAddPress }) => {
-  const { theme } = useApp();
+  const { theme = 'dark' } = useApp();
   const c = getThemeColors(theme === 'dark');
   const isDashboard = active === 'dashboard';
 

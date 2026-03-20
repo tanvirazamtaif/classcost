@@ -75,7 +75,7 @@ function fmtDate(dateStr) {
 
 // ─── DASHBOARD ────────────────────────────────────────────────
 export const DashboardV3 = () => {
-  const { user, navigate, theme } = useApp();
+  const { user, navigate, theme = 'dark' } = useApp();
   const {
     entities, upcomingObligations, ledgerSummary, recentEntries,
     loading, scopedTotals, monthTrend, recordPayment,

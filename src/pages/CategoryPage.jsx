@@ -41,7 +41,7 @@ function dayLabel(dateStr) {
 }
 
 export const CategoryPage = ({ category }) => {
-  const { goBack, addToast, user, theme } = useApp();
+  const { goBack, addToast, user, theme = 'dark' } = useApp();
   const { allEntries, recordPayment, scopedTotals, entities } = useV3();
   const c = getThemeColors(theme === 'dark');
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
