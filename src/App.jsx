@@ -39,6 +39,7 @@ const EntityDetailV3 = lazy(() => import('./pages/EntityDetailV3'));
 const GeneralCostTrackerPage = lazy(() => import('./pages/GeneralCostTrackerPage'));
 const ClubDetailPage = lazy(() => import('./pages/ClubDetailPage'));
 const CreateSemesterPage = lazy(() => import('./pages/CreateSemesterPage'));
+const SemesterDetailPageV3 = lazy(() => import('./pages/SemesterDetailPage_V3'));
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
 
 // ─── Loading Fallback ────────────────────────────────────────────────────────
@@ -119,6 +120,7 @@ const ViewRouter = () => {
             : <InstitutionDetailPage />
         )}
         {view === "create-semester" && <CreateSemesterPage />}
+        {view === "semester-detail-v3" && <SemesterDetailPageV3 />}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
         {view === "club-detail" && <ClubDetailPage />}
         {["reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (

@@ -196,7 +196,7 @@ export const EntityDetailV3 = () => {
                 return (
                   <motion.button key={sem.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('semester-detail', { params: { trackerId: sem.id } })}
+                    onClick={() => navigate('semester-detail-v3', { params: { trackerId: sem.id } })}
                     className="w-full text-left rounded-xl p-4"
                     style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
                     <div className="flex items-center justify-between">
