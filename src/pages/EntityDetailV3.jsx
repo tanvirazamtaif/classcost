@@ -12,13 +12,30 @@ import * as api from '../api';
 
 const TYPE_LABELS = { INSTITUTION: 'Institution', RESIDENCE: 'Residence', COACHING: 'Coaching' };
 
-const TABS = [
-  { id: 'semesters', label: 'Semesters' },
-  { id: 'daily', label: 'Daily Costs' },
-  { id: 'residence', label: 'Residence' },
-  { id: 'clubs', label: 'Clubs' },
-  { id: 'others', label: 'Others' },
-];
+function getTabsForEntity(entity) {
+  if (!entity) return [];
+  const isClub = !!entity.parentEntityId;
+  if (isClub) return [
+    { id: 'daily', label: 'Daily Costs' },
+    { id: 'others', label: 'Others' },
+  ];
+  if (entity.type === 'INSTITUTION') return [
+    { id: 'semesters', label: 'Semesters' },
+    { id: 'daily', label: 'Daily Costs' },
+    { id: 'residence', label: 'Residence' },
+    { id: 'clubs', label: 'Clubs' },
+    { id: 'others', label: 'Others' },
+  ];
+  if (entity.type === 'RESIDENCE') return [
+    { id: 'residence', label: 'Costs' },
+    { id: 'daily', label: 'Daily Costs' },
+    { id: 'others', label: 'Others' },
+  ];
+  return [
+    { id: 'daily', label: 'Daily Costs' },
+    { id: 'others', label: 'Others' },
+  ];
+}
 
 function fmtDate(d) {
   if (!d) return '';
@@ -44,6 +61,26 @@ export const EntityDetailV3 = () => {
 
   const entity = useMemo(() => (entities || []).find(e => e.id === entityId), [entities, entityId]);
   const activeEntities = useMemo(() => (entities || []).filter(e => e.isActive), [entities]);
+  const tabs = useMemo(() => getTabsForEntity(entity), [entity]);
+  const parentEntity = useMemo(() => {
+    if (!entity?.parentEntityId) return null;
+    return (entities || []).find(e => e.id === entity.parentEntityId);
+  }, [entities, entity]);
+
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.find(t => t.id === activeTab)) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [tabs]);
+
+  function handleBack() {
+    haptics.light();
+    if (entity?.parentEntityId) {
+      navigate('institution-detail', { params: { entityId: entity.parentEntityId } });
+    } else {
+      goBack();
+    }
+  }
 
   const entityTotal = useMemo(() => {
     if (!ledgerSummary?.perEntity) return 0;
@@ -149,15 +186,17 @@ export const EntityDetailV3 = () => {
       <header className="sticky top-0 z-40 px-4 py-3 flex items-center justify-between backdrop-blur-xl"
         style={{ background: c.headerBg, borderBottom: `0.5px solid ${c.border}` }}>
         <div className="flex items-center gap-3">
-          <button onClick={() => { haptics.light(); goBack(); }} className="p-1">
+          <button onClick={handleBack} className="p-1">
             <ArrowLeft size={20} style={{ color: c.text2 }} />
           </button>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: c.accentLight }}>
-            <span className="text-sm">🎓</span>
+            <span className="text-sm">{entity.parentEntityId ? '⚽' : entity.type === 'INSTITUTION' ? '🎓' : entity.type === 'RESIDENCE' ? '🏠' : '📖'}</span>
           </div>
           <div>
             <p className="text-[15px] font-medium" style={{ color: c.text1 }}>{entity.name}</p>
-            <p className="text-[11px]" style={{ color: c.text3 }}>Total {fmt(entityTotal / 100)}</p>
+            <p className="text-[11px]" style={{ color: c.text3 }}>
+              {parentEntity ? `${parentEntity.name} · ` : ''}{entity.parentEntityId ? 'Club' : TYPE_LABELS[entity.type] || entity.type} · Total {fmt(entityTotal / 100)}
+            </p>
           </div>
         </div>
         <button onClick={() => setShowInfo(true)} className="relative p-2">
@@ -172,7 +211,7 @@ export const EntityDetailV3 = () => {
       {/* Tabs */}
       <div className="flex sticky top-[57px] z-30 overflow-x-auto scrollbar-none"
         style={{ background: c.bg, borderBottom: `0.5px solid ${c.border}` }}>
-        {TABS.map(tab => (
+        {tabs.map(tab => (
           <button key={tab.id} onClick={() => { haptics.light(); setActiveTab(tab.id); }}
             className="flex-shrink-0 px-4 py-3 text-[12px] font-medium text-center"
             style={{ color: activeTab === tab.id ? c.accent : c.text3, borderBottom: activeTab === tab.id ? `2px solid ${c.accent}` : '2px solid transparent' }}>
