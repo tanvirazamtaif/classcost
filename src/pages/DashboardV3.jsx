@@ -351,31 +351,43 @@ export const DashboardV3 = () => {
             <div className="space-y-2">
               {tabEntities.length === 0 ? (
                 <div className="rounded-xl p-6 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
-                  <p className="text-sm" style={{ color: c.text3 }}>No {entityTab} yet</p>
+                  <p className="text-sm mb-3" style={{ color: c.text3 }}>No {entityTab} yet</p>
+                  <button onClick={() => navigate('add-entity', { params: { defaultType: entityTab === 'institutions' ? 'INSTITUTION' : entityTab === 'residence' ? 'RESIDENCE' : 'COACHING' } })}
+                    className="px-4 py-2 rounded-xl text-xs font-medium text-white"
+                    style={{ background: c.accent }}>
+                    + Add {entityTab === 'institutions' ? 'institution' : entityTab === 'residence' ? 'residence' : 'club'}
+                  </button>
                 </div>
               ) : (
-                tabEntities.map(entity => (
-                  <button key={entity.id}
-                    onClick={() => navigate('institution-detail', { params: { entityId: entity.id } })}
-                    className="w-full flex items-center gap-3 rounded-xl p-3 text-left transition hover:opacity-90"
-                    style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm"
-                      style={{ background: 'rgba(99,102,241,0.1)' }}>
-                      {entity.type === 'INSTITUTION' ? '🎓' : entity.type === 'RESIDENCE' ? '🏠' : '📖'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: c.text1 }}>{entity.name}</p>
-                      <p className="text-[11px]" style={{ color: c.text3 }}>{fmt((entityTotals[entity.id] || 0) / 100)}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
-                        Active
-                      </span>
-                      <ChevronRight size={14} color={c.text3} />
-                    </div>
+                <>
+                  {tabEntities.map(entity => (
+                    <button key={entity.id}
+                      onClick={() => navigate('institution-detail', { params: { entityId: entity.id } })}
+                      className="w-full flex items-center gap-3 rounded-xl p-3 text-left transition hover:opacity-90"
+                      style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm"
+                        style={{ background: 'rgba(99,102,241,0.1)' }}>
+                        {entity.type === 'INSTITUTION' ? '🎓' : entity.type === 'RESIDENCE' ? '🏠' : '📖'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: c.text1 }}>{entity.name}</p>
+                        <p className="text-[11px]" style={{ color: c.text3 }}>{fmt((entityTotals[entity.id] || 0) / 100)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
+                          Active
+                        </span>
+                        <ChevronRight size={14} color={c.text3} />
+                      </div>
+                    </button>
+                  ))}
+                  <button onClick={() => navigate('add-entity', { params: { defaultType: entityTab === 'institutions' ? 'INSTITUTION' : entityTab === 'residence' ? 'RESIDENCE' : 'COACHING' } })}
+                    className="w-full py-3 rounded-xl text-xs font-medium mt-2"
+                    style={{ border: `1.5px dashed ${c.border}`, color: c.accent }}>
+                    + Add {entityTab === 'institutions' ? 'institution' : entityTab === 'residence' ? 'residence' : 'club'}
                   </button>
-                ))
+                </>
               )}
             </div>
           ) : (
