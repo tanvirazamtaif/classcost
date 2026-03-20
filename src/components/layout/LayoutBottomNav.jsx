@@ -2,6 +2,8 @@ import React from 'react';
 import { Home, GraduationCap, CreditCard, PieChart, Settings } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { haptics } from '../../lib/haptics';
+import { isEnabled } from '../../lib/featureFlags';
+import { BottomNavV3 } from '../feature/BottomNav';
 
 const navItems = [
   { id: 'dashboard', icon: Home, label: 'Home' },
@@ -11,8 +13,12 @@ const navItems = [
   { id: 'settings', icon: Settings, label: 'Settings' },
 ];
 
-export const LayoutBottomNav = () => {
+export const LayoutBottomNav = ({ onAddPress }) => {
   const { view, navigate } = useApp();
+
+  if (isEnabled('USE_NEW_ARCHITECTURE')) {
+    return <BottomNavV3 active={view} navigate={navigate} onAddPress={onAddPress || (() => {})} />;
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-surface-950/95 backdrop-blur-sm border-t border-surface-200 dark:border-surface-800 safe-area-pb">

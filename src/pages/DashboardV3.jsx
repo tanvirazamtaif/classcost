@@ -1,90 +1,133 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { AlertCircle, ChevronRight, Plus, Clock, CreditCard } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, Bell, ChevronRight, Plus } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
-import { Header, LayoutBottomNav, Sidebar } from '../components/layout';
-import { FAB } from '../components/ui';
+import { Sidebar } from '../components/layout';
+import { LayoutBottomNav } from '../components/layout/LayoutBottomNav';
 import { AddPaymentV3 } from '../components/feature';
-import { CATEGORIES as V3_CATEGORIES } from '../core/categories';
-import { stagger, fadeInUp } from '../lib/animations';
+import { Logo } from '../components/ui';
 import { makeFmt } from '../utils/format';
+import { haptics } from '../lib/haptics';
 
-const ENTITY_ICONS = {
-  INSTITUTION: '🎓',
-  RESIDENCE: '🏠',
-  COACHING: '📖',
+// ─── Theme constants ──────────────────────────────────────────
+const BG = '#0a0a14';
+const CARD = '#12121a';
+const BORDER = '#1e1e2e';
+const ACCENT = '#6366f1';
+const TEXT1 = '#f4f4f5';
+const TEXT2 = '#71717a';
+const TEXT3 = '#52525b';
+
+// ─── Category SVG icons (16x16) ──────────────────────────────
+const CAT_ICONS = {
+  education: { d: 'M8 2L1 6l7 4 7-4-7-4zM3 8v4l5 3 5-3V8', color: '#6366f1' },
+  transport: { d: 'M3 11V5a2 2 0 012-2h6a2 2 0 012 2v6m-10 0h10m-10 0v2h2v-2m6 0v2h2v-2M6 7h4', color: '#3b82f6' },
+  food: { d: 'M4 2v5a3 3 0 003 3h0a3 3 0 003-3V2M4 5h6M7 10v4m5-12v4a2 2 0 01-2 2h0v2h0v4', color: '#f97316' },
+  residence: { d: 'M2 14V7l6-5 6 5v7H9V10H7v4H2z', color: '#22c55e' },
+  materials: { d: 'M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1zm2 3h4m-4 3h4m-4 3h2', color: '#eab308' },
+  clubs: { d: 'M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6a5 5 0 0110 0', color: '#ec4899' },
+  other: { d: 'M8 2l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4l2-4z', color: '#64748b' },
 };
 
-const ENTITY_BADGES = {
-  INSTITUTION: { label: 'Institution', bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300' },
-  RESIDENCE: { label: 'Residence', bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300' },
-  COACHING: { label: 'Coaching', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
+// Map v3 categories to display categories
+const CATEGORY_MAP = {
+  semester_fee: 'education', tuition: 'education', exam_fee: 'education', lab_fee: 'education',
+  admission_fee: 'education', library_fee: 'education', registration_fee: 'education',
+  development_fee: 'education', uniform: 'education', id_card: 'education',
+  coaching_monthly: 'education', batch_fee: 'education', coaching_materials: 'education',
+  transport: 'transport', food: 'food',
+  rent: 'residence', mess_fee: 'residence', utilities: 'residence', deposit: 'residence', moving: 'residence',
+  books: 'materials', stationery: 'materials', devices: 'materials',
+  medical: 'other', internet: 'other', loan_repayment: 'other', other: 'other',
 };
 
-const PERSONAL_BG = {
-  transport: 'bg-blue-100 dark:bg-blue-900/30',
-  food: 'bg-orange-100 dark:bg-orange-900/30',
-  books: 'bg-amber-100 dark:bg-amber-900/30',
-  stationery: 'bg-yellow-100 dark:bg-yellow-900/30',
-  devices: 'bg-indigo-100 dark:bg-indigo-900/30',
-  medical: 'bg-red-100 dark:bg-red-900/30',
-  internet: 'bg-cyan-100 dark:bg-cyan-900/30',
-  other: 'bg-gray-100 dark:bg-gray-900/30',
-};
+const SCOPES = [
+  { id: 'lifetime', label: 'Lifetime' },
+  { id: 'thisYear', label: 'This year' },
+  { id: 'thisMonth', label: 'This month' },
+  { id: 'lastMonth', label: 'Last month' },
+];
 
+const CATEGORY_GRID = [
+  { id: 'education', label: 'Education', nav: 'education-home' },
+  { id: 'transport', label: 'Transport', nav: 'transport' },
+  { id: 'food', label: 'Food', nav: 'dashboard' },
+  { id: 'residence', label: 'Residence', nav: 'housing-landing' },
+  { id: 'materials', label: 'Materials', nav: 'study-materials' },
+  { id: 'clubs', label: 'Clubs', nav: 'dashboard' },
+  { id: 'other', label: 'Other', nav: 'general-cost-tracker' },
+];
+
+const ENTITY_TABS = [
+  { id: 'institutions', label: 'Institutions', types: ['INSTITUTION'] },
+  { id: 'residence', label: 'Residence', types: ['RESIDENCE'] },
+  { id: 'clubs', label: 'Clubs', types: ['COACHING'] },
+  { id: 'expenses', label: 'Expenses', types: null },
+];
+
+function CatIcon({ id, size = 16 }) {
+  const icon = CAT_ICONS[id];
+  if (!icon) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke={icon.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d={icon.d} />
+    </svg>
+  );
+}
+
+function fmtDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────
 export const DashboardV3 = () => {
-  const { user, theme, navigate } = useApp();
+  const { user, navigate } = useApp();
   const {
     entities, upcomingObligations, ledgerSummary, recentEntries,
-    loading, recordPayment, refreshSummary,
+    loading, scopedTotals, monthTrend, recordPayment,
   } = useV3();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [paymentObligation, setPaymentObligation] = useState(null);
-  const d = theme === 'dark';
+  const [scope, setScope] = useState('lifetime');
+  const [entityTab, setEntityTab] = useState('institutions');
+
   const profile = user?.profile;
   const fmt = makeFmt(profile?.currency || 'BDT');
+  const firstName = user?.name?.split(' ')[0] || 'there';
 
   useEffect(() => { document.title = 'Dashboard — ClassCost'; }, []);
 
-  // Derived data
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
   const overdue = useMemo(
-    () => upcomingObligations.filter((o) => o.status === 'OVERDUE'),
+    () => upcomingObligations.filter(o => o.status === 'OVERDUE'),
     [upcomingObligations]
   );
 
-  const upcoming7 = useMemo(() => {
-    const now = new Date();
-    const in7 = new Date();
-    in7.setDate(in7.getDate() + 7);
-    return upcomingObligations.filter((o) => {
-      if (o.status === 'OVERDUE') return false;
-      if (!o.dueDate) return true;
-      const due = new Date(o.dueDate);
-      return due >= now && due <= in7;
-    });
-  }, [upcomingObligations]);
+  const activeEntities = useMemo(() => (entities || []).filter(e => e.isActive), [entities]);
 
-  const activeEntities = useMemo(
-    () => entities.filter((e) => e.isActive),
-    [entities]
-  );
+  // Category totals for current scope
+  const categoryTotals = useMemo(() => {
+    const byCategory = scopedTotals[scope]?.byCategory || {};
+    const grouped = {};
+    for (const [cat, amount] of Object.entries(byCategory)) {
+      const display = CATEGORY_MAP[cat] || 'other';
+      grouped[display] = (grouped[display] || 0) + amount;
+    }
+    return grouped;
+  }, [scope, scopedTotals]);
 
-  const personalCategories = useMemo(() => {
-    if (!ledgerSummary?.perCategory) return [];
-    return ledgerSummary.perCategory
-      .filter((c) => {
-        const cat = V3_CATEGORIES[c.category];
-        return cat && cat.entityTypes === null;
-      })
-      .sort((a, b) => b.net - a.net);
-  }, [ledgerSummary]);
+  const scopeTotal = scopedTotals[scope]?.total || 0;
 
-  const recentList = useMemo(() => (recentEntries || []).slice(0, 10), [recentEntries]);
-
-  // Entity total lookup from summary
+  // Entity totals from summary
   const entityTotals = useMemo(() => {
     const map = {};
     if (ledgerSummary?.perEntity) {
@@ -95,287 +138,297 @@ export const DashboardV3 = () => {
     return map;
   }, [ledgerSummary]);
 
-  function daysOverdue(dueDate) {
-    if (!dueDate) return 0;
-    const diff = Date.now() - new Date(dueDate).getTime();
-    return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-  }
+  // Filtered entities for tab
+  const tabEntities = useMemo(() => {
+    const tab = ENTITY_TABS.find(t => t.id === entityTab);
+    if (!tab || !tab.types) return [];
+    return activeEntities.filter(e => tab.types.includes(e.type));
+  }, [entityTab, activeEntities]);
 
-  function fmtDate(dateStr) {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  }
+  const recentList = useMemo(() => (recentEntries || []).slice(0, 15), [recentEntries]);
 
-  function handleQuickPay(obl) {
-    setPaymentObligation(obl);
-    setSheetOpen(true);
-  }
+  // Institution breakdown for education card
+  const instBreakdown = useMemo(() => {
+    if (!ledgerSummary?.perEntity) return '';
+    return ledgerSummary.perEntity
+      .filter(e => e.entityId)
+      .map(e => {
+        const entity = activeEntities.find(ent => ent.id === e.entityId);
+        if (!entity || entity.type !== 'INSTITUTION') return null;
+        const shortName = entity.name.length > 12 ? entity.name.slice(0, 12) : entity.name;
+        return `${shortName} ${fmt(e.net / 100)}`;
+      })
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(' · ');
+  }, [ledgerSummary, activeEntities, fmt]);
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  })();
-
-  if (loading && !ledgerSummary) {
+  // Empty state
+  if (!loading && recentList.length === 0 && activeEntities.length === 0) {
     return (
-      <div className={`min-h-screen ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <div className="max-w-md mx-auto px-4 pt-8 text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
-          <p className={`mt-4 ${d ? 'text-surface-400' : 'text-surface-500'}`}>Loading dashboard...</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: BG }}>
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Logo size={64} />
+        <h2 className="text-lg font-medium mt-6" style={{ color: TEXT1 }}>Start tracking your education costs</h2>
+        <p className="text-sm mt-2 text-center" style={{ color: TEXT2 }}>Add your institution and semester to begin</p>
+        <button onClick={() => setSheetOpen(true)}
+          className="mt-6 px-6 py-3 rounded-xl text-white text-sm font-medium"
+          style={{ background: ACCENT }}>
+          <Plus size={16} className="inline mr-2" />Add payment
+        </button>
+        <AddPaymentV3 isOpen={sheetOpen} onClose={() => setSheetOpen(false)} />
+        <LayoutBottomNav onAddPress={() => setSheetOpen(true)} />
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen ${d ? 'bg-surface-950' : 'bg-surface-50'}`}>
-      <Header onMenuClick={() => setSidebarOpen(true)} />
+    <div className="min-h-screen pb-24" style={{ background: BG }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <motion.div className="max-w-md mx-auto pb-28 px-4 pt-4" {...stagger}>
+      {/* ── Header ─────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 flex items-center justify-between px-4 backdrop-blur-xl"
+        style={{ height: 56, background: 'rgba(10,10,20,0.9)', borderBottom: `0.5px solid ${BORDER}` }}>
+        <div className="flex items-center gap-3">
+          <button onClick={() => { haptics.light(); setSidebarOpen(true); }} className="p-1">
+            <Menu size={20} color={TEXT2} />
+          </button>
+          <Logo size={24} />
+          <span className="text-sm" style={{ color: TEXT2 }}>{greeting}, <span style={{ color: TEXT1 }}>{firstName}</span></span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="relative p-1">
+            <Bell size={18} color={TEXT2} />
+            {overdue.length > 0 && (
+              <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500" />
+            )}
+          </button>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white"
+            style={{ background: ACCENT }}>
+            {(user?.name || 'U')[0].toUpperCase()}
+          </div>
+        </div>
+      </header>
 
-        {/* ── 2. Monthly Total Card ──────────────────────────────── */}
-        <motion.div {...fadeInUp} className="rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-lg mb-5">
-          <p className="text-sm opacity-80">{greeting}, {user?.name?.split(' ')[0] || 'there'}</p>
-          <p className="text-3xl font-bold mt-1">
-            {fmt((ledgerSummary?.monthlyTotal || 0) / 100)}
-          </p>
-          <p className="text-sm opacity-70 mt-1">this month</p>
-          <div className="flex items-center gap-4 mt-3 text-xs opacity-70">
-            <span>Lifetime: {fmt((ledgerSummary?.lifetimeTotal || 0) / 100)}</span>
-            <span>Year: {fmt((ledgerSummary?.yearlyTotal || 0) / 100)}</span>
+      <div className="max-w-[420px] mx-auto px-4 pt-4">
+
+        {/* ── Hero Card (4 quadrants) ──────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+          className="rounded-2xl p-4 mb-4"
+          style={{ background: '#0f0f1a', border: '0.5px solid rgba(99,102,241,0.2)' }}>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] font-medium" style={{ color: '#8b5cf6' }}>Lifetime</p>
+              <p className="text-[22px] font-medium mt-0.5" style={{ color: TEXT1 }}>
+                {fmt((scopedTotals.lifetime?.total || 0) / 100)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-medium" style={{ color: '#8b5cf6' }}>This month</p>
+              <p className="text-[22px] font-medium mt-0.5" style={{ color: TEXT1 }}>
+                {fmt((scopedTotals.thisMonth?.total || 0) / 100)}
+              </p>
+              {monthTrend.direction !== 'flat' && (
+                <span className="text-[10px]" style={{ color: monthTrend.direction === 'down' ? '#22c55e' : '#ef4444' }}>
+                  {monthTrend.direction === 'up' ? '↑' : '↓'} {monthTrend.pct}%
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="text-[10px]" style={{ color: TEXT3 }}>This year</p>
+              <p className="text-sm font-medium" style={{ color: TEXT2 }}>
+                {fmt((scopedTotals.thisYear?.total || 0) / 100)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px]" style={{ color: TEXT3 }}>Last month</p>
+              <p className="text-sm font-medium" style={{ color: TEXT2 }}>
+                {fmt((scopedTotals.lastMonth?.total || 0) / 100)}
+              </p>
+            </div>
           </div>
         </motion.div>
 
-        {/* ── 3. Overdue Obligations ────────────────────────────── */}
-        {overdue.length > 0 && (
-          <motion.div {...fadeInUp} className="mb-5">
-            <div className="flex items-center gap-2 bg-red-100 dark:bg-red-900/30 rounded-xl px-4 py-3 mb-3">
-              <AlertCircle size={18} className="text-red-600 dark:text-red-400" />
-              <span className="text-sm font-semibold text-red-700 dark:text-red-300">
-                {overdue.length} overdue payment{overdue.length > 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {overdue.map((obl) => (
-                <div
-                  key={obl.id}
-                  className={`rounded-xl p-4 border ${d ? 'bg-surface-900 border-red-900/40' : 'bg-white border-red-200'}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                        {obl.label}
-                      </p>
-                      <p className="text-xs text-red-500 mt-0.5">
-                        {daysOverdue(obl.dueDate)} days overdue
-                      </p>
-                    </div>
-                    <div className="text-right ml-3">
-                      <p className={`text-sm font-bold ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                        {fmt((obl.amountRemaining ?? obl.amountMinor) / 100)}
-                      </p>
-                      <button
-                        onClick={() => handleQuickPay(obl)}
-                        className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg mt-1 hover:bg-red-700 transition"
-                      >
-                        Pay now
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── 4. Upcoming Dues (7 days) ────────────────────────── */}
-        {upcoming7.length > 0 && (
-          <motion.div {...fadeInUp} className="mb-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Clock size={16} className={d ? 'text-amber-400' : 'text-amber-600'} />
-              <h3 className={`text-sm font-semibold ${d ? 'text-surface-200' : 'text-surface-700'}`}>
-                Due this week
-              </h3>
-            </div>
-            <div className="space-y-2">
-              {upcoming7.map((obl) => (
-                <div
-                  key={obl.id}
-                  className={`rounded-xl p-4 border ${d ? 'bg-surface-900 border-amber-900/30' : 'bg-white border-amber-200'}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                        {obl.label}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {obl.dueDate && (
-                          <span className="text-xs text-amber-600 dark:text-amber-400">
-                            Due {fmtDate(obl.dueDate)}
-                          </span>
-                        )}
-                        {obl.entity && (
-                          <span className={`text-xs ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                            {obl.entity.name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right ml-3">
-                      <p className={`text-sm font-bold ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                        {fmt((obl.amountRemaining ?? obl.amountMinor) / 100)}
-                      </p>
-                      <button
-                        onClick={() => handleQuickPay(obl)}
-                        className="text-xs bg-amber-600 text-white px-3 py-1 rounded-lg mt-1 hover:bg-amber-700 transition"
-                      >
-                        Mark paid
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── 5. My Entities ───────────────────────────────────── */}
-        <motion.div {...fadeInUp} className="mb-5">
-          <h3 className={`text-sm font-semibold mb-3 ${d ? 'text-surface-200' : 'text-surface-700'}`}>
-            My Places
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {activeEntities.map((entity) => {
-              const badge = ENTITY_BADGES[entity.type];
-              return (
-                <button
-                  key={entity.id}
-                  onClick={() => navigate('institution-detail', { params: { entityId: entity.id } })}
-                  className={`rounded-xl p-4 border text-left transition hover:scale-[1.02] ${
-                    d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">{ENTITY_ICONS[entity.type] || '🏛️'}</div>
-                  <p className={`text-sm font-medium truncate ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                    {entity.name}
-                  </p>
-                  {badge && (
-                    <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full mt-1 ${badge.bg} ${badge.text}`}>
-                      {badge.label}
-                    </span>
-                  )}
-                  <p className={`text-xs mt-2 ${d ? 'text-surface-400' : 'text-surface-500'}`}>
-                    {fmt((entityTotals[entity.id] || 0) / 100)}
-                  </p>
-                </button>
-              );
-            })}
-            <button
-              onClick={() => navigate('education-setup')}
-              className={`rounded-xl p-4 border border-dashed flex flex-col items-center justify-center transition ${
-                d ? 'border-surface-700 hover:border-surface-600 text-surface-500' : 'border-surface-300 hover:border-surface-400 text-surface-400'
-              }`}
-            >
-              <Plus size={20} />
-              <span className="text-xs mt-1">Add place</span>
+        {/* ── Scope Switcher ───────────────────────────────── */}
+        <div className="rounded-xl p-[3px] mb-4 flex" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
+          {SCOPES.map(s => (
+            <button key={s.id} onClick={() => { haptics.light(); setScope(s.id); }}
+              className="flex-1 py-2 rounded-lg text-[11px] font-medium transition-all"
+              style={{
+                background: scope === s.id ? ACCENT : 'transparent',
+                color: scope === s.id ? 'white' : TEXT3,
+              }}>
+              {s.label}
             </button>
+          ))}
+        </div>
+
+        {/* ── Category Grid ────────────────────────────────── */}
+        <div className="space-y-2.5 mb-5">
+          {/* Education hero card */}
+          <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }} whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('education-home')}
+            className="w-full text-left rounded-xl p-4" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <CatIcon id="education" size={20} />
+                <span className="text-xs font-medium" style={{ color: TEXT2 }}>Education</span>
+              </div>
+              <ChevronRight size={14} color={TEXT3} />
+            </div>
+            <p className="text-lg font-semibold mt-2" style={{ color: TEXT1 }}>
+              {fmt((categoryTotals.education || 0) / 100)}
+            </p>
+            {scopeTotal > 0 && (
+              <div className="mt-2">
+                <div className="h-[2px] rounded-full overflow-hidden" style={{ background: BORDER }}>
+                  <div className="h-full rounded-full transition-all" style={{
+                    width: `${Math.min(100, Math.round(((categoryTotals.education || 0) / scopeTotal) * 100))}%`,
+                    background: ACCENT,
+                  }} />
+                </div>
+              </div>
+            )}
+            {instBreakdown && (
+              <p className="text-[10px] mt-1.5 truncate" style={{ color: TEXT3 }}>{instBreakdown}</p>
+            )}
+          </motion.button>
+
+          {/* Row 2: Transport | Food | Residence */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {CATEGORY_GRID.slice(1, 4).map((cat, i) => (
+              <motion.button key={cat.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }} whileTap={{ scale: 0.96 }}
+                onClick={() => navigate(cat.nav)}
+                className="rounded-xl p-3 text-left" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                <CatIcon id={cat.id} />
+                <p className="text-[11px] mt-1.5" style={{ color: TEXT2 }}>{cat.label}</p>
+                <p className="text-sm font-semibold mt-0.5" style={{ color: TEXT1 }}>
+                  {fmt((categoryTotals[cat.id] || 0) / 100)}
+                </p>
+                {scopeTotal > 0 && (
+                  <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: BORDER }}>
+                    <div className="h-full rounded-full" style={{
+                      width: `${Math.min(100, Math.round(((categoryTotals[cat.id] || 0) / scopeTotal) * 100))}%`,
+                      background: CAT_ICONS[cat.id]?.color || TEXT3,
+                    }} />
+                  </div>
+                )}
+              </motion.button>
+            ))}
           </div>
-        </motion.div>
 
-        {/* ── 6. Personal Summary ──────────────────────────────── */}
-        {personalCategories.length > 0 && (
-          <motion.div {...fadeInUp} className="mb-5">
-            <h3 className={`text-sm font-semibold mb-3 ${d ? 'text-surface-200' : 'text-surface-700'}`}>
-              Personal Spending
-            </h3>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
-              {personalCategories.map((pc) => {
-                const cat = V3_CATEGORIES[pc.category];
-                if (!cat) return null;
-                return (
-                  <div
-                    key={pc.category}
-                    className={`flex-shrink-0 w-28 rounded-xl p-3 ${PERSONAL_BG[pc.category] || 'bg-gray-100 dark:bg-gray-900/30'}`}
-                  >
-                    <span className="text-lg">{cat.icon}</span>
-                    <p className={`text-xs font-medium mt-1 ${d ? 'text-surface-200' : 'text-surface-700'}`}>
-                      {cat.label}
-                    </p>
-                    <p className={`text-sm font-bold mt-0.5 ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                      {fmt(pc.net / 100)}
-                    </p>
+          {/* Row 3: Materials | Clubs | Other */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {CATEGORY_GRID.slice(4).map((cat, i) => (
+              <motion.button key={cat.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 + i * 0.05 }} whileTap={{ scale: 0.96 }}
+                onClick={() => navigate(cat.nav)}
+                className="rounded-xl p-3 text-left" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                <CatIcon id={cat.id} />
+                <p className="text-[11px] mt-1.5" style={{ color: TEXT2 }}>{cat.label}</p>
+                <p className="text-sm font-semibold mt-0.5" style={{ color: TEXT1 }}>
+                  {fmt((categoryTotals[cat.id] || 0) / 100)}
+                </p>
+                {scopeTotal > 0 && (
+                  <div className="h-[2px] rounded-full mt-1.5 overflow-hidden" style={{ background: BORDER }}>
+                    <div className="h-full rounded-full" style={{
+                      width: `${Math.min(100, Math.round(((categoryTotals[cat.id] || 0) / scopeTotal) * 100))}%`,
+                      background: CAT_ICONS[cat.id]?.color || TEXT3,
+                    }} />
                   </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
+                )}
+              </motion.button>
+            ))}
+          </div>
+        </div>
 
-        {/* ── 7. Recent Entries ─────────────────────────────────── */}
-        {recentList.length > 0 && (
-          <motion.div {...fadeInUp}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`text-sm font-semibold ${d ? 'text-surface-200' : 'text-surface-700'}`}>
-                Recent Transactions
-              </h3>
-              <button
-                onClick={() => navigate('reports')}
-                className="text-xs text-primary-500 flex items-center gap-0.5"
-              >
-                View all <ChevronRight size={14} />
+        {/* ── Entity Tabs ──────────────────────────────────── */}
+        <div className="mb-4">
+          <div className="flex gap-1 mb-3 rounded-xl p-[3px]" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
+            {ENTITY_TABS.map(tab => (
+              <button key={tab.id} onClick={() => { haptics.light(); setEntityTab(tab.id); }}
+                className="flex-1 py-2 rounded-lg text-[11px] font-medium transition-all"
+                style={{
+                  background: entityTab === tab.id ? ACCENT : 'transparent',
+                  color: entityTab === tab.id ? 'white' : TEXT3,
+                }}>
+                {tab.label}
               </button>
-            </div>
-            <div className={`rounded-xl border divide-y ${
-              d ? 'bg-surface-900 border-surface-800 divide-surface-800' : 'bg-white border-surface-200 divide-surface-100'
-            }`}>
-              {recentList.map((entry) => {
-                const cat = V3_CATEGORIES[entry.category];
-                const isCredit = entry.direction === 'CREDIT';
-                return (
-                  <div key={entry.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="text-lg flex-shrink-0">{cat?.icon || '📦'}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm truncate ${d ? 'text-surface-100' : 'text-surface-800'}`}>
-                        {entry.note || cat?.label || entry.category}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-[10px] ${d ? 'text-surface-500' : 'text-surface-400'}`}>
-                          {fmtDate(entry.date)}
-                        </span>
-                        {entry.tracker?.entity ? (
-                          <span className="text-[10px] bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-1.5 py-0.5 rounded">
-                            {entry.tracker.entity.name}
-                          </span>
-                        ) : (
-                          <span className={`text-[10px] ${d ? 'text-surface-600' : 'text-surface-300'}`}>Personal</span>
-                        )}
-                      </div>
-                    </div>
-                    <span className={`text-sm font-semibold flex-shrink-0 ${
-                      isCredit ? 'text-emerald-600 dark:text-emerald-400' : (d ? 'text-surface-100' : 'text-surface-800')
-                    }`}>
-                      {isCredit ? '+' : ''}{fmt(entry.amountMinor / 100)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </motion.div>
+            ))}
+          </div>
 
-      {/* ── 8. FAB + Payment Sheet ────────────────────────────── */}
-      <FAB onClick={() => setSheetOpen(true)} />
+          {entityTab !== 'expenses' ? (
+            <div className="space-y-2">
+              {tabEntities.length === 0 ? (
+                <div className="rounded-xl p-6 text-center" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                  <p className="text-sm" style={{ color: TEXT3 }}>No {entityTab} yet</p>
+                </div>
+              ) : (
+                tabEntities.map(entity => (
+                  <button key={entity.id}
+                    onClick={() => navigate('institution-detail', { params: { entityId: entity.id } })}
+                    className="w-full flex items-center gap-3 rounded-xl p-3 text-left transition hover:opacity-90"
+                    style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm"
+                      style={{ background: 'rgba(99,102,241,0.1)' }}>
+                      {entity.type === 'INSTITUTION' ? '🎓' : entity.type === 'RESIDENCE' ? '🏠' : '📖'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: TEXT1 }}>{entity.name}</p>
+                      <p className="text-[11px]" style={{ color: TEXT3 }}>{fmt((entityTotals[entity.id] || 0) / 100)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
+                        Active
+                      </span>
+                      <ChevronRight size={14} color={TEXT3} />
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          ) : (
+            /* Expenses tab: recent entries */
+            <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+              {recentList.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-sm" style={{ color: TEXT3 }}>No transactions yet</p>
+                </div>
+              ) : (
+                recentList.map((entry, i) => {
+                  const displayCat = CATEGORY_MAP[entry.category] || 'other';
+                  const isCredit = entry.direction === 'CREDIT';
+                  return (
+                    <div key={entry.id} className="flex items-center gap-3 px-3 py-2.5"
+                      style={{ borderTop: i > 0 ? `0.5px solid ${BORDER}` : 'none' }}>
+                      <CatIcon id={displayCat} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate" style={{ color: TEXT1 }}>
+                          {entry.note || entry.category}
+                        </p>
+                        <p className="text-[10px]" style={{ color: TEXT3 }}>{fmtDate(entry.date)}</p>
+                      </div>
+                      <span className="text-sm font-medium" style={{ color: isCredit ? '#22c55e' : TEXT1 }}>
+                        {isCredit ? '+' : ''}{fmt(entry.amountMinor / 100)}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Bottom Nav + Sheet ──────────────────────────────── */}
       <AddPaymentV3
         isOpen={sheetOpen}
-        onClose={() => { setSheetOpen(false); setPaymentObligation(null); }}
-        preselectedObligation={paymentObligation}
+        onClose={() => setSheetOpen(false)}
       />
-      <LayoutBottomNav />
+      <LayoutBottomNav onAddPress={() => setSheetOpen(true)} />
     </div>
   );
 };

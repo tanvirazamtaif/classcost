@@ -1,4 +1,4 @@
-export { BottomNav } from './BottomNav';
+export { BottomNavV3 } from './BottomNav';
 export { ErrorBoundary } from './ErrorBoundary';
 export { CostSummaryCard } from './CostSummaryCard';
 export { PromotionBanner } from './PromotionBanner';
