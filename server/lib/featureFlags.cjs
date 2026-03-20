@@ -11,7 +11,7 @@ function envBool(key) {
 
 const flags = {
   ...DEFAULT_FLAGS,
-  USE_NEW_ARCHITECTURE: envBool("FEATURE_NEW_ARCH"),
+  USE_NEW_ARCHITECTURE: envBool("FEATURE_NEW_ARCH") || true, // v3 always on
   ENABLE_TRACKER_UI: envBool("FEATURE_TRACKER_UI"),
   ENABLE_ALLOCATION_UI: envBool("FEATURE_ALLOCATION_UI"),
 };
