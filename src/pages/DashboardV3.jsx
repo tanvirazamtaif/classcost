@@ -163,25 +163,6 @@ export const DashboardV3 = () => {
       .join(' · ');
   }, [ledgerSummary, activeEntities, fmt]);
 
-  // Empty state
-  if (!loading && recentList.length === 0 && activeEntities.length === 0) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: BG }}>
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <Logo size={64} />
-        <h2 className="text-lg font-medium mt-6" style={{ color: TEXT1 }}>Start tracking your education costs</h2>
-        <p className="text-sm mt-2 text-center" style={{ color: TEXT2 }}>Add your institution and semester to begin</p>
-        <button onClick={() => setSheetOpen(true)}
-          className="mt-6 px-6 py-3 rounded-xl text-white text-sm font-medium"
-          style={{ background: ACCENT }}>
-          <Plus size={16} className="inline mr-2" />Add payment
-        </button>
-        <AddPaymentV3 isOpen={sheetOpen} onClose={() => setSheetOpen(false)} />
-        <LayoutBottomNav onAddPress={() => setSheetOpen(true)} />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen pb-24" style={{ background: BG }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -248,6 +229,18 @@ export const DashboardV3 = () => {
             </div>
           </div>
         </motion.div>
+
+        {/* ── Welcome banner (new users only) ────────────── */}
+        {!loading && activeEntities.length === 0 && recentList.length === 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="rounded-xl p-4 mb-4 text-center"
+            style={{ background: CARD, border: `0.5px solid ${BORDER}` }}>
+            <p className="text-sm font-medium" style={{ color: TEXT1 }}>Welcome to ClassCost</p>
+            <p className="text-xs mt-1" style={{ color: TEXT3 }}>
+              Tap the <span style={{ color: ACCENT }}>+</span> button below to add your first expense
+            </p>
+          </motion.div>
+        )}
 
         {/* ── Scope Switcher ───────────────────────────────── */}
         <div className="rounded-xl p-[3px] mb-4 flex" style={{ background: '#0f0f1a', border: `0.5px solid ${BORDER}` }}>
