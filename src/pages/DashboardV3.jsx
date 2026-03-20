@@ -51,12 +51,12 @@ const SCOPES = [
 
 const CATEGORY_GRID = [
   { id: 'education', label: 'Education', nav: 'education-home' },
-  { id: 'transport', label: 'Transport', nav: 'transport' },
-  { id: 'food', label: 'Food', nav: 'dashboard' },
+  { id: 'transport', label: 'Transport', nav: 'transport-page' },
+  { id: 'food', label: 'Food', nav: 'food-page' },
   { id: 'residence', label: 'Residence', nav: 'housing-landing' },
-  { id: 'materials', label: 'Materials', nav: 'study-materials' },
-  { id: 'clubs', label: 'Clubs', nav: 'dashboard' },
-  { id: 'other', label: 'Other', nav: 'general-cost-tracker' },
+  { id: 'materials', label: 'Materials', nav: 'materials-page' },
+  { id: 'clubs', label: 'Clubs', nav: 'general-cost-tracker' },
+  { id: 'other', label: 'Other', nav: 'other-page' },
 ];
 
 const ENTITY_TABS = [

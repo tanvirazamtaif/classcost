@@ -179,7 +179,7 @@ export const SemesterDetailPageV3 = () => {
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-semibold" style={{ color: isPaid ? TEXT3 : TEXT1 }}>{fmt(obl.amountMinor / 100)}</p>
                     {isOverdue && (
-                      <button onClick={() => navigate('general-cost-tracker', { params: { obligationId: obl.id, trackerId } })}
+                      <button onClick={() => navigate('record-payment', { params: { obligationId: obl.id, trackerId } })}
                         className="text-[10px] mt-1 px-2.5 py-1 rounded-lg text-white" style={{ background: ACCENT }}>
                         Record payment
                       </button>
