@@ -73,7 +73,7 @@ export const BottomNavV3 = React.memo(({ active, navigate, onAddPress }) => {
           if (isCenter) {
             return (
               <button key={item.id} onClick={() => { haptics.medium(); onAddPress(); }}
-                className="flex items-center justify-center rounded-full -mt-2"
+                className="flex items-center justify-center rounded-full -mt-1"
                 style={{ width: 40, height: 40, background: c.accent }}
                 aria-label="Add payment">
                 <NavIcon name="plus" isCenter />
