@@ -259,27 +259,29 @@ export const AddPaymentV3 = ({ isOpen, onClose, preselectedEntityId, preselected
       {/* ── STEP: Form ─────────────────────────────────────────── */}
       {step === 'form' && (
         <>
-          {/* Entity attribution */}
-          <div className="flex items-center gap-2 flex-wrap mb-4">
-            <button
-              onClick={() => { setSelectedEntityId(null); haptics.light(); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                !selectedEntityId ? 'text-white' : d ? 'text-zinc-400 border border-zinc-700' : 'text-zinc-500 border border-zinc-300'
-              }`}
-              style={!selectedEntityId ? { background: c.accent } : {}}>
-              Personal
-            </button>
-            {activeEntities.map(entity => (
-              <button key={entity.id}
-                onClick={() => { handleEntityTap(entity.id); }}
+          {/* Entity attribution — only show when user has entities */}
+          {activeEntities.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mb-4">
+              <button
+                onClick={() => { setSelectedEntityId(null); haptics.light(); }}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  selectedEntityId === entity.id ? 'text-white' : d ? 'text-zinc-400 border border-zinc-700' : 'text-zinc-500 border border-zinc-300'
+                  !selectedEntityId ? 'text-white' : d ? 'text-zinc-400 border border-zinc-700' : 'text-zinc-500 border border-zinc-300'
                 }`}
-                style={selectedEntityId === entity.id ? { background: c.accent } : {}}>
-                {entity.type === 'INSTITUTION' ? '🎓 ' : entity.type === 'RESIDENCE' ? '🏠 ' : '📖 '}{entity.name}
+                style={!selectedEntityId ? { background: c.accent } : {}}>
+                Personal
               </button>
-            ))}
-          </div>
+              {activeEntities.map(entity => (
+                <button key={entity.id}
+                  onClick={() => { handleEntityTap(entity.id); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    selectedEntityId === entity.id ? 'text-white' : d ? 'text-zinc-400 border border-zinc-700' : 'text-zinc-500 border border-zinc-300'
+                  }`}
+                  style={selectedEntityId === entity.id ? { background: c.accent } : {}}>
+                  {entity.type === 'INSTITUTION' ? '🎓 ' : entity.type === 'RESIDENCE' ? '🏠 ' : '📖 '}{entity.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Category grid */}
           <div className="grid grid-cols-3 gap-2.5 mb-5">
