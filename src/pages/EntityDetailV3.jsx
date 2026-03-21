@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, ChevronRight, User, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
 import { getThemeColors } from '../lib/themeColors';
-import { AddPaymentV3 } from '../components/feature';
+
 import { LayoutBottomNav } from '../components/layout/LayoutBottomNav';
 import { haptics } from '../lib/haptics';
 import { makeFmt } from '../utils/format';
@@ -51,7 +51,6 @@ export const EntityDetailV3 = () => {
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
 
   const [activeTab, setActiveTab] = useState('semesters');
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [semesters, setSemesters] = useState([]);
   const [semLoading, setSemLoading] = useState(false);
@@ -325,7 +324,7 @@ export const EntityDetailV3 = () => {
                       ))}
                     </div>
                   )}
-                  <button onClick={() => setSheetOpen(true)}
+                  <button onClick={() => navigate('add-club-fee', { params: { entityId: entity.id, entityName: entity.name } })}
                     className="w-full py-3 rounded-xl text-sm font-medium"
                     style={{ border: `1.5px dashed ${c.border}`, color: c.accent }}>
                     + Add fee for {entity.name}
@@ -362,7 +361,7 @@ export const EntityDetailV3 = () => {
                 </button>
               );
             })}
-            <button onClick={() => setSheetOpen(true)}
+            <button onClick={() => navigate('add-club-fee', { params: { entityId: entity.id, entityName: entity.name } })}
               className="w-full py-3 rounded-xl text-sm font-medium"
               style={{ border: `1.5px dashed ${c.border}`, color: c.accent }}>
               + Add expense for {entity.name}
@@ -509,7 +508,6 @@ export const EntityDetailV3 = () => {
         </motion.div>
       )}
 
-      <AddPaymentV3 isOpen={sheetOpen} onClose={() => setSheetOpen(false)} preselectedEntityId={entityId} lockEntity={true} />
       <LayoutBottomNav />
       <style>{`@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }`}</style>
     </div>

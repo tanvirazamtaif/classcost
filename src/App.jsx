@@ -40,6 +40,7 @@ const GeneralCostTrackerPage = lazy(() => import('./pages/GeneralCostTrackerPage
 const ClubDetailPage = lazy(() => import('./pages/ClubDetailPage'));
 const CreateSemesterPage = lazy(() => import('./pages/CreateSemesterPage'));
 const AddEntityPage = lazy(() => import('./pages/AddEntityPage'));
+const AddClubFeePage = lazy(() => import('./pages/AddClubFeePage'));
 const CategoryPage = lazy(() => import('./pages/CategoryPage'));
 const RecordPaymentPage = lazy(() => import('./pages/RecordPaymentPage'));
 const SemesterDetailPageV3 = lazy(() => import('./pages/SemesterDetailPage_V3'));
@@ -129,6 +130,7 @@ const ViewRouter = () => {
         {view === "materials-page" && <CategoryPage category="books" />}
         {view === "other-page" && <CategoryPage category="other" />}
         {view === "add-entity" && <AddEntityPage />}
+        {view === "add-club-fee" && <AddClubFeePage />}
         {view === "category-scoped" && <CategoryPage category={routeParams?.category} scopedEntityId={routeParams?.scopedEntityId} />}
         {view === "record-payment" && <RecordPaymentPage />}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
