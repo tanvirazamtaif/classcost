@@ -180,7 +180,7 @@ export const DashboardV3 = () => {
             )}
           </button>
           <button onClick={() => navigate('settings')} className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white"
-            style={{ background: '#a855f7' }}>
+            style={{ background: '#22c55e' }}>
             {(user?.name || 'U')[0].toUpperCase()}
           </button>
         </div>
