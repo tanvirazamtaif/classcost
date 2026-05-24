@@ -54,23 +54,40 @@ export const LandingPage = () => {
   };
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !window.google?.accounts) return;
+    if (!GOOGLE_CLIENT_ID) return;
 
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleResponse,
-      locale: 'en',
-    });
-
-    window.google.accounts.id.renderButton(googleBtnRef.current, {
-      theme: 'outline',
-      size: 'large',
-      width: 340,
-      text: 'continue_with',
-      shape: 'rectangular',
-      logo_alignment: 'left',
-      locale: 'en',
-    });
+    // The Google Identity Services script is loaded async in index.html. It may
+    // not be ready when this component first mounts — poll briefly until it is,
+    // then render the button. Gives up after ~5s to avoid a runaway interval.
+    let cancelled = false;
+    let attempts = 0;
+    const setup = () => {
+      if (cancelled) return;
+      if (!window.google?.accounts || !googleBtnRef.current) {
+        if (attempts++ < 50) {
+          setTimeout(setup, 100);
+        } else {
+          console.warn('Google Identity Services script failed to load.');
+        }
+        return;
+      }
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleResponse,
+        locale: 'en',
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: 'filled_black',
+        size: 'large',
+        width: 340,
+        text: 'continue_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        locale: 'en',
+      });
+    };
+    setup();
+    return () => { cancelled = true; };
   }, []);
 
   const handleGoogleResponse = async (response) => {
