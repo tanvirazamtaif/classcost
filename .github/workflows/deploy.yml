@@ -1,0 +1,63 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to VPS
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          cd /opt/classcost
+          echo "::group::git pull"
+          git fetch --depth=1 origin main
+          git reset --hard origin/main
+          git log --oneline -1
+          echo "::endgroup::"
+
+          echo "::group::npm install"
+          npm ci --no-audit --no-fund
+          echo "::endgroup::"
+
+          echo "::group::prisma migrate deploy"
+          npx prisma migrate deploy
+          echo "::endgroup::"
+
+          echo "::group::build frontend"
+          npm run build
+          echo "::endgroup::"
+
+          echo "::group::restart backend"
+          pm2 restart classcost-api --update-env
+          sleep 2
+          pm2 list
+          echo "::endgroup::"
+
+          echo "::group::health check"
+          curl -fsS -m 10 -o /dev/null -w "HTTPS %{http_code}\n" https://classcost.com/
+          echo "::endgroup::"
+          REMOTE
