@@ -44,7 +44,7 @@ export const useApp = () => {
 
 // Valid views for deep linking — prevents navigating to invalid routes via URL
 const VALID_VIEWS = new Set([
-  'landing', 'otp', 'role-selection', 'onboarding', 'parent-onboarding',
+  'landing', 'otp', 'phone-auth', 'role-selection', 'onboarding', 'parent-onboarding',
   'education-setup', 'historical-data', 'budget-settings',
   'dashboard', 'reports', 'settings', 'loans', 'schedule',
   'education-fee-form', 'semester-landing', 'add-semester', 'semester-detail',

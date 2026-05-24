@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { sendOTP, googleSignIn } from '../api';
 import { Logo } from '../components/ui';
+import { appleSignIn, mapFirebaseUserToAppUser, firebaseEnabled } from '../lib/firebase';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -24,7 +25,33 @@ export const LandingPage = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [gLoading, setGLoading] = useState(false);
+  const [aLoading, setALoading] = useState(false);
   const googleBtnRef = useRef(null);
+
+  const handleAppleSignIn = async () => {
+    if (!firebaseEnabled) {
+      addToast('Firebase is not configured yet. See FIREBASE_SETUP.md', 'error');
+      return;
+    }
+    setALoading(true);
+    try {
+      const fbUser = await appleSignIn();
+      const appUser = mapFirebaseUserToAppUser(fbUser, 'apple');
+      setUser((p) => ({ ...p, ...appUser, trialStart: p?.trialStart || Date.now() }));
+      addToast('Signed in with Apple!', 'success');
+      if (appUser.id) {
+        try { await loadUserData(appUser.id); } catch { /* ignore */ }
+      }
+      navigate('role-selection', { replace: true });
+    } catch (e) {
+      // Cancelled popups throw — don't toast those.
+      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        addToast(e.message || 'Apple sign-in failed', 'error');
+      }
+    } finally {
+      setALoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !window.google?.accounts) return;
@@ -248,19 +275,50 @@ export const LandingPage = () => {
                 </div>
                 {GOOGLE_CLIENT_ID && (
                   <>
-                    <div ref={googleBtnRef} className="flex justify-center mb-4" style={{ minHeight: 44 }} />
+                    <div ref={googleBtnRef} className="flex justify-center mb-3" style={{ minHeight: 44 }} />
                     {gLoading && (
-                      <div className="flex items-center justify-center gap-2 mb-4">
+                      <div className="flex items-center justify-center gap-2 mb-3">
                         <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
                         <span className="text-zinc-500 text-xs">Signing in...</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex-1 h-px bg-white/[0.06]" />
-                      <span className="text-zinc-600 text-[11px]">or</span>
-                      <div className="flex-1 h-px bg-white/[0.06]" />
-                    </div>
                   </>
+                )}
+                {firebaseEnabled && (
+                  <>
+                    <button
+                      onClick={handleAppleSignIn}
+                      disabled={aLoading}
+                      className="w-full text-sm font-medium rounded-xl py-3 mb-3 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-50 bg-black hover:bg-zinc-900 text-white border border-white/10 shadow-sm"
+                      aria-label="Continue with Apple"
+                    >
+                      {aLoading ? (
+                        <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true">
+                          <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
+                        </svg>
+                      )}
+                      Continue with Apple
+                    </button>
+                    <button
+                      onClick={() => navigate('phone-auth')}
+                      className="w-full text-sm font-medium rounded-xl py-3 mb-3 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.08]"
+                      aria-label="Continue with phone number"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                      </svg>
+                      Continue with Phone
+                    </button>
+                  </>
+                )}
+                {(GOOGLE_CLIENT_ID || firebaseEnabled) && (
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex-1 h-px bg-white/[0.06]" />
+                    <span className="text-zinc-600 text-[11px]">or</span>
+                    <div className="flex-1 h-px bg-white/[0.06]" />
+                  </div>
                 )}
                 <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email address"
                   onKeyDown={(e) => e.key === "Enter" && handleContinue()}

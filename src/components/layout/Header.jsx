@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../contexts/AppContext';
 import { Logo } from '../ui';
 import { haptics } from '../../lib/haptics';
+import { signOutFirebase } from '../../lib/firebase';
 
 export const Header = ({ onMenuClick }) => {
   const { user, navigate, setUser, addToast, scheduledPayments = [], getUpcomingPayments } = useApp();
@@ -47,9 +48,10 @@ export const Header = ({ onMenuClick }) => {
     navigate(page);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     haptics.medium();
     setShowProfile(false);
+    await signOutFirebase();
     setUser(null);
     navigate('landing', { replace: true });
     addToast('Signed out', 'info');

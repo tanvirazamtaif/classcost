@@ -12,6 +12,7 @@ import { LandingPage } from './pages/LandingPage';
 import { OTPVerification } from './pages/OTPVerification';
 
 // Lazy load all other page components
+const PhoneAuthView = lazy(() => import('./pages/PhoneAuthView'));
 const OnboardingWizard = lazy(() => import('./pages/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })));
 const ParentOnboardingView = lazy(() => import('./pages/ParentOnboardingView'));
 const DashboardView = lazy(() => import('./pages/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -98,6 +99,7 @@ const ViewRouter = () => {
       {view === "otp" && <OTPVerification />}
       {view === "role-selection" && <RoleSelection />}
       <Suspense fallback={<PageLoader view={view} dark={dark} />}>
+        {view === "phone-auth" && <PhoneAuthView />}
         {view === "admin" && <AdminApp />}
         {view === "onboarding" && <OnboardingWizard />}
         {view === "parent-onboarding" && <ParentOnboardingView />}
