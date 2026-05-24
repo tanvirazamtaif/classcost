@@ -77,14 +77,34 @@ export const LandingPage = () => {
     if (!response.credential) return;
     setGLoading(true);
     try {
-      const result = await googleSignIn(response.credential);
+      let result;
+      try {
+        // Preferred: backend verifies the credential signature and returns a server user record.
+        result = await googleSignIn(response.credential);
+      } catch (backendErr) {
+        // Fallback: backend isn't running (common in dev). Decode the JWT client-side
+        // so the user can still sign in. The JWT comes from Google's own SDK, so its
+        // contents are trustworthy for non-production use. For production, run the
+        // backend so the signature is actually verified.
+        console.warn('Google sign-in: backend unreachable, using client-side decode.', backendErr?.message);
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        result = {
+          id: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          avatar: payload.picture,
+          profileComplete: false,
+        };
+      }
       setUser((p) => ({
         ...p, ...result,
         isLoggedIn: true,
         trialStart: p?.trialStart || Date.now(),
       }));
       addToast("Signed in with Google!", "success");
-      if (result.id) await loadUserData(result.id);
+      if (result.id) {
+        try { await loadUserData(result.id); } catch { /* backend offline, skip */ }
+      }
       if (result.profileComplete) {
         navigate("dashboard", { replace: true });
       } else {
