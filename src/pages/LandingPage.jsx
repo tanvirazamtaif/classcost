@@ -361,8 +361,8 @@ export const LandingPage = () => {
                   onKeyDown={(e) => e.key === "Enter" && handleContinue()}
                   className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] py-3.5 px-4 text-white placeholder-zinc-600 text-sm outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition mb-3" />
                 <button onClick={handleContinue} disabled={loading}
-                  className="w-full text-sm font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20">
-                  {loading ? <><div className="w-4 h-4 border-2 border-blue-300 border-t-white rounded-full animate-spin" />Sending code...</> : "Continue with Email"}
+                  className="w-full text-sm font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-600/20">
+                  {loading ? <><div className="w-4 h-4 border-2 border-pink-300 border-t-white rounded-full animate-spin" />Sending code...</> : "Continue with Email"}
                 </button>
                 <p className="text-zinc-600 text-[11px] text-center mt-3">We'll send a 6-digit verification code</p>
               </div>
