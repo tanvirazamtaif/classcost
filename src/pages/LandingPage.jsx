@@ -181,11 +181,22 @@ export const LandingPage = () => {
     if (!email || !email.includes("@")) { addToast("Enter a valid email", "error"); return; }
     setLoading(true);
     try {
-      await sendOTP(email);
-      setUser((p) => ({ ...p, email }));
-      setSignupMethod('email');
-      addToast("Code sent to your email!", "success");
-      navigate("otp");
+      try {
+        await sendOTP(email);
+        setUser((p) => ({ ...p, email, emailDemo: false }));
+        setSignupMethod('email');
+        addToast("Code sent to your email!", "success");
+        navigate("otp");
+      } catch (backendErr) {
+        // Backend is unreachable or email service isn't configured — fall back
+        // to a local demo flow so the user isn't stuck. They'll enter 482913 on
+        // the OTP screen. Honest about the limitation via a toast + banner.
+        console.warn('Email OTP backend failed, switching to demo mode:', backendErr?.message);
+        setUser((p) => ({ ...p, email, emailDemo: true }));
+        setSignupMethod('email');
+        addToast(t('auth.emailFallbackToDemo'), 'info');
+        navigate("otp");
+      }
     } catch (e) {
       addToast(e.message || "Failed to send code", "error");
     } finally {

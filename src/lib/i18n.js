@@ -56,6 +56,9 @@ const STRINGS = {
     'auth.sendingCode': 'Sending code...',
     'auth.signingIn': 'Signing in...',
     'auth.codeHint': "We'll send a 6-digit verification code",
+    'auth.emailFallbackToDemo': 'Email service unavailable — switching to demo. Use code 482913.',
+    'otp.demoTitle': 'Demo mode',
+    'otp.demoBody': 'No real email was sent. Use code 482913 to continue.',
 
     // Language toggle accessibility
     'lang.switchTo': 'Switch language',
@@ -116,6 +119,9 @@ const STRINGS = {
     'auth.sendingCode': 'কোড পাঠানো হচ্ছে...',
     'auth.signingIn': 'সাইন ইন হচ্ছে...',
     'auth.codeHint': 'আমরা ৬-সংখ্যার ভেরিফিকেশন কোড পাঠাবো',
+    'auth.emailFallbackToDemo': 'ইমেইল সার্ভিস পাওয়া যাচ্ছে না — ডেমো মোডে চলে যাচ্ছে। 482913 কোড ব্যবহার করুন।',
+    'otp.demoTitle': 'ডেমো মোড',
+    'otp.demoBody': 'আসল কোনো ইমেইল পাঠানো হয়নি। চালিয়ে যেতে 482913 কোড ব্যবহার করুন।',
 
     'lang.switchTo': 'ভাষা পরিবর্তন',
     'lang.english': 'English',
