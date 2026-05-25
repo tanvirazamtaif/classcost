@@ -19,10 +19,14 @@ export default function PhoneAuthView() {
   const [code, setCode] = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  // Forced demo: Firebase is configured but the project's plan / quota doesn't
+  // allow real SMS (e.g. auth/billing-not-enabled on Spark). Triggered at
+  // runtime, persists for this session so handleVerify uses the demo path.
+  const [forcedDemo, setForcedDemo] = useState(false);
   const confirmationRef = useRef(null);
 
   const fullPhone = `${countryCode}${phone.replace(/[^\d]/g, '')}`;
-  const isDemo = !firebaseEnabled;
+  const isDemo = !firebaseEnabled || forcedDemo;
 
   const handleSend = async () => {
     if (!phone || phone.replace(/[^\d]/g, '').length < 7) {
@@ -38,10 +42,26 @@ export default function PhoneAuthView() {
         addToast(t('phoneAuth.codeSent'), 'success');
         setStep('otp');
       } else {
-        const confirmation = await sendPhoneOtp(fullPhone, 'recaptcha-container');
-        confirmationRef.current = confirmation;
-        addToast(t('phoneAuth.codeSent'), 'success');
-        setStep('otp');
+        try {
+          const confirmation = await sendPhoneOtp(fullPhone, 'recaptcha-container');
+          confirmationRef.current = confirmation;
+          addToast(t('phoneAuth.codeSent'), 'success');
+          setStep('otp');
+        } catch (fbErr) {
+          // Gracefully fall back to demo mode when the Firebase project's plan
+          // blocks SMS — Spark plan returns billing-not-enabled. Same handling
+          // for quota-exceeded so a temporary cap doesn't break the UX.
+          const fallbackCodes = ['auth/billing-not-enabled', 'auth/quota-exceeded', 'auth/admin-restricted-operation'];
+          if (fallbackCodes.includes(fbErr?.code)) {
+            console.warn(`Phone auth blocked (${fbErr.code}) — switching to demo mode for this session.`);
+            setForcedDemo(true);
+            confirmationRef.current = { demo: true };
+            addToast(t('phoneAuth.fallbackToDemo'), 'info');
+            setStep('otp');
+          } else {
+            throw fbErr;
+          }
+        }
       }
     } catch (e) {
       console.error(e);

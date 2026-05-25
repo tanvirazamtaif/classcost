@@ -80,6 +80,7 @@ const STRINGS = {
     'phoneAuth.signedIn': 'Signed in!',
     'phoneAuth.demoTitle': 'Demo mode',
     'phoneAuth.demoBody': 'No real SMS will be sent. Use code 482913 to continue. Set up Firebase to enable real phone OTP.',
+    'phoneAuth.fallbackToDemo': 'Real SMS unavailable on this Firebase plan — switching to demo. Use code 482913.',
   },
   bn: {
     'nav.features': 'ফিচার',
@@ -137,6 +138,7 @@ const STRINGS = {
     'phoneAuth.signedIn': 'সাইন ইন হয়েছে!',
     'phoneAuth.demoTitle': 'ডেমো মোড',
     'phoneAuth.demoBody': 'আসল SMS পাঠানো হবে না। চালিয়ে যেতে 482913 কোড ব্যবহার করুন। আসল ফোন OTP চালু করতে Firebase সেটআপ করুন।',
+    'phoneAuth.fallbackToDemo': 'এই Firebase প্ল্যানে আসল SMS পাওয়া যাচ্ছে না — ডেমো মোডে চলে যাচ্ছে। 482913 কোড ব্যবহার করুন।',
   },
 };
 
