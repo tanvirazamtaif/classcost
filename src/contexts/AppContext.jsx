@@ -84,7 +84,15 @@ export const AppProvider = ({ children }) => {
   const [educationLevel, setEducationLevel] = useLocalStorage('classcost_education_level', null);
   const [educationLevelAsked, setEducationLevelAsked] = useLocalStorage('classcost_education_level_asked', false);
   const [theme, setThemeLocal] = useLocalStorage("ut_v3_theme", "dark");
+  const [language, setLanguageLocal] = useLocalStorage("ut_v3_language", "en");
   const { toasts, addToast } = useToast();
+
+  const setLanguage = useCallback((lang) => {
+    setLanguageLocal(lang === 'bn' ? 'bn' : 'en');
+  }, []);
+  const toggleLanguage = useCallback(() => {
+    setLanguageLocal((prev) => (prev === 'bn' ? 'en' : 'bn'));
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setThemeLocal((prev) => (prev === "dark" ? "light" : "dark"));
@@ -507,6 +515,7 @@ export const AppProvider = ({ children }) => {
     notifications, setNotifications,
     toasts, addToast,
     theme, toggleTheme,
+    language, setLanguage, toggleLanguage,
     updateSubscription, setAccountType, generateInviteCode,
     pendingAccountType, setPendingAccountType,
     signupMethod, setSignupMethod,

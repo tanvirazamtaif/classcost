@@ -2,14 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Logo } from '../components/ui';
 import { sendPhoneOtp, mapFirebaseUserToAppUser, firebaseEnabled } from '../lib/firebase';
+import { useT } from '../lib/i18n';
+
+// When Firebase isn't configured, accept this fixed code so the UX is still
+// testable end-to-end. Matches the README's documented email demo code.
+const DEMO_OTP_CODE = '482913';
 
 export default function PhoneAuthView() {
-  const { navigate, setUser, addToast, loadUserData } = useApp();
+  const { navigate, setUser, addToast, loadUserData, setSignupMethod } = useApp();
+  const { t } = useT();
   useEffect(() => { document.title = 'ClassCost — Sign in with phone'; }, []);
 
-  // Two steps: 'phone' → enter number, 'otp' → enter 6-digit code
-  const [step, setStep] = useState('phone');
-  const [countryCode, setCountryCode] = useState('+880'); // Bangladesh default
+  const [step, setStep] = useState('phone'); // 'phone' | 'otp'
+  const [countryCode, setCountryCode] = useState('+880');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [sending, setSending] = useState(false);
@@ -17,22 +22,27 @@ export default function PhoneAuthView() {
   const confirmationRef = useRef(null);
 
   const fullPhone = `${countryCode}${phone.replace(/[^\d]/g, '')}`;
+  const isDemo = !firebaseEnabled;
 
   const handleSend = async () => {
-    if (!firebaseEnabled) {
-      addToast('Firebase is not configured yet. See FIREBASE_SETUP.md', 'error');
-      return;
-    }
     if (!phone || phone.replace(/[^\d]/g, '').length < 7) {
-      addToast('Enter a valid phone number', 'error');
+      addToast(t('phoneAuth.invalidPhone'), 'error');
       return;
     }
     setSending(true);
     try {
-      const confirmation = await sendPhoneOtp(fullPhone, 'recaptcha-container');
-      confirmationRef.current = confirmation;
-      addToast('Code sent via SMS', 'success');
-      setStep('otp');
+      if (isDemo) {
+        // Demo path: skip the real SMS. The user types DEMO_OTP_CODE to proceed.
+        await new Promise((r) => setTimeout(r, 600));
+        confirmationRef.current = { demo: true };
+        addToast(t('phoneAuth.codeSent'), 'success');
+        setStep('otp');
+      } else {
+        const confirmation = await sendPhoneOtp(fullPhone, 'recaptcha-container');
+        confirmationRef.current = confirmation;
+        addToast(t('phoneAuth.codeSent'), 'success');
+        setStep('otp');
+      }
     } catch (e) {
       console.error(e);
       addToast(e.message || 'Failed to send code', 'error');
@@ -42,25 +52,39 @@ export default function PhoneAuthView() {
   };
 
   const handleVerify = async () => {
-    if (!confirmationRef.current) {
-      addToast('No verification in progress', 'error');
-      return;
-    }
     if (code.length !== 6) {
-      addToast('Enter the 6-digit code', 'error');
+      addToast(t('phoneAuth.invalidCode'), 'error');
       return;
     }
     setVerifying(true);
     try {
-      const result = await confirmationRef.current.confirm(code);
-      const appUser = mapFirebaseUserToAppUser(result.user, 'phone');
+      let appUser;
+      if (isDemo) {
+        if (code !== DEMO_OTP_CODE) {
+          throw new Error(`Demo code is ${DEMO_OTP_CODE}`);
+        }
+        // Build a local-only user record. No backend sync — they live in
+        // localStorage until Firebase is wired up.
+        appUser = {
+          id: `demo-${fullPhone}`,
+          email: null,
+          phone: fullPhone,
+          name: null,
+          avatar: null,
+          authProvider: 'phone',
+          isLoggedIn: true,
+          profileComplete: false,
+        };
+      } else {
+        const result = await confirmationRef.current.confirm(code);
+        appUser = mapFirebaseUserToAppUser(result.user, 'phone');
+      }
       setUser((p) => ({ ...p, ...appUser, trialStart: p?.trialStart || Date.now() }));
-      addToast('Signed in!', 'success');
-      if (appUser.id) {
-        // Best-effort sync. Will silently fail if backend doesn't know the user yet.
+      setSignupMethod?.('phone');
+      addToast(t('phoneAuth.signedIn'), 'success');
+      if (appUser.id && !isDemo) {
         try { await loadUserData(appUser.id); } catch { /* ignore */ }
       }
-      // New phone users go to role selection / onboarding.
       navigate('role-selection', { replace: true });
     } catch (e) {
       console.error(e);
@@ -72,7 +96,6 @@ export default function PhoneAuthView() {
 
   return (
     <div className="min-h-screen bg-[#09090f] relative overflow-hidden flex items-center justify-center px-5 py-10">
-      {/* Background gradients (matching landing) */}
       <div className="absolute top-[-200px] left-[20%] w-[700px] h-[700px] bg-[radial-gradient(circle,rgba(99,102,241,.12),transparent_60%)] pointer-events-none" />
       <div className="absolute bottom-[-200px] right-[-5%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(168,85,247,.1),transparent_60%)] pointer-events-none" />
 
@@ -83,14 +106,19 @@ export default function PhoneAuthView() {
               <Logo size={52} animated className="rounded-2xl" />
             </div>
             <h2 className="text-white text-xl font-bold">
-              {step === 'phone' ? 'Sign in with phone' : 'Enter verification code'}
+              {step === 'phone' ? t('phoneAuth.title') : t('phoneAuth.titleVerify')}
             </h2>
             <p className="text-zinc-500 text-sm mt-1">
-              {step === 'phone'
-                ? "We'll send you a 6-digit code via SMS"
-                : `Sent to ${fullPhone}`}
+              {step === 'phone' ? t('phoneAuth.hint') : `${t('phoneAuth.sentTo')} ${fullPhone}`}
             </p>
           </div>
+
+          {isDemo && (
+            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[12px] leading-snug">
+              <div className="font-semibold text-amber-300">{t('phoneAuth.demoTitle')}</div>
+              <div className="text-amber-200/80 mt-0.5">{t('phoneAuth.demoBody')}</div>
+            </div>
+          )}
 
           {step === 'phone' && (
             <>
@@ -114,7 +142,7 @@ export default function PhoneAuthView() {
                   onChange={(e) => setPhone(e.target.value)}
                   type="tel"
                   inputMode="numeric"
-                  placeholder="1XXXXXXXXX"
+                  placeholder={t('phoneAuth.phonePlaceholder')}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   className="flex-1 rounded-xl bg-white/[0.04] border border-white/[0.08] py-3.5 px-4 text-white placeholder-zinc-600 text-sm outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition"
                 />
@@ -127,10 +155,10 @@ export default function PhoneAuthView() {
                 {sending ? (
                   <>
                     <div className="w-4 h-4 border-2 border-indigo-300 border-t-white rounded-full animate-spin" />
-                    Sending code...
+                    {t('auth.sendingCode')}
                   </>
                 ) : (
-                  'Send verification code'
+                  t('phoneAuth.send')
                 )}
               </button>
             </>
@@ -144,7 +172,7 @@ export default function PhoneAuthView() {
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="6-digit code"
+                placeholder={t('phoneAuth.codePlaceholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
                 className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] py-3.5 px-4 text-white placeholder-zinc-600 text-center text-lg tracking-[0.5em] outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition mb-3"
               />
@@ -156,17 +184,17 @@ export default function PhoneAuthView() {
                 {verifying ? (
                   <>
                     <div className="w-4 h-4 border-2 border-indigo-300 border-t-white rounded-full animate-spin" />
-                    Verifying...
+                    {t('phoneAuth.verifying')}
                   </>
                 ) : (
-                  'Verify and sign in'
+                  t('phoneAuth.verify')
                 )}
               </button>
               <button
                 onClick={() => { setStep('phone'); setCode(''); }}
                 className="w-full text-zinc-500 text-xs hover:text-zinc-300 transition"
               >
-                ← Use a different number
+                {t('phoneAuth.differentNumber')}
               </button>
             </>
           )}
@@ -175,10 +203,10 @@ export default function PhoneAuthView() {
             onClick={() => navigate('landing', { replace: true })}
             className="w-full mt-4 text-zinc-500 text-xs hover:text-zinc-300 transition"
           >
-            Back to sign-in options
+            {t('phoneAuth.backToOptions')}
           </button>
 
-          {/* Invisible reCAPTCHA target (Firebase Phone Auth requires this). */}
+          {/* Invisible reCAPTCHA target — only used when Firebase is configured. */}
           <div id="recaptcha-container" />
         </div>
       </div>

@@ -28,7 +28,9 @@
     <link rel="apple-touch-icon" href="/icon-192.png?v=2">
     <meta property="og:image" content="/icon-512.png">
 
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google Identity Services script is loaded dynamically in LandingPage.jsx
+         so the locale (hl URL parameter) matches the app's language toggle.
+         Loading it here would lock the language to the browser's default. -->
   </head>
   <body>
     <div id="root"></div>

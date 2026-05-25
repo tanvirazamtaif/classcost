@@ -82,16 +82,32 @@ export async function appleSignIn() {
 // DOM before calling sendPhoneOtp.
 export async function sendPhoneOtp(phoneNumber, recaptchaContainerId = 'recaptcha-container') {
   ensureEnabled();
-  // Clean up any previous verifier instance (re-renders, retries).
+
+  // Aggressive cleanup so retries / re-mounts (React strict mode renders twice
+  // in dev) don't trip "reCAPTCHA has already been rendered in this element".
   if (window._classcostRecaptcha) {
     try { window._classcostRecaptcha.clear(); } catch { /* ignore */ }
     window._classcostRecaptcha = null;
   }
+  // Clear any DOM artifacts the previous reCAPTCHA left behind. Firebase
+  // injects child nodes into the container and `.clear()` doesn't always
+  // remove them.
+  const containerEl = document.getElementById(recaptchaContainerId);
+  if (containerEl) containerEl.innerHTML = '';
+
   const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
     size: 'invisible',
   });
   window._classcostRecaptcha = verifier;
-  return signInWithPhoneNumber(auth, phoneNumber, verifier);
+  try {
+    return await signInWithPhoneNumber(auth, phoneNumber, verifier);
+  } catch (e) {
+    // On failure, also tear down so the next attempt gets a fresh widget.
+    try { verifier.clear(); } catch { /* ignore */ }
+    window._classcostRecaptcha = null;
+    if (containerEl) containerEl.innerHTML = '';
+    throw e;
+  }
 }
 
 // ─── Sign Out ────────────────────────────────────────────────────────────────

@@ -3,24 +3,48 @@ import { useApp } from '../contexts/AppContext';
 import { sendOTP, googleSignIn } from '../api';
 import { Logo } from '../components/ui';
 import { appleSignIn, mapFirebaseUserToAppUser, firebaseEnabled } from '../lib/firebase';
+import { useT } from '../lib/i18n';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const LANDING_CATEGORIES = [
-  { label: 'Semester fees', bgColor: 'rgba(99,102,241,.15)',
+  { labelKey: 'cat.semesterFees', bgColor: 'rgba(99,102,241,.15)',
     icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5"/></svg> },
-  { label: 'Transport', bgColor: 'rgba(59,130,246,.15)',
+  { labelKey: 'cat.transport', bgColor: 'rgba(59,130,246,.15)',
     icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h5l3 5v5h-2M6 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM20 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg> },
-  { label: 'Housing', bgColor: 'rgba(34,197,94,.15)',
+  { labelKey: 'cat.housing', bgColor: 'rgba(34,197,94,.15)',
     icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
-  { label: 'Food', bgColor: 'rgba(249,115,22,.15)',
+  { labelKey: 'cat.food', bgColor: 'rgba(249,115,22,.15)',
     icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2.5" strokeLinecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg> },
-  { label: 'Study materials', bgColor: 'rgba(245,158,11,.15)',
+  { labelKey: 'cat.studyMaterials', bgColor: 'rgba(245,158,11,.15)',
     icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> },
 ];
 
+// ─── Language toggle ─────────────────────────────────────────────────────────
+const LanguageToggle = ({ lang, setLang }) => (
+  <div className="inline-flex rounded-full bg-white/[0.04] border border-white/[0.08] p-0.5 text-xs font-medium">
+    <button
+      onClick={() => setLang('en')}
+      className={`px-3 py-1 rounded-full transition ${lang === 'en' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+      aria-pressed={lang === 'en'}
+      aria-label="Switch to English"
+    >
+      EN
+    </button>
+    <button
+      onClick={() => setLang('bn')}
+      className={`px-3 py-1 rounded-full transition ${lang === 'bn' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+      aria-pressed={lang === 'bn'}
+      aria-label="বাংলায় পরিবর্তন করুন"
+    >
+      বাং
+    </button>
+  </div>
+);
+
 export const LandingPage = () => {
   const { navigate, setUser, addToast, loadUserData, setSignupMethod } = useApp();
+  const { t, lang, setLang } = useT();
   useEffect(() => { document.title = "ClassCost — Track Your Education Journey"; }, []);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,25 +80,22 @@ export const LandingPage = () => {
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
 
-    // The Google Identity Services script is loaded async in index.html. It may
-    // not be ready when this component first mounts — poll briefly until it is,
-    // then render the button. Gives up after ~5s to avoid a runaway interval.
+    // Google Identity Services locks its UI language at SCRIPT LOAD TIME via the
+    // `hl` URL parameter — `locale` options on initialize/renderButton are
+    // unreliable once the SDK has loaded. To honor the in-app EN/বাং toggle, we
+    // tear down any previously loaded GSI script + global, then load a fresh
+    // script with the matching `?hl=` parameter. When `lang` changes the whole
+    // effect re-runs, swapping the script for the new locale.
+    document.documentElement.lang = lang;
+
     let cancelled = false;
-    let attempts = 0;
-    const setup = () => {
-      if (cancelled) return;
-      if (!window.google?.accounts || !googleBtnRef.current) {
-        if (attempts++ < 50) {
-          setTimeout(setup, 100);
-        } else {
-          console.warn('Google Identity Services script failed to load.');
-        }
-        return;
-      }
+
+    const renderButtonNow = () => {
+      if (cancelled || !window.google?.accounts || !googleBtnRef.current) return;
+      googleBtnRef.current.innerHTML = '';
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleResponse,
-        locale: 'en',
       });
       window.google.accounts.id.renderButton(googleBtnRef.current, {
         theme: 'filled_black',
@@ -83,12 +104,33 @@ export const LandingPage = () => {
         text: 'continue_with',
         shape: 'rectangular',
         logo_alignment: 'left',
-        locale: 'en',
       });
     };
-    setup();
+
+    // Remove any previously injected GSI scripts so the next load picks up the
+    // new `hl` query parameter. Without this the browser will reuse the
+    // already-evaluated script and keep the old language.
+    document.querySelectorAll('script[data-classcost-gsi]').forEach((s) => s.remove());
+    // Also force-evict the cached SDK globals so the fresh script reinitializes
+    // with the new locale instead of short-circuiting on an existing instance.
+    try {
+      if (window.google?.accounts) {
+        window.google.accounts.id?.cancel?.();
+      }
+      delete window.google;
+    } catch { /* ignore — some browsers freeze this property after init */ }
+
+    const script = document.createElement('script');
+    script.src = `https://accounts.google.com/gsi/client?hl=${encodeURIComponent(lang)}`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.classcostGsi = 'true';
+    script.onload = renderButtonNow;
+    script.onerror = () => console.warn('Google Identity Services script failed to load.');
+    document.head.appendChild(script);
+
     return () => { cancelled = true; };
-  }, []);
+  }, [lang]);
 
   const handleGoogleResponse = async (response) => {
     if (!response.credential) return;
@@ -189,10 +231,16 @@ export const LandingPage = () => {
             <span className="text-white text-lg font-bold tracking-tight">ClassCost</span>
           </div>
           <div className="flex items-center gap-8">
-            <span className="text-sm text-zinc-500 hover:text-zinc-300 transition cursor-default">Features</span>
-            <span className="text-sm text-zinc-500 hover:text-zinc-300 transition cursor-default">About</span>
-            <span className="text-sm text-zinc-500 hover:text-zinc-300 transition cursor-default">Contact</span>
+            <span className="text-sm text-zinc-500 hover:text-zinc-300 transition cursor-default">{t('nav.features')}</span>
+            <span className="text-sm text-zinc-500 hover:text-zinc-300 transition cursor-default">{t('nav.about')}</span>
+            <span className="text-sm text-zinc-500 hover:text-zinc-300 transition cursor-default">{t('nav.contact')}</span>
+            <LanguageToggle lang={lang} setLang={setLang} />
           </div>
+        </div>
+
+        {/* Mobile-only floating language toggle (no top bar on mobile) */}
+        <div className="lg:hidden absolute top-4 right-4 z-30">
+          <LanguageToggle lang={lang} setLang={setLang} />
         </div>
 
         {/* Two-column layout */}
@@ -203,43 +251,43 @@ export const LandingPage = () => {
             <div className="max-w-[520px]">
               <div className="animate-landing-fade-up flex items-center gap-2 px-4 py-2 bg-indigo-500/8 border border-indigo-500/15 rounded-full w-fit mb-8">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                <span className="text-xs text-indigo-300 font-medium tracking-wide uppercase">Trusted by 500+ students</span>
+                <span className="text-xs text-indigo-300 font-medium tracking-wide uppercase">{t('landing.trustedBadge')}</span>
               </div>
 
               <h1 className="animate-landing-fade-up-d1 text-[44px] xl:text-[52px] 2xl:text-[60px] font-extrabold leading-[1.05] tracking-tight text-white mb-6">
-                Track every taka
-                <br />of your{' '}
-                <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">education</span>
-                {' '}journey
+                {t('landing.titleLine1')}
+                <br />{t('landing.titleLine2Prefix')}{' '}
+                <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">{t('landing.titleHighlight')}</span>
+                {t('landing.titleLine2Suffix') ? ' ' + t('landing.titleLine2Suffix') : ''}
               </h1>
 
               <p className="animate-landing-fade-up-d2 text-lg text-zinc-400 leading-relaxed mb-10 max-w-[440px]">
-                From semester fees to rickshaw fares — ClassCost helps Bangladesh students see exactly where their money goes.
+                {t('landing.subtitle')}
               </p>
 
               <div className="animate-landing-fade-up-d3 flex gap-10 mb-12">
                 <div>
                   <div className="text-[32px] font-bold text-white">৳2.4M+</div>
-                  <div className="text-sm text-zinc-600 mt-1">Expenses tracked</div>
+                  <div className="text-sm text-zinc-600 mt-1">{t('landing.stat.expensesTracked')}</div>
                 </div>
                 <div className="w-px bg-zinc-800/50" />
                 <div>
                   <div className="text-[32px] font-bold text-white">15+</div>
-                  <div className="text-sm text-zinc-600 mt-1">Universities</div>
+                  <div className="text-sm text-zinc-600 mt-1">{t('landing.stat.universities')}</div>
                 </div>
                 <div className="w-px bg-zinc-800/50" />
                 <div>
-                  <div className="text-[32px] font-bold text-white">Free</div>
-                  <div className="text-sm text-zinc-600 mt-1">For students</div>
+                  <div className="text-[32px] font-bold text-white">{t('landing.stat.free')}</div>
+                  <div className="text-sm text-zinc-600 mt-1">{t('landing.stat.forStudents')}</div>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 {LANDING_CATEGORIES.map((cat, i) => (
-                  <div key={cat.label} className="animate-landing-slide-in flex items-center gap-2 pl-1.5 pr-4 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl backdrop-blur-sm"
+                  <div key={cat.labelKey} className="animate-landing-slide-in flex items-center gap-2 pl-1.5 pr-4 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl backdrop-blur-sm"
                     style={{ animationDelay: `${i * 120}ms` }}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: cat.bgColor }}>{cat.icon}</div>
-                    <span className="text-[13px] text-zinc-400 font-medium">{cat.label}</span>
+                    <span className="text-[13px] text-zinc-400 font-medium">{t(cat.labelKey)}</span>
                   </div>
                 ))}
               </div>
@@ -298,7 +346,7 @@ export const LandingPage = () => {
               <div className="lg:hidden text-center mb-8">
                 <Logo size={56} animated className="mb-4 mx-auto rounded-2xl" />
                 <h1 className="text-white text-2xl font-bold tracking-tight mb-1">ClassCost</h1>
-                <p className="text-zinc-500 text-sm">Smart expense tracking for students</p>
+                <p className="text-zinc-500 text-sm">{t('landing.mobileTagline')}</p>
               </div>
 
               {/* AUTH CARD */}
@@ -307,8 +355,8 @@ export const LandingPage = () => {
                   <div className="flex justify-center mb-4">
                     <Logo size={52} animated className="rounded-2xl" />
                   </div>
-                  <h2 className="text-white text-xl font-bold">Get started</h2>
-                  <p className="text-zinc-500 text-sm mt-1">Sign in or create an account</p>
+                  <h2 className="text-white text-xl font-bold">{t('auth.getStarted')}</h2>
+                  <p className="text-zinc-500 text-sm mt-1">{t('auth.signInOrCreate')}</p>
                 </div>
                 {GOOGLE_CLIENT_ID && (
                   <>
@@ -316,63 +364,59 @@ export const LandingPage = () => {
                     {gLoading && (
                       <div className="flex items-center justify-center gap-2 mb-3">
                         <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
-                        <span className="text-zinc-500 text-xs">Signing in...</span>
+                        <span className="text-zinc-500 text-xs">{t('auth.signingIn')}</span>
                       </div>
                     )}
                   </>
                 )}
                 {firebaseEnabled && (
-                  <>
-                    <button
-                      onClick={handleAppleSignIn}
-                      disabled={aLoading}
-                      className="w-full text-sm font-medium rounded-xl py-3 mb-3 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-50 bg-black hover:bg-zinc-900 text-white border border-white/10 shadow-sm"
-                      aria-label="Continue with Apple"
-                    >
-                      {aLoading ? (
-                        <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true">
-                          <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-                        </svg>
-                      )}
-                      Continue with Apple
-                    </button>
-                    <button
-                      onClick={() => navigate('phone-auth')}
-                      className="w-full text-sm font-medium rounded-xl py-3 mb-3 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.08]"
-                      aria-label="Continue with phone number"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  <button
+                    onClick={handleAppleSignIn}
+                    disabled={aLoading}
+                    className="w-full text-sm font-medium rounded-xl py-3 mb-3 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-50 bg-black hover:bg-zinc-900 text-white border border-white/10 shadow-sm"
+                    aria-label="Continue with Apple"
+                  >
+                    {aLoading ? (
+                      <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true">
+                        <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
                       </svg>
-                      Continue with Phone
-                    </button>
-                  </>
+                    )}
+                    {t('auth.continueWithApple')}
+                  </button>
                 )}
-                {(GOOGLE_CLIENT_ID || firebaseEnabled) && (
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex-1 h-px bg-white/[0.06]" />
-                    <span className="text-zinc-600 text-[11px]">or</span>
-                    <div className="flex-1 h-px bg-white/[0.06]" />
-                  </div>
-                )}
-                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email address"
+                <button
+                  onClick={() => navigate('phone-auth')}
+                  className="w-full text-sm font-medium rounded-xl py-3 mb-3 flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.08]"
+                  aria-label="Continue with phone number"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                  {t('auth.continueWithPhone')}
+                </button>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <span className="text-zinc-600 text-[11px]">{t('auth.or')}</span>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                </div>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder={t('auth.emailPlaceholder')}
                   onKeyDown={(e) => e.key === "Enter" && handleContinue()}
                   className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] py-3.5 px-4 text-white placeholder-zinc-600 text-sm outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition mb-3" />
                 <button onClick={handleContinue} disabled={loading}
                   className="w-full text-sm font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-600/20">
-                  {loading ? <><div className="w-4 h-4 border-2 border-pink-300 border-t-white rounded-full animate-spin" />Sending code...</> : "Continue with Email"}
+                  {loading ? <><div className="w-4 h-4 border-2 border-pink-300 border-t-white rounded-full animate-spin" />{t('auth.sendingCode')}</> : t('auth.continueWithEmail')}
                 </button>
-                <p className="text-zinc-600 text-[11px] text-center mt-3">We'll send a 6-digit verification code</p>
+                <p className="text-zinc-600 text-[11px] text-center mt-3">{t('auth.codeHint')}</p>
               </div>
 
               {/* Mobile pills */}
               <div className="lg:hidden flex flex-wrap justify-center gap-2 mt-6">
                 {LANDING_CATEGORIES.map((cat) => (
-                  <div key={cat.label} className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+                  <div key={cat.labelKey} className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                     <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: cat.bgColor }}>{cat.icon}</div>
-                    <span className="text-[10px] text-zinc-500">{cat.label}</span>
+                    <span className="text-[10px] text-zinc-500">{t(cat.labelKey)}</span>
                   </div>
                 ))}
               </div>
