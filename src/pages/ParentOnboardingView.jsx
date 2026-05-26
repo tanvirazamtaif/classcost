@@ -151,9 +151,9 @@ export const ParentOnboardingView = () => {
                 <span className={`text-sm font-semibold ${d ? 'text-white' : 'text-slate-800'}`}>How to link</span>
               </div>
               <ol className={`text-xs space-y-1.5 list-decimal list-inside ${d ? 'text-slate-400' : 'text-slate-600'}`}>
-                <li>Ask your child to open their ClassCost app</li>
-                <li>They go to Settings and find their Invite Code</li>
-                <li>Enter the 6-digit code below</li>
+                <li>Have your child open ClassCost on their phone</li>
+                <li>Have them tap Settings → copy the 6-digit Invite Code</li>
+                <li>Type that code in the box below</li>
               </ol>
             </div>
 
