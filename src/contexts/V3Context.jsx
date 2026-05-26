@@ -48,6 +48,18 @@ export function V3Provider({ children }) {
 
   const active = isEnabled('USE_NEW_ARCHITECTURE') && !!user?.id;
 
+  // Local-fallback storage for users whose accounts don't exist on the backend
+  // (e.g. signed in via client-side Google decode or demo email). Keyed by the
+  // user id so multiple test accounts don't collide.
+  const localEntitiesKey = (uid) => `classcost_v3_local_entities_${uid}`;
+  const readLocalEntities = (uid) => {
+    try { return JSON.parse(localStorage.getItem(localEntitiesKey(uid)) || '[]'); }
+    catch { return []; }
+  };
+  const writeLocalEntities = (uid, list) => {
+    try { localStorage.setItem(localEntitiesKey(uid), JSON.stringify(list)); } catch { /* quota */ }
+  };
+
   const loadAll = useCallback(async (userId) => {
     setLoading(true);
     try {
@@ -58,7 +70,13 @@ export function V3Provider({ children }) {
         api.getLedgerSummary(userId),
         api.getLedgerEntries(userId),
       ]);
-      setEntities(ent || []);
+      // Merge any locally-only entities (saved during backend outage or for
+      // demo users without a server account) with the server set.
+      const local = readLocalEntities(userId);
+      const byId = new Map();
+      for (const e of (ent || [])) byId.set(e.id, e);
+      for (const e of local) if (!byId.has(e.id)) byId.set(e.id, e);
+      setEntities(Array.from(byId.values()));
       setTrackers(trk || []);
       setUpcomingObligations(upcoming || []);
       setLedgerSummary(summary || null);
@@ -67,15 +85,39 @@ export function V3Provider({ children }) {
       setAllEntries(entries);
     } catch (err) {
       console.error('V3Context loadAll error:', err);
+      // Backend completely unreachable — still show local entities so the
+      // user isn't staring at an empty dashboard.
+      setEntities(readLocalEntities(userId));
     } finally {
       setLoading(false);
     }
   }, []);
 
   const addEntity = useCallback(async (data) => {
-    const entity = await api.createEntity(user.id, data);
-    setEntities((prev) => [entity, ...prev]);
-    return entity;
+    try {
+      const entity = await api.createEntity(user.id, data);
+      setEntities((prev) => [entity, ...prev]);
+      return entity;
+    } catch (err) {
+      // Backend rejected (commonly because this user has no server account —
+      // happens with client-side Google decode + demo email). Save locally so
+      // the user can still build out their data. Synced if/when their account
+      // gets created on the server.
+      console.warn('createEntity backend failed, saving locally:', err?.message);
+      const localEntity = {
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        userId: user.id,
+        ...data,
+        createdAt: new Date().toISOString(),
+        _local: true,
+      };
+      setEntities((prev) => {
+        const next = [localEntity, ...prev];
+        writeLocalEntities(user.id, next.filter((e) => e._local));
+        return next;
+      });
+      return localEntity;
+    }
   }, [user?.id]);
 
   const addTracker = useCallback(async (data) => {

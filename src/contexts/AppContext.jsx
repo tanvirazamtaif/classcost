@@ -48,8 +48,14 @@ const VALID_VIEWS = new Set([
   'education-setup', 'historical-data', 'budget-settings',
   'dashboard', 'reports', 'settings', 'loans', 'schedule',
   'education-fee-form', 'semester-landing', 'add-semester', 'semester-detail',
-  'transport', 'study-materials', 'housing-landing', 'add-housing', 'housing-detail',
-  'education-home', 'institution-detail', 'general-cost-tracker', 'club-detail', 'admin',
+  'semester-detail-v3', 'create-semester',
+  'transport', 'transport-page', 'study-materials', 'materials-page',
+  'food-page', 'other-page',
+  'housing-landing', 'add-housing', 'housing-detail',
+  'education-home', 'institution-detail', 'general-cost-tracker',
+  'club-detail', 'add-club-fee', 'category-scoped',
+  'add-entity', 'record-payment',
+  'admin',
 ]);
 
 /** Read pathname on initial page load so direct links like /reports work */
@@ -118,7 +124,26 @@ export const AppProvider = ({ children }) => {
     return null;
   };
 
+  // In-app navigation stack so the back arrow always works, even when the
+  // user landed on a page directly via URL (no browser history to fall back
+  // to). Each non-replace navigate() pushes the current view; goBack() pops.
+  // `currentViewRef` tracks the live view so navigate() can read it without a
+  // setState callback (which React StrictMode runs twice in dev, double-pushing).
+  const navStackRef = useRef([]);
+  const currentViewRef = useRef(view);
+  // Views that should not be the destination of a "back" action — going back
+  // to an auth/onboarding screen after the user is logged in is wrong.
+  const NON_BACK_TARGETS = ['landing', 'otp', 'phone-auth', 'role-selection', 'onboarding', 'parent-onboarding'];
+
+  // Keep the view ref in sync with the actual view state.
+  useEffect(() => { currentViewRef.current = view; }, [view]);
+
   const navigate = useCallback((v, { replace = false, params = null } = {}) => {
+    const cur = currentViewRef.current;
+    if (!replace && cur && cur !== v && !NON_BACK_TARGETS.includes(cur)) {
+      navStackRef.current = [...navStackRef.current, cur].slice(-30); // cap depth
+    }
+    currentViewRef.current = v; // pre-update so rapid navigate() calls see fresh value
     setView(v);
     setRouteParams(params);
     if (replace) {
@@ -129,14 +154,51 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   const goBack = useCallback(() => {
-    window.history.back();
-  }, []);
+    const stack = navStackRef.current;
+    if (stack.length > 0) {
+      const prev = stack[stack.length - 1];
+      navStackRef.current = stack.slice(0, -1);
+      currentViewRef.current = prev;
+      setView(prev);
+      setRouteParams(null);
+      window.history.replaceState({ view: prev }, '', `/${prev}`);
+    } else {
+      // No in-app history — fall back to dashboard (if logged in), otherwise
+      // to landing. Check both rawUser and the stored ut_v3_user (in case the
+      // hook hasn't re-rendered yet after login).
+      let isLoggedIn = !!rawUser?.isLoggedIn;
+      if (!isLoggedIn && typeof window !== 'undefined') {
+        try {
+          const stored = JSON.parse(window.localStorage.getItem('ut_v3_user') || 'null');
+          isLoggedIn = !!stored?.isLoggedIn;
+        } catch { /* ignore */ }
+      }
+      const fallback = isLoggedIn ? 'dashboard' : 'landing';
+      currentViewRef.current = fallback;
+      setView(fallback);
+      setRouteParams(null);
+      window.history.replaceState({ view: fallback }, '', `/${fallback}`);
+    }
+  }, [rawUser?.isLoggedIn]);
 
   // Listen for browser back/forward
   useEffect(() => {
     const handlePopState = (e) => {
-      const v = e.state?.view || getViewFromPath();
-      if (v) setView(v);
+      const targetView = e.state?.view || getViewFromPath();
+      if (!targetView) return;
+
+      // If the target view is the same as the current view, this was an
+      // intra-view navigation (e.g. a wizard pushed a new step). Don't change
+      // the view — the wizard's own popstate listener will sync its step state.
+      if (targetView === currentViewRef.current) return;
+
+      // View is actually changing — handle normally.
+      const top = navStackRef.current[navStackRef.current.length - 1];
+      if (top === targetView) {
+        navStackRef.current = navStackRef.current.slice(0, -1);
+      }
+      currentViewRef.current = targetView;
+      setView(targetView);
     };
     window.addEventListener('popstate', handlePopState);
 

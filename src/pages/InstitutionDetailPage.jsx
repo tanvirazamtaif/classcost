@@ -171,7 +171,7 @@ export const InstitutionDetailPage = () => {
             setUser={setUser}
             dark={d}
             addToast={addToast}
-            onSaveComplete={() => setActiveTab('payments')}
+            onSaveComplete={() => setActiveTab('semesters')}
           />
         )}
       </main>

@@ -61,7 +61,7 @@ export const HousingLandingPage = () => {
       <main className="max-w-md mx-auto p-4 space-y-5">
 
         {/* Add button */}
-        <GButton fullWidth size="lg" icon={Plus} onClick={() => { haptics.light(); goBack(); }}>
+        <GButton fullWidth size="lg" icon={Plus} onClick={() => { haptics.light(); navigate('add-housing'); }}>
           Add Housing
         </GButton>
 

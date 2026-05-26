@@ -5,3 +5,7 @@ dist
 .DS_Store
 
 /src/generated/prisma
+
+# AI tool bundles (for sharing code with ChatGPT/Claude/etc.) — never commit.
+repomix-output.*
+repopack-output.*

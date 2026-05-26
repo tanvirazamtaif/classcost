@@ -292,17 +292,88 @@ export const shouldNudgeToday = (profile, promotionState) => {
   return true;
 };
 
+// Bangladesh schools, colleges, universities, madrasas, and polytechnics.
+// Curated — not exhaustive. The autocomplete in AddEntityPage uses these as
+// suggestions but still accepts custom typed names for anything not listed.
+// Keys map to education stages (preprimary → research). The "school" level in
+// the UI dropdown pulls from primary + junior + secondary + fullschool keys.
+
+// Schools that span Class 1 through 12 — appear in both School and College
+// dropdowns. Kept as one source-of-truth array and reused below.
+const FULL_SCHOOLS_BD = [
+  "Viqarunnisa Noon School & College","Monipur High School & College","Motijheel Ideal School & College",
+  "Rajuk Uttara Model College","Dhaka Residential Model College","Cantonment English School & College",
+  "Milestone College","BAF Shaheen College Dhaka","BAF Shaheen College Kurmitola","BAF Shaheen College Tejgaon",
+  "Adamjee Cantonment Public School","Mirpur Cantonment Public School & College","Bir Shreshtha Noor Mohammad Public School & College",
+  "St. Joseph Higher Secondary School","St. Gregory's High School & College","Saint Francis Xavier's Girls' High School",
+  "Cambrian School & College","Mastermind School","Scholastica School","Sunbeams School","Maple Leaf International School",
+  "South Breeze School","Aga Khan School","Glenrich International School","Australian International School Dhaka",
+  "Mohammadpur Preparatory School & College","Government Laboratory High School","Dhaka Collegiate School",
+  "Dhanmondi Tutorial","Willes Little Flower School & College","Birshreshtha Munshi Abdur Rouf Public School & College",
+  "Chittagong Collegiate School","Chittagong Grammar School","Bangladesh Navy School & College Chattogram",
+  "Government Muslim High School Chittagong","St. Placid's School & College","Sylhet Government Pilot High School",
+  "Sylhet Cadet College","Rajshahi Collegiate School","Khulna Zilla School","Khulna Public College",
+  "Government P.N. Girls' High School Khulna","Pabna Zilla School","Barishal Zilla School","Rangpur Zilla School",
+  "Comilla Zilla School","Comilla Cadet College","Faujdarhat Cadet College","Jhenidah Cadet College",
+  "Mirzapur Cadet College","Rajshahi Cadet College","Rangpur Cadet College","Barisal Cadet College",
+  "Pabna Cadet College","Cumilla Cadet College","Mymensingh Girls' Cadet College","Feni Girls' Cadet College",
+  "Joypurhat Girls' Cadet College",
+];
+
 export const INSTITUTIONS = {
-  preprimary:       ["Maple Leaf International","Scholastica (Preschool)","Sunbeams Preschool","PlayPen","ABC International Pre-School","Tiny Tots","Hummingbird Preschool","Little Flower Nursery"],
-  primary:          ["Viqarunnisa Noon School","Motijheel Ideal School","Willes Little Flower School","BRAC Primary School","Aga Khan School","Milestone College (Primary)","Cantonment Board School","Sunbeams School"],
-  junior:           ["Viqarunnisa Noon School","Motijheel Ideal School","St. Joseph Higher Secondary School","Holy Cross Girls' High School","Dhaka Cantonment Girls' Public School","Willes Little Flower School"],
-  secondary:        ["Viqarunnisa Noon School","Motijheel Ideal School","Holy Cross Girls' High School","Rajuk Uttara Model College","St. Joseph Higher Secondary School","Dhaka Residential Model College","Milestone College","Cantonment Board School"],
-  fullschool:       ["Rajuk Uttara Model College","Dhaka Residential Model College","Cantonment English School & College","St. Joseph Higher Secondary School","Maple Leaf International School","Milestone College","BAF Shaheen College"],
-  hsc:              ["Notre Dame College","Holy Cross College","Dhaka College","Eden Mohila College","Tejgaon College","Rajshahi College","Chittagong College","Mymensingh Girls' Cadet College","BUET HSC Wing"],
-  degree_college:   ["Titumir College","Siddheswari Degree College","Dhaka City College","Govt. Bangla College","Kabi Nazrul Govt. College","Govt. Tolaram College","Govt. Hazi Muhammad Mohsin College"],
-  honours_college:  ["Titumir College (Honours)","Dhaka City College (Honours)","Govt. Bangla College (Honours)","Eden Mohila College (Honours)","Jahangirnagar College","National Ideal College"],
-  undergrad_private:["North South University (NSU)","BRAC University","IUB","EWU","DIU","UIU","AIUB","Green University","Southeast University","Stamford University","American International University-Bangladesh"],
-  undergrad_public: ["University of Dhaka","BUET","Jahangirnagar University","University of Rajshahi","University of Chittagong","SUST","IUT","Khulna University","MIST","Bangladesh Agricultural University"],
-  masters:          ["University of Dhaka","BUET","NSU (MBA/MS)","BRAC University","IUB Graduate","IBA — MBA","East West University Graduate","SUST Graduate","Jahangirnagar University Graduate"],
-  research:         ["University of Dhaka","BUET","Jahangirnagar University","SUST","University of Rajshahi","University of Chittagong","Bangladesh Agricultural University"],
+  preprimary:       ["Maple Leaf International","Scholastica (Preschool)","Sunbeams Preschool","PlayPen","ABC International Pre-School","Tiny Tots","Hummingbird Preschool","Little Flower Nursery","Glenrich Preschool","South Breeze Preschool","Australian International Preschool","Apollo Tots","Junior Laboratory School"],
+
+  primary:          ["Viqarunnisa Noon School","Monipur High School","Motijheel Ideal School","Willes Little Flower School","BRAC Primary School","Aga Khan School","Milestone College (Primary)","Cantonment Board School","Sunbeams School","Mastermind School","Scholastica School","Government Laboratory High School","South Point School & College (Primary)","Adamjee Cantonment Public School","Dhaka Cantonment Girls' Public School","Birshrestha Noor Mohammad Public School","Mohammadpur Preparatory School","Mirpur Cantonment Public School (Primary)","South Breeze School","Glenrich International School","Australian International School Dhaka"],
+
+  junior:           ["Viqarunnisa Noon School","Monipur High School & College","Motijheel Ideal School","St. Joseph Higher Secondary School","Holy Cross Girls' High School","Dhaka Cantonment Girls' Public School","Willes Little Flower School","Government Laboratory High School","Dhaka Collegiate School","Tejgaon Government Boys' High School","Mohammadpur Government High School","Saint Francis Xavier's Girls' High School","Bir Shreshtha Munshi Abdur Rouf Public School","Banani Bidya Niketan","Udayan Higher Secondary School","BAF Shaheen College Dhaka","Adamjee Cantonment Public School","Mirpur Cantonment Public School","Mastermind School","Scholastica School","Sunbeams School","Maple Leaf International School","Cambrian School & College"],
+
+  secondary:        ["Viqarunnisa Noon School & College","Monipur High School & College","Motijheel Ideal School & College","Holy Cross Girls' High School","Rajuk Uttara Model College","St. Joseph Higher Secondary School","Dhaka Residential Model College","Milestone College","Cantonment English School & College","Mirpur Cantonment Public School & College","Adamjee Cantonment Public School","BAF Shaheen College Dhaka","Bir Shreshtha Noor Mohammad Public School & College","Government Laboratory High School","Saint Francis Xavier's Girls' High School","Maple Leaf International School","Scholastica","Sunbeams","Mastermind School","Cambrian School & College","Willes Little Flower School & College","Mohammadpur Preparatory School & College","Saint Gregory's High School & College","Udayan Higher Secondary School","Chittagong Grammar School","Chittagong Collegiate School","St. Placid's School & College Chittagong","Government Muslim High School Chittagong","Sylhet Government Pilot High School","Rajshahi Collegiate School","Khulna Zilla School","Pabna Zilla School","Comilla Zilla School","Rangpur Zilla School","Barishal Zilla School"],
+
+  fullschool:       FULL_SCHOOLS_BD,
+
+  hsc:              [...FULL_SCHOOLS_BD, "Notre Dame College Dhaka","Notre Dame College Mymensingh","Holy Cross College Dhaka","Dhaka College","Eden Mohila College","Tejgaon College","Begum Badrunnessa Government Girls' College","Government Bangla College","Government Titumir College","Government Shaheed Suhrawardy College","Government Bangabandhu College","Govt. Science College","Rajshahi College","Chittagong College","Chittagong Government Women's College","Hajiganj Government College","MC College Sylhet","Sylhet Government College","Murari Chand College","Carmichael College Rangpur","BL College Khulna","Brojomohun College Barishal","Government Edward College Pabna","Comilla Victoria Government College","Government Tolaram College Narayanganj","Government Saadat College Tangail","Government Ananda Mohan College Mymensingh","Mymensingh Government College","Cantonment Public School & College Saidpur","Bangladesh Navy College Dhaka","Bangladesh Navy College Chattogram","Birshreshtha Munshi Abdur Rouf Public College","Birshreshtha Mostafa Kamal College"],
+
+  degree_college:   ["Titumir College","Siddheswari Degree College","Dhaka City College","Government Bangla College","Kabi Nazrul Government College","Government Tolaram College","Government Hazi Muhammad Mohsin College","Government Shaheed Suhrawardy College","Lalmatia Mohila College","Begum Badrunnessa Government Girls' College","Mohammadpur Kendriya College","Tejgaon College","Mohammadpur Mohila College","Sher-e-Bangla Nagar Government Mahila College","Government Saadat College","Government Ananda Mohan College","Government Edward College","Carmichael College","BL College","Brojomohun College","MC College Sylhet","Hajiganj Government College","Comilla Victoria Government College","Government Azizul Haque College","Rajshahi College (Degree)","Chittagong College (Degree)"],
+
+  honours_college:  ["Titumir College (Honours)","Dhaka City College (Honours)","Government Bangla College (Honours)","Eden Mohila College (Honours)","Jahangirnagar College","National Ideal College","Government Shaheed Suhrawardy College (Honours)","Begum Badrunnessa Government Girls' College (Honours)","Kabi Nazrul Government College (Honours)","Mohammadpur Kendriya College (Honours)","Government Tolaram College (Honours)","Government Ananda Mohan College (Honours)","Rajshahi College (Honours)","Chittagong College (Honours)","MC College Sylhet (Honours)","Carmichael College (Honours)","BL College (Honours)","Government Azizul Haque College (Honours)","Comilla Victoria Government College (Honours)"],
+
+  undergrad_private:[
+    "North South University (NSU)","BRAC University","Independent University Bangladesh (IUB)","East West University (EWU)",
+    "Daffodil International University (DIU)","United International University (UIU)","American International University-Bangladesh (AIUB)",
+    "Green University of Bangladesh","Southeast University","Stamford University Bangladesh","Ahsanullah University of Science & Technology (AUST)",
+    "BRAC University","University of Liberal Arts Bangladesh (ULAB)","University of Asia Pacific (UAP)","Bangladesh University (BU)",
+    "Bangladesh University of Business and Technology (BUBT)","Bangladesh University of Health Sciences","Canadian University of Bangladesh",
+    "Central Women's University","Eastern University","European University of Bangladesh","Manarat International University",
+    "Northern University Bangladesh","Notre Dame University Bangladesh","Premier University Chittagong","Prime University",
+    "Primeasia University","Sonargaon University","State University of Bangladesh","Uttara University","World University of Bangladesh",
+    "Z. H. Sikder University of Science & Technology","BGC Trust University Bangladesh","Bangladesh Islami University",
+    "International University of Business Agriculture and Technology (IUBAT)","Asian University of Bangladesh","Atish Dipankar University of Science & Technology",
+    "Britannia University","City University","Cox's Bazar International University","Dhaka International University","First Capital University of Bangladesh",
+    "Gono Bishwabidyalay","International Standard University","Khwaja Yunus Ali University","Leading University","Metropolitan University Sylhet",
+    "Millennium University","North East University Bangladesh","North Western University","People's University of Bangladesh","Port City International University",
+    "Pundra University of Science and Technology","Queens University","Rajshahi Science & Technology University","Ranada Prasad Shaha University","Royal University of Dhaka",
+    "Shanto-Mariam University of Creative Technology","Times University Bangladesh","University of Creative Technology Chittagong","Victoria University of Bangladesh",
+    "Bangladesh University of Professionals (BUP)",
+  ],
+
+  undergrad_public: [
+    "University of Dhaka (DU)","Bangladesh University of Engineering and Technology (BUET)","Jahangirnagar University (JU)",
+    "University of Rajshahi (RU)","University of Chittagong (CU)","Shahjalal University of Science and Technology (SUST)",
+    "Khulna University (KU)","Bangladesh Agricultural University (BAU)","Jagannath University (JNU)","Islamic University Bangladesh (IU)",
+    "Comilla University","Jatiya Kabi Kazi Nazrul Islam University","Begum Rokeya University Rangpur","Mawlana Bhashani Science and Technology University (MBSTU)",
+    "Hajee Mohammad Danesh Science and Technology University (HSTU)","Patuakhali Science and Technology University","Sher-e-Bangla Agricultural University","Bangabandhu Sheikh Mujibur Rahman Agricultural University","Bangabandhu Sheikh Mujib Medical University","Chittagong Veterinary and Animal Sciences University","Sylhet Agricultural University","Khulna Agricultural University","Khulna University of Engineering & Technology (KUET)","Rajshahi University of Engineering & Technology (RUET)","Chittagong University of Engineering & Technology (CUET)","Dhaka University of Engineering & Technology (DUET)","Bangladesh Textile University","Dhaka University of Professional Studies","Pabna University of Science and Technology","Noakhali Science and Technology University","Jashore University of Science and Technology","Rangamati Science and Technology University","Bangabandhu Sheikh Mujibur Rahman Science and Technology University Gopalganj","Bangladesh Open University","Bangladesh University of Textiles","Bangladesh Maritime University","Aviation and Aerospace University Bangladesh","Bangabandhu Sheikh Mujibur Rahman Aviation and Aerospace University","Sheikh Hasina University Netrokona","Bangamata Sheikh Fojilatunnesa Mujib Science and Technology University","Chandpur Science and Technology University","Habiganj Agricultural University","Bangladesh Sugarcane Research Institute","Kishoreganj University","Sunamganj Science and Technology University","Pirojpur Science and Technology University","Thakurgaon University",
+    "Bangladesh University of Professionals (BUP)","Islamic Arabic University","Bangladesh Smriti University","Sheikh Hasina Medical University Khulna",
+    // Engineering & specialized
+    "Bangladesh Army University of Science and Technology (BAUST)","Bangladesh Army University of Engineering and Technology (BAUET)","Bangladesh Army International University of Science and Technology (BAIUST)","Military Institute of Science and Technology (MIST)","Islamic University of Technology (IUT)",
+    // Medical universities/colleges
+    "Dhaka Medical College","Sir Salimullah Medical College","Sylhet MAG Osmani Medical College","Chittagong Medical College","Rajshahi Medical College","Mymensingh Medical College","Rangpur Medical College","Sher-e-Bangla Medical College Barishal","Cumilla Medical College","Faridpur Medical College","Khulna Medical College","Pabna Medical College","Dinajpur Medical College","Bogra Medical College","Jashore Medical College","Satkhira Medical College","M Abdur Rahim Medical College Dinajpur",
+  ],
+
+  masters:          ["University of Dhaka","BUET","NSU (MBA/MS)","BRAC University","IUB Graduate","IBA — MBA","East West University Graduate","SUST Graduate","Jahangirnagar University Graduate","BUP Graduate","Jagannath University Graduate","Khulna University Graduate","Rajshahi University Graduate","Chittagong University Graduate","IUT Graduate","MIST Graduate","Islamic University Graduate","DUET","KUET","RUET","CUET","Bangladesh Agricultural University Graduate","Bangabandhu Sheikh Mujib Medical University","BSMRSTU Graduate","HSTU Graduate","AIUB Graduate","UIU Graduate","Daffodil International University Graduate","Premier University Chittagong Graduate"],
+
+  research:         ["University of Dhaka","BUET","Jahangirnagar University","SUST","University of Rajshahi","University of Chittagong","Bangladesh Agricultural University","Bangabandhu Sheikh Mujib Medical University","Khulna University","Jagannath University","Islamic University Bangladesh","Bangladesh University of Professionals","KUET","RUET","CUET","DUET","IUT","MIST","Bangabandhu Sheikh Mujibur Rahman Agricultural University","Sher-e-Bangla Agricultural University","Bangladesh Council of Scientific and Industrial Research (BCSIR)","Bangladesh Atomic Energy Commission","Bangladesh Institute of Development Studies (BIDS)","Centre for Policy Dialogue (CPD)","International Centre for Diarrhoeal Disease Research, Bangladesh (icddr,b)"],
+
+  madrasa:          ["Al-Jamiatul Ahlia Darul Ulum Moinul Islam (Hathazari)","Jamia Islamia Patiya","Jamia Ahmadia Sunnia (Tongi)","Jamia Qurania Arabia Lalbagh","Tamirul Millat Kamil Madrasa","Tejgaon Madrasa-e-Alia","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Jamia Tawakkulia Renga","Faridabad Madrasa","Char Monai Madrasa","Mohammadpur Markaz Madrasa","Banani Bait-ul-Mukarram Madrasa","Jamia Rahmania Arabia Dhaka","Darul Ulum Moinul Islam Hathazari","Jamia Islamia Yunusia Brahmanbaria","Jamia Madinatul Ulum Bashundhara","Jamia Hossainia Ashraful Ulum Boro Katara","Jamiatul Ummahatil Mu'minin","Jamia Imdadia Mahmoodia","Jamia Quranic Arabic University Lalbagh","Bhairab Hafizia Kawmi Madrasa","Mirpur Jamia Mohammadia Arabia","Mohila Madrasa Ar Rabita Tejgaon","Mahmudia Mohila Madrasa Mirpur","Darul Ihsan Madrasa Uttara","Sylhet Government Madrasa","Rajshahi Government Alia Madrasa","Chittagong Government Madrasa","Khulna Darus Salam Madrasa"],
+
+  polytechnic:      ["Dhaka Polytechnic Institute","Chittagong Polytechnic Institute","Rajshahi Polytechnic Institute","Khulna Polytechnic Institute","Bogra Polytechnic Institute","Comilla Polytechnic Institute","Sylhet Polytechnic Institute","Mymensingh Polytechnic Institute","Barishal Polytechnic Institute","Rangpur Polytechnic Institute","Faridpur Polytechnic Institute","Pabna Polytechnic Institute","Dinajpur Polytechnic Institute","Magura Polytechnic Institute","Tangail Polytechnic Institute","Patuakhali Polytechnic Institute","Brahmanbaria Polytechnic Institute","Feni Polytechnic Institute","Munshiganj Polytechnic Institute","Narsingdi Polytechnic Institute","Naogaon Polytechnic Institute","Jhenidah Polytechnic Institute","Kushtia Polytechnic Institute","Lakshmipur Polytechnic Institute","Satkhira Polytechnic Institute","Sherpur Polytechnic Institute","Sunamganj Polytechnic Institute","Sirajganj Polytechnic Institute","Thakurgaon Polytechnic Institute","Bagerhat Polytechnic Institute","Bandarban Polytechnic Institute","Bhola Polytechnic Institute","Cox's Bazar Polytechnic Institute","Gazipur Polytechnic Institute","Gopalganj Polytechnic Institute","Habiganj Polytechnic Institute","Jamalpur Polytechnic Institute","Joypurhat Polytechnic Institute","Khagrachhari Polytechnic Institute","Lalmonirhat Polytechnic Institute","Mongla Polytechnic Institute","Moulvibazar Polytechnic Institute","Netrokona Polytechnic Institute","Nilphamari Polytechnic Institute","Pirojpur Polytechnic Institute","Rangamati Polytechnic Institute","Shariatpur Polytechnic Institute","Tangail Mohila Polytechnic Institute","Dhaka Mohila Polytechnic Institute","Rajshahi Mohila Polytechnic Institute"],
 };

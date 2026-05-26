@@ -4,11 +4,15 @@ import { EDU, EDU_GROUPS, INSTITUTIONS } from '../constants/education';
 import { CURRENCIES } from '../constants/currencies';
 import { Btn, Input, Toggle, Logo } from '../components/ui';
 import { validateInstitution } from '../utils/guardian';
+import { useWizardHistory } from '../hooks/useWizardHistory';
 
 export const OnboardingWizard = () => {
   const { user, setUser, navigate, addToast } = useApp();
   useEffect(() => { document.title = "Setup Profile — ClassCost"; }, []);
   const [step, setStep] = useState(0);
+  // Sync wizard step with browser history so browser Back walks through steps
+  // instead of exiting the wizard.
+  useWizardHistory({ viewName: 'onboarding', step, setStep, minStep: 0 });
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [form, setForm] = useState({
     fullName: "", educationLevel: "", variant: "",

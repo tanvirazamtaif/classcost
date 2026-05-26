@@ -78,7 +78,7 @@ export const SemesterLandingPage = () => {
       <GButton
         size="lg"
         icon={Plus}
-        onClick={() => { haptics.light(); goBack(); }}
+        onClick={() => { haptics.light(); navigate('add-semester'); }}
       >
         Add your first semester
       </GButton>
@@ -181,7 +181,7 @@ export const SemesterLandingPage = () => {
             fullWidth
             size="lg"
             icon={Plus}
-            onClick={() => { haptics.light(); goBack(); }}
+            onClick={() => { haptics.light(); navigate('add-semester'); }}
           >
             Add Semester
           </GButton>

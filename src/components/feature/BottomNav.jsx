@@ -7,6 +7,7 @@ import { useApp } from '../../contexts/AppContext';
 const icons = {
   home: 'M8 1.5L1 7.5V14.5H5.5V10H10.5V14.5H15V7.5L8 1.5Z',
   records: 'M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1zm1 3h8m-8 3h8m-8 3h5',
+  schedule: 'M3 5a1 1 0 011-1h8a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V5zm0 3h10M6 2v3m4-3v3',
   plus: 'M8 3v10M3 8h10',
   reports: 'M3 14V8m4 6V5m4 9V2m4 12V7',
   settings: 'M8 10a2 2 0 100-4 2 2 0 000 4zm6-2a6 6 0 01-.7 2.8l1.1 1.1-1.4 1.4-1.1-1.1A6 6 0 018 14a6 6 0 01-2.8-.7l-1.1 1.1-1.4-1.4 1.1-1.1A6 6 0 012 8a6 6 0 01.7-2.8L1.6 4.1 3 2.7l1.1 1.1A6 6 0 018 2a6 6 0 012.8.7l1.1-1.1 1.4 1.4-1.1 1.1A6 6 0 0114 8z',
@@ -29,7 +30,7 @@ function NavIcon({ name, active, isCenter }) {
     );
   }
 
-  const isStroke = name === 'records' || name === 'reports' || name === 'settings';
+  const isStroke = name === 'records' || name === 'schedule' || name === 'reports' || name === 'settings';
 
   return (
     <svg width="20" height="20" viewBox="0 0 16 16"
@@ -49,14 +50,14 @@ export const BottomNavV3 = React.memo(({ active, navigate, onAddPress }) => {
   const items = isDashboard
     ? [
         { id: 'dashboard', icon: 'home', label: 'Home' },
-        { id: 'records', icon: 'records', label: 'Records' },
+        { id: 'schedule', icon: 'schedule', label: 'Schedule' },
         { id: '_add', icon: 'plus', label: '' },
         { id: 'reports', icon: 'reports', label: 'Reports' },
         { id: 'settings', icon: 'settings', label: 'Settings' },
       ]
     : [
         { id: 'dashboard', icon: 'home', label: 'Home' },
-        { id: 'records', icon: 'records', label: 'Records' },
+        { id: 'schedule', icon: 'schedule', label: 'Schedule' },
         { id: 'reports', icon: 'reports', label: 'Reports' },
         { id: 'settings', icon: 'settings', label: 'Settings' },
       ];
@@ -68,7 +69,7 @@ export const BottomNavV3 = React.memo(({ active, navigate, onAddPress }) => {
       <div className="flex items-end justify-around max-w-[420px] mx-auto py-1.5">
         {items.map((item) => {
           const isCenter = item.id === '_add';
-          const isActive = active === item.id || (item.id === 'reports' && active === 'reports');
+          const isActive = active === item.id;
 
           if (isCenter) {
             return (
@@ -83,7 +84,7 @@ export const BottomNavV3 = React.memo(({ active, navigate, onAddPress }) => {
 
           return (
             <button key={item.id}
-              onClick={() => { haptics.light(); navigate(item.id === 'records' ? 'reports' : item.id); }}
+              onClick={() => { haptics.light(); navigate(item.id); }}
               role="tab" aria-selected={isActive}
               className="flex flex-col items-center gap-0.5 py-1.5 px-3 min-w-[52px]">
               <NavIcon name={item.icon} active={isActive} />

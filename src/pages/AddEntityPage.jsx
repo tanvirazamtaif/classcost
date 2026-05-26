@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
 import { getThemeColors } from '../lib/themeColors';
 import { haptics } from '../lib/haptics';
+import { INSTITUTIONS } from '../constants/education';
 
 const TYPES = [
   { id: 'INSTITUTION', label: 'Institution', icon: '🎓' },
@@ -21,6 +22,24 @@ const EDU_LEVELS = [
 
 const TYPE_LABELS = { INSTITUTION: 'institution', RESIDENCE: 'residence', COACHING: 'club' };
 
+// Maps the coarse EDU_LEVELS the user picks to the fine-grained keys in
+// INSTITUTIONS. A single level can span multiple keys (e.g. "School" covers
+// primary, junior, secondary, and full-school institutions).
+const LEVEL_TO_INSTITUTION_KEYS = {
+  school: ['primary', 'junior', 'secondary', 'fullschool'],
+  college: ['hsc', 'degree_college', 'honours_college', 'fullschool'],
+  university: ['undergrad_private', 'undergrad_public', 'masters', 'research'],
+  madrasa: ['madrasa'],
+  polytechnic: ['polytechnic'],
+};
+
+function getSuggestionsFor(level) {
+  if (!level) return [];
+  const keys = LEVEL_TO_INSTITUTION_KEYS[level] || [];
+  const all = keys.flatMap((k) => INSTITUTIONS[k] || []);
+  return [...new Set(all)]; // dedup (fullschool overlaps with others)
+}
+
 export const AddEntityPage = () => {
   const { goBack, navigate, addToast, routeParams, user, theme = 'dark' } = useApp();
   const { addEntity } = useV3();
@@ -31,6 +50,32 @@ export const AddEntityPage = () => {
   const [eduLevel, setEduLevel] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [creating, setCreating] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const blurTimerRef = useRef(null);
+
+  // Filter institution suggestions by the picked level + what the user has
+  // typed. Substring match (case-insensitive) so "shahin" finds "BAF Shaheen
+  // College". Cap at 8 so the dropdown never gets ridiculously long.
+  const suggestions = useMemo(() => {
+    if (type !== 'INSTITUTION' || !eduLevel) return [];
+    const pool = getSuggestionsFor(eduLevel);
+    const query = name.trim().toLowerCase();
+    if (!query) return pool.slice(0, 6);
+    const exactMatch = pool.find((s) => s.toLowerCase() === query);
+    const filtered = pool.filter((s) => s.toLowerCase().includes(query));
+    // If the user has already typed the full name of a suggestion, don't show
+    // the dropdown — it'd just be a one-row "you already typed me" noise.
+    if (exactMatch && filtered.length === 1) return [];
+    return filtered.slice(0, 8);
+  }, [type, eduLevel, name]);
+
+  const pickSuggestion = (value) => {
+    haptics.light();
+    setName(value);
+    setShowSuggestions(false);
+  };
+
+  useEffect(() => () => clearTimeout(blurTimerRef.current), []);
 
   async function handleCreate() {
     if (!name.trim()) { addToast('Enter a name', 'error'); return; }
@@ -87,13 +132,42 @@ export const AddEntityPage = () => {
         </div>
 
         {/* Name */}
-        <div>
+        <div className="relative">
           <label className="text-xs font-medium mb-1 block" style={{ color: c.text2 }}>Name</label>
-          <input value={name} onChange={e => setName(e.target.value)}
-            placeholder={type === 'INSTITUTION' ? 'BRAC University' : type === 'RESIDENCE' ? 'Mirpur Hostel' : 'Udvash Coaching'}
+          <input value={name}
+            onChange={e => { setName(e.target.value); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => {
+              // Delay so a click on a suggestion lands before we hide the list.
+              blurTimerRef.current = setTimeout(() => setShowSuggestions(false), 150);
+            }}
+            placeholder={type === 'INSTITUTION' ? 'Start typing — e.g. BRAC University' : type === 'RESIDENCE' ? 'Mirpur Hostel' : 'Udvash Coaching'}
             className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
             style={{ background: c.card, border: `0.5px solid ${c.border}`, color: c.text1 }}
             autoFocus />
+
+          {/* Autocomplete dropdown — only for INSTITUTION + a selected level */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 mt-1 rounded-xl overflow-hidden z-20 shadow-lg"
+              style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+              {!name.trim() && (
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-semibold"
+                  style={{ color: c.text3, borderBottom: `0.5px solid ${c.border}` }}>
+                  Popular {EDU_LEVELS.find(l => l.id === eduLevel)?.label.toLowerCase() || 'institutions'}s
+                </div>
+              )}
+              {suggestions.map((s) => (
+                <button key={s}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()} // keep input focused
+                  onClick={() => pickSuggestion(s)}
+                  className="w-full text-left px-3 py-2.5 text-sm transition hover:opacity-80"
+                  style={{ color: c.text1, borderBottom: `0.5px solid ${c.border}` }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Education level (institution only) */}

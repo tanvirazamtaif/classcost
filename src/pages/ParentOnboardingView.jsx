@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Btn, Input } from '../components/ui';
+import { useWizardHistory } from '../hooks/useWizardHistory';
 
 const STEPS = [
   { title: 'About You', sub: 'Basic information' },
@@ -15,6 +16,8 @@ export const ParentOnboardingView = () => {
   useEffect(() => { document.title = 'Parent Setup — ClassCost'; }, []);
 
   const [step, setStep] = useState(0);
+  // Sync wizard step with browser history so browser Back walks through steps.
+  useWizardHistory({ viewName: 'parent-onboarding', step, setStep, minStep: 0 });
   const [form, setForm] = useState({
     fullName: '',
     phone: '',

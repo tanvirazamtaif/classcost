@@ -183,16 +183,8 @@ export const Header = ({ onMenuClick }) => {
                       onClick={() => handleNavigate('settings')}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-800 transition"
                     >
-                      <User className="w-4 h-4" />
-                      <span className="text-sm">Profile</span>
-                      <ChevronRight className="w-4 h-4 ml-auto text-surface-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigate('settings')}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-800 transition"
-                    >
                       <Settings className="w-4 h-4" />
-                      <span className="text-sm">Settings</span>
+                      <span className="text-sm">Account & Settings</span>
                       <ChevronRight className="w-4 h-4 ml-auto text-surface-400" />
                     </button>
                   </div>

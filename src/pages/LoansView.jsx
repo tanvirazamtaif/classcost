@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useSubscription } from '../hooks';
 import { PaywallModal } from '../components/feature';
@@ -63,8 +64,9 @@ const LoansView = () => {
             <h2 className="text-2xl font-bold" style={{fontFamily:"'Fraunces',serif"}}>Debt Overview 💳</h2>
           </div>
           <button onClick={()=>{setScreen("add");setFormStep(0);setForm(blankForm);}}
-            className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center text-xl transition active:scale-90">
-            ＋
+            aria-label="Add loan"
+            className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center transition active:scale-90">
+            <Plus className="w-5 h-5" />
           </button>
         </div>
 
