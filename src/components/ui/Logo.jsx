@@ -1,14 +1,18 @@
 import React, { useId } from 'react';
 
-// ClassCost logo — currency-note ribbon bent into a flowing C, capped with
-// a scholar's mortarboard. Single design in 4 "elements":
-//   1. C       → the entire ribbon shape reads as the letter C
-//   2. Cap     → black mortarboard tilted at the top
-//   3. Journey → the flowing curved path (a road from start to graduation)
-//   4. ৳       → currency medallion at the start of the journey
+// ClassCost logo — currency-note ribbon shaped as a clear C, capped with
+// a scholar's mortarboard, with a universal currency medallion at the
+// bottom-right (¤ = international generic currency symbol — neutral so it
+// covers BDT, USD, EUR, GBP, INR, CAD, AUD, SAR, AED, MYR without privileging
+// any single one).
 //
-// Palette is fixed: black, blue (#3b82f6 / #5b6dff), purple (#a855f7).
-// The animated variant slowly pulses the glow + drifts the tassel.
+// Elements packed in:
+//   1. C       → bold arc that obviously reads as the letter C
+//   2. Cap     → black mortarboard tilted on top
+//   3. Journey → the ribbon flows from cap (start of school) to currency (cost)
+//   4. ¤       → universal currency sign, neutral to any of the 10 currencies
+//
+// Palette: black, blue (#5b6dff), purple (#a855f7).
 
 export const Logo = ({ size = 28, animated = false, className = '' }) => {
   const id = useId();
@@ -36,56 +40,50 @@ export const Logo = ({ size = 28, animated = false, className = '' }) => {
         </radialGradient>
       </defs>
 
-      {/* Dark rounded backdrop — keeps the logo self-contained at any size */}
+      {/* Dark rounded backdrop */}
       <rect width="240" height="240" rx="56" fill="#0c0c14" />
 
-      {/* Soft glow behind the ribbon (also the animated breathing layer) */}
+      {/* Glow behind the C */}
       <circle
-        cx="120" cy="125" r="86"
+        cx="115" cy="128" r="92"
         fill={`url(#${glowId})`}
         style={animated ? { animation: 'cclogo-breathe 3.2s ease-in-out infinite' } : undefined}
       />
 
-      {/* The flowing currency-note ribbon, bent into a C */}
+      {/* The C — bold ribbon arc with subtle warmth */}
       <path
-        d="M 162 60
-           C 110 50, 78 92, 108 122
-           C 138 152, 78 167, 92 196
-           C 106 216, 176 216, 200 192"
+        d="M 178 60 C 118 32, 48 78, 48 132 C 48 188, 118 222, 184 196"
         stroke={`url(#${gradId})`}
-        strokeWidth="28"
+        strokeWidth="32"
         strokeLinecap="round"
         fill="none"
       />
 
-      {/* Inner highlight stripe on the ribbon (gives it the "note paper" feel) */}
+      {/* Inner highlight along the ribbon centerline (paper-fold feel) */}
       <path
-        d="M 162 72
-           C 116 64, 90 92, 116 116
-           C 142 140, 90 156, 102 184
-           C 116 200, 168 204, 192 184"
+        d="M 178 60 C 118 32, 48 78, 48 132 C 48 188, 118 222, 184 196"
         stroke="#ffffff"
-        strokeOpacity="0.18"
+        strokeOpacity="0.16"
         strokeWidth="3"
         strokeLinecap="round"
         fill="none"
       />
 
-      {/* ৳ medallion — start of the journey (bottom-right) */}
-      <circle cx="200" cy="192" r="16" fill="#0c0c14" stroke={`url(#${gradId})`} strokeWidth="2.5" />
+      {/* Universal currency medallion at the bottom-right end of the C */}
+      <circle cx="184" cy="196" r="20" fill="#0c0c14" stroke={`url(#${gradId})`} strokeWidth="3" />
       <text
-        x="200" y="200"
+        x="184" y="204"
         textAnchor="middle"
         fontFamily="Inter, system-ui, sans-serif"
         fontWeight="900"
-        fontSize="20"
+        fontSize="24"
         fill="#ffffff"
-      >৳</text>
+      >¤</text>
 
-      {/* Scholar mortarboard tilted at the top of the C */}
+      {/* Scholar mortarboard sitting on top of the upper C-terminal */}
       <g
-        transform="translate(132, 48) rotate(-18)"
-        style={animated ? { transformOrigin: '132px 48px', animation: 'cclogo-tilt 4s ease-in-out infinite' } : undefined}
+        transform="translate(140, 40) rotate(-18)"
+        style={animated ? { transformOrigin: '140px 40px', animation: 'cclogo-tilt 4s ease-in-out infinite' } : undefined}
       >
         <ellipse cx="0" cy="7" rx="46" ry="7" fill="#000" />
         <polygon points="-46,0 0,-14 46,0 0,14" fill="#000" />
@@ -95,16 +93,15 @@ export const Logo = ({ size = 28, animated = false, className = '' }) => {
         <circle cx="12" cy="44" r="4" fill="#a855f7" />
       </g>
 
-      {/* Keyframes for the animated variant — injected once per page */}
       {animated && (
         <style>{`
           @keyframes cclogo-breathe {
-            0%, 100% { opacity: 0.7; transform: scale(1); transform-origin: 120px 125px; }
-            50%      { opacity: 1;   transform: scale(1.08); transform-origin: 120px 125px; }
+            0%, 100% { opacity: 0.7; transform: scale(1); transform-origin: 115px 128px; }
+            50%      { opacity: 1;   transform: scale(1.08); transform-origin: 115px 128px; }
           }
           @keyframes cclogo-tilt {
-            0%, 100% { transform: translate(132px, 48px) rotate(-18deg); }
-            50%      { transform: translate(132px, 48px) rotate(-14deg); }
+            0%, 100% { transform: translate(140px, 40px) rotate(-18deg); }
+            50%      { transform: translate(140px, 40px) rotate(-14deg); }
           }
         `}</style>
       )}
