@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <defs>
+    <linearGradient id="bp" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%"   stop-color="#5b6dff"/>
+      <stop offset="50%"  stop-color="#7a5cff"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="56" fill="#0c0c14"/>
+  <path d="M 162 60 C 110 50, 78 92, 108 122 C 138 152, 78 167, 92 196 C 106 216, 176 216, 200 192"
+        stroke="url(#bp)" stroke-width="28" stroke-linecap="round" fill="none"/>
+  <path d="M 162 72 C 116 64, 90 92, 116 116 C 142 140, 90 156, 102 184 C 116 200, 168 204, 192 184"
+        stroke="#fff" stroke-opacity="0.18" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <circle cx="200" cy="192" r="16" fill="#0c0c14" stroke="url(#bp)" stroke-width="2.5"/>
+  <text x="200" y="200" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-weight="900" font-size="20" fill="#fff">৳</text>
+  <g transform="translate(132 48) rotate(-18)">
+    <ellipse cx="0" cy="7" rx="46" ry="7" fill="#000"/>
+    <polygon points="-46,0 0,-14 46,0 0,14" fill="#000"/>
+    <polygon points="-46,0 0,-14 46,0 0,14" fill="url(#bp)" opacity="0.55"/>
+    <circle cx="0" cy="0" r="3.5" fill="#5b6dff"/>
+    <path d="M 0 0 Q 14 24 12 44" stroke="#5b6dff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <circle cx="12" cy="44" r="4" fill="#a855f7"/>
+  </g>
+</svg>
