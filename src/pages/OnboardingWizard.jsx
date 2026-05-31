@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { EDU, EDU_GROUPS, INSTITUTIONS } from '../constants/education';
+import { EDU, EDU_STREAMS, EDU_BY_STREAM, STREAM_OF, INSTITUTIONS } from '../constants/education';
 import { CURRENCIES } from '../constants/currencies';
 import { Btn, Input, Toggle, Logo } from '../components/ui';
 import { validateInstitution } from '../utils/guardian';
@@ -43,11 +43,12 @@ export const OnboardingWizard = () => {
   const filteredInsts = allInsts.filter((u) => u.toLowerCase().includes(instQuery.toLowerCase()));
 
   const getInstitutionPlaceholder = () => {
-    const group = mod?.group;
-    switch (group) {
-      case 'school': return 'e.g., Dhaka Residential Model College';
-      case 'college': return 'e.g., Notre Dame College';
-      case 'diploma': return 'e.g., Dhaka Polytechnic Institute';
+    const stream = STREAM_OF[form.educationLevel];
+    switch (stream) {
+      case 'bangla':     return 'e.g., Dhaka Residential Model College';
+      case 'english':    return 'e.g., Scholastica, Sunbeams School';
+      case 'madrasha':   return 'e.g., Government Madrasa-e-Alia (Dhaka)';
+      case 'technical':  return 'e.g., Dhaka Polytechnic Institute';
       case 'university': return 'e.g., BUET, DU, NSU';
       default: return 'Enter institution name';
     }
@@ -153,37 +154,42 @@ export const OnboardingWizard = () => {
           </div>
         )}
 
-        {/* Step 1: Education Level */}
+        {/* Step 1: Education Stream → Stage. Top level = stream (Bangla / English /
+            Madrasha / Technical / University). Click a stream to expand its stages. */}
         {step === 1 && (
           <div className="flex flex-col gap-3">
-            {EDU_GROUPS.map((g) => (
-              <div key={g.id}>
-                <button onClick={() => setSelectedGroup(selectedGroup === g.id ? null : g.id)}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition text-left ${selectedGroup === g.id ? "border-indigo-500 bg-indigo-50" : "border-slate-100 bg-white hover:border-slate-200"}`}>
-                  <span className="text-2xl">{g.icon}</span>
-                  <div className="flex-1">
-                    <p className={`font-bold text-sm ${selectedGroup === g.id ? "text-indigo-700" : "text-slate-700"}`}>{g.label}</p>
-                    <p className="text-xs text-slate-400">{g.ids.map((id) => EDU[id]?.shortLabel).join(" · ")}</p>
-                  </div>
-                  <span className="text-slate-300">{selectedGroup === g.id ? "▲" : "▾"}</span>
-                </button>
-                {selectedGroup === g.id && (
-                  <div className="mt-2 ml-2 flex flex-col gap-2">
-                    {g.ids.map((id) => { const m = EDU[id]; return (
-                      <button key={id} onClick={() => upd("educationLevel", id)}
-                        className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition ${form.educationLevel === id ? "border-indigo-500 bg-indigo-50" : "border-slate-100 bg-slate-50 hover:border-slate-200"}`}>
-                        <div className={`w-9 h-9 ${m.bgColor} rounded-xl flex items-center justify-center text-lg`}>{m.icon}</div>
-                        <div className="flex-1">
-                          <p className={`text-sm font-bold ${form.educationLevel === id ? "text-indigo-700" : "text-slate-700"}`}>{m.label}</p>
-                          <p className="text-xs text-slate-400">{m.desc}</p>
-                        </div>
-                        {form.educationLevel === id && <span className="text-indigo-600 font-bold">✓</span>}
-                      </button>
-                    ); })}
-                  </div>
-                )}
-              </div>
-            ))}
+            <p className="text-xs text-slate-500 -mt-1 mb-1">Pick your <b>stream</b> first, then the stage within it. This ensures we use the right fee structure for your system (e.g. A-Level subject-entry fees differ from HSC board fees).</p>
+            {EDU_STREAMS.map((s) => {
+              const stageIds = EDU_BY_STREAM[s.id] || [];
+              return (
+                <div key={s.id}>
+                  <button onClick={() => setSelectedGroup(selectedGroup === s.id ? null : s.id)}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition text-left ${selectedGroup === s.id ? "border-indigo-500 bg-indigo-50" : "border-slate-100 bg-white hover:border-slate-200"}`}>
+                    <span className="text-2xl">{s.icon}</span>
+                    <div className="flex-1">
+                      <p className={`font-bold text-sm ${selectedGroup === s.id ? "text-indigo-700" : "text-slate-700"}`}>{s.label}</p>
+                      <p className="text-xs text-slate-400">{s.desc}</p>
+                    </div>
+                    <span className="text-slate-300">{selectedGroup === s.id ? "▲" : "▾"}</span>
+                  </button>
+                  {selectedGroup === s.id && (
+                    <div className="mt-2 ml-2 flex flex-col gap-2">
+                      {stageIds.map((id) => { const m = EDU[id]; if (!m) return null; return (
+                        <button key={id} onClick={() => upd("educationLevel", id)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition ${form.educationLevel === id ? "border-indigo-500 bg-indigo-50" : "border-slate-100 bg-slate-50 hover:border-slate-200"}`}>
+                          <div className={`w-9 h-9 ${m.bgColor} rounded-xl flex items-center justify-center text-lg`}>{m.icon}</div>
+                          <div className="flex-1">
+                            <p className={`text-sm font-bold ${form.educationLevel === id ? "text-indigo-700" : "text-slate-700"}`}>{m.label}</p>
+                            <p className="text-xs text-slate-400">{m.desc}</p>
+                          </div>
+                          {form.educationLevel === id && <span className="text-indigo-600 font-bold">✓</span>}
+                        </button>
+                      ); })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

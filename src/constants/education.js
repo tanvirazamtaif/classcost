@@ -257,14 +257,244 @@ export const EDU = {
       {v:"other",       l:"Other Diploma"},
     ],
   },
+
+  // ═══════════════ ENGLISH MEDIUM STREAM ═══════════════
+  em_primary: {
+    id:"em_primary", group:"em_school", label:"Primary (English Medium)", shortLabel:"EM Primary",
+    icon:"🏫", color:"blue", bgColor:"bg-blue-50", borderColor:"border-blue-300",
+    desc:"KG–Class 5 in English Medium school",
+    levels:["Play","Nursery","KG","Class 1","Class 2","Class 3","Class 4","Class 5"],
+    periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"School Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Re-admission Fee","Term Exam Fee","Library Fee","Sports Fee","Art & Craft Fee","Transport Fee","Tiffin Fee","Activity Fee"],
+    periodicUnit:"monthly",
+    hasHostel:false, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:true, hasLabFee:false, hasWaiver:false,
+    note:"English-medium primary. Term-based exams (typically 2–3 per year).",
+  },
+  em_junior: {
+    id:"em_junior", group:"em_school", label:"Junior Secondary (English Medium)", shortLabel:"EM Junior",
+    icon:"🏫", color:"blue", bgColor:"bg-blue-50", borderColor:"border-blue-300",
+    desc:"Class 6–8 English Medium (pre-O-Level)",
+    levels:["Class 6","Class 7","Class 8"],
+    periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"School Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Re-admission Fee","Term Exam Fee","Library Fee","Lab Fee","Sports Fee","Transport Fee","Tiffin Fee","Activity Fee"],
+    periodicUnit:"monthly",
+    hasHostel:false, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"Bridge years before O-Level / IGCSE.",
+  },
+  em_olevel: {
+    id:"em_olevel", group:"em_school", label:"O-Level (IGCSE / Edexcel)", shortLabel:"O-Level",
+    icon:"📚", color:"blue", bgColor:"bg-blue-50", borderColor:"border-blue-300",
+    desc:"Cambridge IGCSE or Edexcel O-Level (≈ Class 9–10)",
+    levels:["O-Level Year 1","O-Level Year 2 (Exam Year)","Re-take"],
+    periodLabel:"Year", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"School Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Re-admission Fee","Term Exam Fee","Subject Registration Fee","Subject Entry Fee (per paper)","Mock Exam Fee","Lab Fee","Library Fee","Coaching / Batch Fee","Transport Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"Per-paper exam entry fees (£60–90 per subject typical). Subject choice matters.",
+    variants:[
+      {v:"cambridge", l:"Cambridge IGCSE"},
+      {v:"edexcel",   l:"Edexcel O-Level"},
+      {v:"ib_myp",    l:"IB MYP"},
+    ],
+  },
+  em_alevel: {
+    id:"em_alevel", group:"em_college", label:"A-Level (Cambridge / Edexcel)", shortLabel:"A-Level",
+    icon:"📚", color:"blue", bgColor:"bg-blue-50", borderColor:"border-blue-300",
+    desc:"Cambridge A-Level / Edexcel A-Level / IB Diploma (≈ Class 11–12)",
+    levels:["AS Level (Year 1)","A2 Level (Year 2)","Re-take"],
+    periodLabel:"Year", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"School / College Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Re-admission Fee","Term Exam Fee","Subject Registration Fee","Subject Entry Fee (per paper)","Mock Exam Fee","SAT / IELTS Coaching","Lab Fee","Library Fee","Coaching / Batch Fee","Transport Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"Per-subject paper fees. SAT / IELTS coaching often runs in parallel.",
+    variants:[
+      {v:"cambridge", l:"Cambridge A-Level"},
+      {v:"edexcel",   l:"Edexcel A-Level"},
+      {v:"ib_dp",     l:"IB Diploma Programme"},
+    ],
+  },
+
+  // ═══════════════ MADRASHA STREAM ═══════════════
+  madrasha_ebtedayee: {
+    id:"madrasha_ebtedayee", group:"madrasha_primary", label:"Ebtedayee (Primary Madrasha)", shortLabel:"Ebtedayee",
+    icon:"🕌", color:"teal", bgColor:"bg-teal-50", borderColor:"border-teal-300",
+    desc:"Class 1–5 madrasha education (Bangla + Arabic + religious subjects)",
+    levels:["Class 1","Class 2","Class 3","Class 4","Class 5"],
+    periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"Madrasha Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Annual Fee","Annual Exam Fee","Book Fee","Sports Fee","Tiffin Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:false, hasLabFee:false, hasWaiver:false,
+    note:"Primary-level madrasha under BMEB.",
+  },
+  madrasha_dakhil: {
+    id:"madrasha_dakhil", group:"madrasha_secondary", label:"Dakhil (SSC equivalent)", shortLabel:"Dakhil",
+    icon:"🕌", color:"teal", bgColor:"bg-teal-50", borderColor:"border-teal-300",
+    desc:"Class 6–10, Bangladesh Madrasha Education Board (BMEB)",
+    levels:["Class 6","Class 7","Class 8","Class 9","Class 10 (Dakhil Exam Year)"],
+    periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
+    institutionLabel:"Madrasha Name",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Annual Fee","Annual Exam Fee","Board Registration Fee","Form Fill-up Fee","Practical Exam Fee","Library Fee","Hostel Fee","Tiffin Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:true,
+    hasPenalty:true, hasLabFee:false, hasWaiver:false,
+    note:"Dakhil = SSC-level board exam under BMEB.",
+  },
+  madrasha_alim: {
+    id:"madrasha_alim", group:"madrasha_college", label:"Alim (HSC equivalent)", shortLabel:"Alim",
+    icon:"🕌", color:"teal", bgColor:"bg-teal-50", borderColor:"border-teal-300",
+    desc:"Class 11–12, BMEB Alim certificate",
+    levels:["Class 11 (Alim 1st Year)","Class 12 (Alim Exam Year)"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"Madrasha Name",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Session Fee","Monthly Tuition","Board Registration Fee","Form Fill-up Fee","Practical Exam Fee","Library Fee","Hostel Fee"],
+    periodicUnit:"mixed",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:false, hasWaiver:false,
+    note:"Alim = HSC-equivalent. 2 years.",
+  },
+  madrasha_fazil: {
+    id:"madrasha_fazil", group:"madrasha_university", label:"Fazil (Honours equivalent)", shortLabel:"Fazil",
+    icon:"🕌", color:"teal", bgColor:"bg-teal-50", borderColor:"border-teal-300",
+    desc:"3–4 year Fazil degree (Honours-equivalent), Islamic Arabic University",
+    levels:["1st Year","2nd Year","3rd Year","4th Year"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"Madrasha / Islamic University",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Session Fee","Form Fill-up Fee","Practical Fee","Library Fee","Hostel Fee","Re-admission Fee"],
+    periodicUnit:"yearly",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:false, hasWaiver:false,
+    note:"Fazil = Honours-equivalent, Islamic Arabic University affiliated.",
+  },
+  madrasha_kamil: {
+    id:"madrasha_kamil", group:"madrasha_postgrad", label:"Kamil (Masters equivalent)", shortLabel:"Kamil",
+    icon:"🕌", color:"teal", bgColor:"bg-teal-50", borderColor:"border-teal-300",
+    desc:"1–2 year Kamil degree (Masters-equivalent)",
+    levels:["1st Year","2nd Year"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Subject",
+    institutionLabel:"Madrasha / Islamic University",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Session Fee","Thesis Fee","Library Fee","Hostel Fee","Re-admission Fee"],
+    periodicUnit:"yearly",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:false, hasWaiver:false,
+    note:"Kamil = Masters-equivalent. Specialization tracks.",
+    variants:[
+      {v:"hadith", l:"Kamil — Hadith"},
+      {v:"tafsir", l:"Kamil — Tafsir"},
+      {v:"fiqh",   l:"Kamil — Fiqh"},
+      {v:"adab",   l:"Kamil — Arabic Literature"},
+    ],
+  },
+
+  // ═══════════════ TECHNICAL VOCATIONAL ═══════════════
+  tech_ssc_voc: {
+    id:"tech_ssc_voc", group:"tech_school", label:"SSC Vocational", shortLabel:"SSC Voc",
+    icon:"🔧", color:"amber", bgColor:"bg-amber-50", borderColor:"border-amber-300",
+    desc:"Class 9–10 SSC Vocational under BTEB",
+    levels:["Class 9","Class 10 (SSC Voc Exam Year)"],
+    periodLabel:"Class", semLabel:"Term", courseLabel:"Trade Subject",
+    institutionLabel:"Technical School / TSC",
+    hasSemesterChoice:false,
+    feeTypes:["Monthly Tuition","Admission Fee","Board Registration Fee","Practical Exam Fee","Workshop Fee","Tools / Equipment Fee","Library Fee","Form Fill-up Fee"],
+    periodicUnit:"monthly",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"2-year SSC Voc under BTEB. Workshops + general subjects.",
+  },
+  tech_hsc_voc: {
+    id:"tech_hsc_voc", group:"tech_college", label:"HSC Vocational / BM", shortLabel:"HSC Voc / BM",
+    icon:"🔧", color:"amber", bgColor:"bg-amber-50", borderColor:"border-amber-300",
+    desc:"Class 11–12 HSC Vocational or BM (Business Management)",
+    levels:["Class 11","Class 12 (Exam Year)"],
+    periodLabel:"Year", semLabel:"Year", courseLabel:"Trade Subject",
+    institutionLabel:"Technical / BM Institute",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Session Fee","Board Registration Fee","Practical Exam Fee","Workshop Fee","Library Fee","Tools Fee","Form Fill-up Fee"],
+    periodicUnit:"mixed",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"HSC Voc / BM under BTEB.",
+    variants:[
+      {v:"voc", l:"HSC Vocational"},
+      {v:"bm",  l:"HSC Business Management"},
+    ],
+  },
 };
 
-export const EDU_GROUPS = [
-  { id:"school",    label:"School",     icon:"🏫",  color:"sky",     ids:["primary","junior","secondary","fullschool"] },
-  { id:"college",   label:"College",    icon:"🏛️",  color:"violet",  ids:["hsc","degree_college","honours_college"] },
-  { id:"diploma",   label:"Diploma",    icon:"📜",  color:"emerald", ids:["diploma"] },
-  { id:"university",label:"University", icon:"🎓",  color:"indigo",  ids:["undergrad_private","undergrad_public"] },
+// ════════════════════════════════════════════════════════════════
+//  STREAMS — the new top-level taxonomy. Onboarding asks for stream
+//  first, then for stage within that stream. Each EDU id maps to
+//  exactly one stream via STREAM_OF (single source of truth).
+// ════════════════════════════════════════════════════════════════
+export const EDU_STREAMS = [
+  { id:"bangla",     label:"Bangla Medium",          icon:"🇧🇩", color:"emerald",
+    desc:"Government & private NCTB-curriculum schools (Bangla)" },
+  { id:"english",    label:"English Medium",         icon:"🇬🇧", color:"blue",
+    desc:"Cambridge / Edexcel / IB schools (English)" },
+  { id:"madrasha",   label:"Madrasha",               icon:"🕌",  color:"teal",
+    desc:"Ebtedayee → Dakhil → Alim → Fazil → Kamil" },
+  { id:"technical",  label:"Technical / Polytechnic", icon:"🔧",  color:"amber",
+    desc:"SSC Voc / HSC Voc / 4-year Diploma" },
+  { id:"university", label:"University & Postgrad",   icon:"🎓",  color:"indigo",
+    desc:"Public / private undergrad, Masters, MPhil / PhD" },
 ];
+
+export const STREAM_OF = {
+  // Bangla medium
+  preprimary:"bangla", primary:"bangla", junior:"bangla", secondary:"bangla", fullschool:"bangla",
+  hsc:"bangla", degree_college:"bangla", honours_college:"bangla",
+  // English medium
+  em_primary:"english", em_junior:"english", em_olevel:"english", em_alevel:"english",
+  // Madrasha
+  madrasha_ebtedayee:"madrasha", madrasha_dakhil:"madrasha", madrasha_alim:"madrasha",
+  madrasha_fazil:"madrasha",     madrasha_kamil:"madrasha",
+  // Technical
+  tech_ssc_voc:"technical", tech_hsc_voc:"technical", diploma:"technical",
+  // University / postgrad
+  undergrad_private:"university", undergrad_public:"university",
+  masters:"university",           research:"university",
+};
+
+// Auto-derived inverse: stream id → ordered list of EDU ids belonging to it.
+// Order is the iteration order of STREAM_OF, which mirrors educational sequence.
+export const EDU_BY_STREAM = Object.entries(STREAM_OF).reduce((acc, [eduId, streamId]) => {
+  (acc[streamId] = acc[streamId] || []).push(eduId);
+  return acc;
+}, {});
+
+// Legacy export — kept so older callers don't break. Prefer EDU_STREAMS.
+export const EDU_GROUPS = EDU_STREAMS.map(s => ({
+  id: s.id, label: s.label, icon: s.icon, color: s.color, ids: EDU_BY_STREAM[s.id] || [],
+}));
 
 export const PROMOTION_CONFIG = {
   preprimary:       { mode:"smart",  nudgeMonth:0, nudgeDay:1,  snoozeDays:30,  termLabel:"academic year" },
@@ -286,6 +516,23 @@ export const PROMOTION_CONFIG = {
   research:         { mode:"never",  nudgeMonth:0, nudgeDay:1,  snoozeDays:365, termLabel:"year",
                       manualNote:"Research duration is open-ended. Update year manually." },
   diploma:          { mode:"smart",  nudgeMonth:5, nudgeDay:15, snoozeDays:30,  termLabel:"semester" },
+  // English Medium
+  em_primary:       { mode:"smart",  nudgeMonth:6, nudgeDay:15, snoozeDays:30,  termLabel:"academic year" },
+  em_junior:        { mode:"smart",  nudgeMonth:6, nudgeDay:15, snoozeDays:30,  termLabel:"academic year" },
+  em_olevel:        { mode:"manual", nudgeMonth:4, nudgeDay:1,  snoozeDays:60,  termLabel:"exam session",
+                      manualNote:"O-Level results land May/June and Oct/Nov — confirm before advancing." },
+  em_alevel:        { mode:"manual", nudgeMonth:7, nudgeDay:1,  snoozeDays:60,  termLabel:"exam session",
+                      manualNote:"A-Level results land Aug — confirm year transition." },
+  // Madrasha
+  madrasha_ebtedayee:{ mode:"smart", nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
+  madrasha_dakhil:  { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
+  madrasha_alim:    { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"year" },
+  madrasha_fazil:   { mode:"manual", nudgeMonth:5, nudgeDay:1,  snoozeDays:60,  termLabel:"session",
+                      manualNote:"Islamic Arabic University sessions can shift — update manually." },
+  madrasha_kamil:   { mode:"manual", nudgeMonth:5, nudgeDay:1,  snoozeDays:60,  termLabel:"session" },
+  // Technical Voc
+  tech_ssc_voc:     { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
+  tech_hsc_voc:     { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"year" },
 };
 
 export const shouldNudgeToday = (profile, promotionState) => {
@@ -398,6 +645,23 @@ export const INSTITUTIONS = {
   research:         ["University of Dhaka","BUET","Jahangirnagar University","SUST","University of Rajshahi","University of Chittagong","Bangladesh Agricultural University","Bangabandhu Sheikh Mujib Medical University","Khulna University","Jagannath University","Islamic University Bangladesh","Bangladesh University of Professionals","KUET","RUET","CUET","DUET","IUT","MIST","Bangabandhu Sheikh Mujibur Rahman Agricultural University","Sher-e-Bangla Agricultural University","Bangladesh Council of Scientific and Industrial Research (BCSIR)","Bangladesh Atomic Energy Commission","Bangladesh Institute of Development Studies (BIDS)","Centre for Policy Dialogue (CPD)","International Centre for Diarrhoeal Disease Research, Bangladesh (icddr,b)"],
 
   diploma:          ["Dhaka Polytechnic Institute","Chittagong Polytechnic Institute","Rajshahi Polytechnic Institute","Khulna Polytechnic Institute","Sylhet Polytechnic Institute","Barishal Polytechnic Institute","Mymensingh Polytechnic Institute","Comilla Polytechnic Institute","Faridpur Polytechnic Institute","Bogra Polytechnic Institute","Rangpur Polytechnic Institute","Pabna Polytechnic Institute","Dinajpur Polytechnic Institute","Tangail Polytechnic Institute","Bangladesh Sweden Polytechnic Institute (Kaptai)","Graphic Arts Institute","Bangladesh Institute of Glass and Ceramics","Bangladesh Survey Institute","Institute of Marine Technology","Institute of Health Technology (IHT)","Ahsanullah Institute of Technical Education","Daffodil Polytechnic Institute","BCMC College of Engineering and Technology","Imperial College of Engineering","Eastern University Polytechnic Wing"],
+
+  // ─── English Medium (same school often runs Primary → Junior → O-Level → A-Level) ───
+  em_primary:       ["Scholastica","Sunbeams School","Maple Leaf International School","Mastermind School","South Breeze School","Aga Khan School","Glenrich International School","Australian International School Dhaka","Cambrian School & College","International School Dhaka (ISD)","American International School Dhaka","Chittagong Grammar School","St. Joseph Higher Secondary School","Cambridge Bangladesh","Greenherald International School"],
+  em_junior:        ["Scholastica","Sunbeams School","Maple Leaf International School","Mastermind School","South Breeze School","Aga Khan School","Glenrich International School","Australian International School Dhaka","Cambrian School & College","International School Dhaka (ISD)","American International School Dhaka","Chittagong Grammar School","St. Joseph Higher Secondary School","Cambridge Bangladesh","Greenherald International School"],
+  em_olevel:        ["Scholastica","Sunbeams School","Maple Leaf International School","Mastermind School","Cambrian School & College","International School Dhaka (ISD)","American International School Dhaka","Chittagong Grammar School","Aga Khan School","Glenrich International School","South Breeze School","Greenherald International School","Bangladesh International Tutorial","Manarat International School","Playpen School","Tiger's Den School & College"],
+  em_alevel:        ["Scholastica","Sunbeams School","Mastermind School","Cambrian School & College","Maple Leaf International School","International School Dhaka (ISD)","American International School Dhaka","Chittagong Grammar School","Aga Khan School","Greenherald International School","Playpen School","Tiger's Den School & College","South Point College","Academia","Bangladesh International Tutorial"],
+
+  // ─── Madrasha ───
+  madrasha_ebtedayee:["Al-Jamiatul Ahlia Darul Ulum Moinul Islam (Hathazari)","Jamia Islamia Patiya","Jamia Ahmadia Sunnia (Tongi)","Tamirul Millat Kamil Madrasa","Tejgaon Madrasa-e-Alia","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Faridabad Madrasa","Mohammadpur Markaz Madrasa","Mirpur Jamia Mohammadia Arabia"],
+  madrasha_dakhil:  ["Tamirul Millat Kamil Madrasa","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Tejgaon Madrasa-e-Alia","Jamia Qurania Arabia Lalbagh","Sylhet Government Madrasa","Rajshahi Government Alia Madrasa","Chittagong Government Madrasa","Khulna Darus Salam Madrasa","Bhairab Hafizia Kawmi Madrasa"],
+  madrasha_alim:    ["Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Tamirul Millat Kamil Madrasa","Sylhet Government Madrasa","Rajshahi Government Alia Madrasa","Chittagong Government Madrasa","Comilla Government Madrasa","Bogra Government Madrasa","Faridpur Government Madrasa"],
+  madrasha_fazil:   ["Islamic Arabic University","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Tamirul Millat Kamil Madrasa","Jamia Qurania Arabia Lalbagh","Al-Jamiatul Ahlia Darul Ulum Moinul Islam (Hathazari)","Jamia Islamia Patiya"],
+  madrasha_kamil:   ["Islamic Arabic University","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Tamirul Millat Kamil Madrasa","Jamia Qurania Arabia Lalbagh","Al-Jamiatul Ahlia Darul Ulum Moinul Islam (Hathazari)"],
+
+  // ─── Technical Vocational ───
+  tech_ssc_voc:     ["Dhaka Technical School & College","Chittagong Technical School & College","Sylhet Technical School & College","Rajshahi Technical School & College","Khulna Technical School & College","Barishal Technical School & College","Rangpur Technical School & College","Mymensingh Technical School & College","Comilla Technical School & College"],
+  tech_hsc_voc:     ["Dhaka Technical School & College","Chittagong Technical School & College","Sylhet Technical School & College","Rajshahi Technical School & College","Khulna Technical School & College","Government Latifa Bawany Vocational Institute","Government Sheikh Hasina Polytechnic Institute","Government BM College","City BM College","National BM College"],
 
   madrasa:          ["Al-Jamiatul Ahlia Darul Ulum Moinul Islam (Hathazari)","Jamia Islamia Patiya","Jamia Ahmadia Sunnia (Tongi)","Jamia Qurania Arabia Lalbagh","Tamirul Millat Kamil Madrasa","Tejgaon Madrasa-e-Alia","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Jamia Tawakkulia Renga","Faridabad Madrasa","Char Monai Madrasa","Mohammadpur Markaz Madrasa","Banani Bait-ul-Mukarram Madrasa","Jamia Rahmania Arabia Dhaka","Darul Ulum Moinul Islam Hathazari","Jamia Islamia Yunusia Brahmanbaria","Jamia Madinatul Ulum Bashundhara","Jamia Hossainia Ashraful Ulum Boro Katara","Jamiatul Ummahatil Mu'minin","Jamia Imdadia Mahmoodia","Jamia Quranic Arabic University Lalbagh","Bhairab Hafizia Kawmi Madrasa","Mirpur Jamia Mohammadia Arabia","Mohila Madrasa Ar Rabita Tejgaon","Mahmudia Mohila Madrasa Mirpur","Darul Ihsan Madrasa Uttara","Sylhet Government Madrasa","Rajshahi Government Alia Madrasa","Chittagong Government Madrasa","Khulna Darus Salam Madrasa"],
 
