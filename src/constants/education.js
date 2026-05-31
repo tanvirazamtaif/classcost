@@ -15,9 +15,9 @@ export const EDU = {
     note:"Fees are mostly monthly. No formal exams.",
   },
   primary: {
-    id:"primary", group:"school", label:"Primary School", shortLabel:"Primary",
+    id:"primary", group:"school", label:"Class 1–5 (Primary)", shortLabel:"Class 1–5",
     icon:"🏫", color:"sky", bgColor:"bg-sky-50", borderColor:"border-sky-300",
-    desc:"Class 1 to Class 5 (Government & Private)",
+    desc:"Primary — Bangla, English Medium, or Ebtedayee (madrasha)",
     levels:["Class 1","Class 2","Class 3","Class 4","Class 5"],
     periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
     institutionLabel:"School Name",
@@ -36,9 +36,9 @@ export const EDU = {
     ],
   },
   junior: {
-    id:"junior", group:"school", label:"Junior Secondary School", shortLabel:"Junior School",
+    id:"junior", group:"school", label:"Class 6–8 (Junior Secondary)", shortLabel:"Class 6–8",
     icon:"🏫", color:"teal", bgColor:"bg-teal-50", borderColor:"border-teal-300",
-    desc:"Class 6 to Class 8 (JSC / JDC track)",
+    desc:"Junior — Bangla, English Medium, or early Dakhil",
     levels:["Class 6","Class 7","Class 8"],
     periodLabel:"Class", semLabel:"Term", courseLabel:"Subject",
     institutionLabel:"School Name",
@@ -56,9 +56,9 @@ export const EDU = {
     ],
   },
   secondary: {
-    id:"secondary", group:"school", label:"Secondary School (SSC)", shortLabel:"Secondary",
+    id:"secondary", group:"school", label:"Class 9–10 (SSC / O-Level / Dakhil)", shortLabel:"Class 9–10",
     icon:"📘", color:"blue", bgColor:"bg-blue-50", borderColor:"border-blue-300",
-    desc:"Class 9 & 10 — SSC / Dakhil / O-Level track",
+    desc:"Secondary — SSC, O-Level (IGCSE / Edexcel), Dakhil, or SSC Vocational",
     levels:["Class 9","Class 10 (SSC Year)"],
     periodLabel:"Class", semLabel:"Year", courseLabel:"Subject",
     institutionLabel:"School Name",
@@ -100,9 +100,9 @@ export const EDU = {
     ],
   },
   hsc: {
-    id:"hsc", group:"college", label:"Intermediate / HSC College", shortLabel:"HSC / Inter",
+    id:"hsc", group:"college", label:"Class 11–12 (HSC / A-Level / Alim)", shortLabel:"Class 11–12",
     icon:"🏛️", color:"violet", bgColor:"bg-violet-50", borderColor:"border-violet-300",
-    desc:"Class 11 & 12 only — Pure HSC / A-Level / Alim colleges",
+    desc:"Higher Secondary — HSC, A-Level (Cambridge / Edexcel / IB), Alim, or HSC Voc/BM",
     levels:["Class 11 (1st Year)","Class 12 (2nd Year / Board Exam)"],
     periodLabel:"Year", semLabel:"Year", courseLabel:"Subject",
     institutionLabel:"College Name",
@@ -196,9 +196,9 @@ export const EDU = {
     ],
   },
   masters: {
-    id:"masters", group:"postgrad", label:"Masters Programme", shortLabel:"Masters",
+    id:"masters", group:"postgrad", label:"Masters / Postgrad", shortLabel:"Masters / Postgrad",
     icon:"👩‍🎓", color:"purple", bgColor:"bg-purple-50", borderColor:"border-purple-300",
-    desc:"MA / MSc / MBA / MEng / MCom (1–2 years)",
+    desc:"Masters (MA / MSc / MBA / MEng), MPhil / PhD, or Kamil (madrasha)",
     levels:["1st Semester","2nd Semester","3rd Semester","4th Semester"],
     periodLabel:"Semester", semLabel:"Semester", courseLabel:"Course",
     institutionLabel:"University / Institution",
@@ -236,7 +236,7 @@ export const EDU = {
   diploma: {
     id:"diploma", group:"diploma", label:"Diploma", shortLabel:"Diploma",
     icon:"📜", color:"emerald", bgColor:"bg-emerald-50", borderColor:"border-emerald-300",
-    desc:"Diploma in Engineering / Medical Tech / Nursing / Pharmacy (post-SSC, 3–4 yrs)",
+    desc:"Polytechnic, Medical Technology, Nursing, Pharmacy (post-SSC, 3–4 yrs)",
     levels:["1st Semester","2nd Semester","3rd Semester","4th Semester","5th Semester","6th Semester","7th Semester","8th Semester"],
     periodLabel:"Semester", semLabel:"Semester", courseLabel:"Subject",
     institutionLabel:"Polytechnic / Institute",
@@ -256,6 +256,24 @@ export const EDU = {
       {v:"textile",     l:"Diploma in Textile"},
       {v:"other",       l:"Other Diploma"},
     ],
+  },
+
+  // ═══════════════ GENERIC UNDERGRAD (catch-all for the 6th picker bucket) ═══════════════
+  undergrad: {
+    id:"undergrad", group:"university", label:"Undergraduate", shortLabel:"Undergrad",
+    icon:"🎓", color:"indigo", bgColor:"bg-indigo-50", borderColor:"border-indigo-300",
+    desc:"Bachelor's — Honours / Pass / Public Uni / Private Uni / Engineering / Medical / Fazil",
+    levels:["1st Year / 1st Semester","2nd Year / 2nd Semester","3rd Year / 3rd Semester","4th Year / 4th Semester","5th Year (Extension)"],
+    periodLabel:"Year", semLabel:"Semester / Year", courseLabel:"Course / Subject",
+    institutionLabel:"University / College",
+    hasSemesterChoice:true,
+    semChoiceOptions:[{v:"tri",l:"Trimester"},{v:"bi",l:"Semester"},{v:"yearly",l:"Yearly (session-based)"}],
+    feeTypes:["Admission Fee","Semester / Session Fee","Tuition Fee","Course / Credit Fee","Form Fill-up Fee","Practical Fee","Lab Fee","Library Fee","Development Fee","Hostel Fee","Re-admission Fee","Penalty Fee","Convocation Fee"],
+    periodicUnit:"semester",
+    hasHostel:true, hasCoaching:false, hasBatch:false, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:true,
+    note:"Inclusive undergrad bucket. Switch to a more specific type later in Settings if you want stricter fee categories.",
   },
 
   // ═══════════════ ENGLISH MEDIUM STREAM ═══════════════
@@ -480,6 +498,7 @@ export const STREAM_OF = {
   // Technical
   tech_ssc_voc:"technical", tech_hsc_voc:"technical", diploma:"technical",
   // University / postgrad
+  undergrad:"university",
   undergrad_private:"university", undergrad_public:"university",
   masters:"university",           research:"university",
 };
@@ -495,6 +514,24 @@ export const EDU_BY_STREAM = Object.entries(STREAM_OF).reduce((acc, [eduId, stre
 export const EDU_GROUPS = EDU_STREAMS.map(s => ({
   id: s.id, label: s.label, icon: s.icon, color: s.color, ids: EDU_BY_STREAM[s.id] || [],
 }));
+
+// ════════════════════════════════════════════════════════════════
+//  EDU_PICKER — the ACTUAL onboarding picker. 7 broad buckets the
+//  student self-identifies into. Each bucket explicitly lists what
+//  it covers in its label/desc so e.g. an A-Level student knows to
+//  pick "Class 11–12". The granular EDU entries above stay in the
+//  catalog for power features & legacy data, but onboarding stays flat.
+//  Ordered by typical student progression.
+// ════════════════════════════════════════════════════════════════
+export const EDU_PICKER = [
+  "primary",     // Class 1–5
+  "junior",      // Class 6–8
+  "secondary",   // Class 9–10  (SSC / O-Level / Dakhil)
+  "hsc",         // Class 11–12 (HSC / A-Level / Alim)
+  "diploma",     // Polytechnic / Medical / Nursing / Pharmacy
+  "undergrad",   // Honours / Pass / Public / Private / Fazil / Engineering / Medical
+  "masters",     // Masters / MPhil / PhD / Kamil
+];
 
 export const PROMOTION_CONFIG = {
   preprimary:       { mode:"smart",  nudgeMonth:0, nudgeDay:1,  snoozeDays:30,  termLabel:"academic year" },
@@ -533,6 +570,9 @@ export const PROMOTION_CONFIG = {
   // Technical Voc
   tech_ssc_voc:     { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"academic year" },
   tech_hsc_voc:     { mode:"smart",  nudgeMonth:0, nudgeDay:5,  snoozeDays:30,  termLabel:"year" },
+  // Generic undergrad bucket
+  undergrad:        { mode:"smart",  nudgeMonth:4, nudgeDay:15, snoozeDays:14,  termLabel:"semester",
+                      secondNudge:{ month:11, day:15 } },
 };
 
 export const shouldNudgeToday = (profile, promotionState) => {
@@ -662,6 +702,9 @@ export const INSTITUTIONS = {
   // ─── Technical Vocational ───
   tech_ssc_voc:     ["Dhaka Technical School & College","Chittagong Technical School & College","Sylhet Technical School & College","Rajshahi Technical School & College","Khulna Technical School & College","Barishal Technical School & College","Rangpur Technical School & College","Mymensingh Technical School & College","Comilla Technical School & College"],
   tech_hsc_voc:     ["Dhaka Technical School & College","Chittagong Technical School & College","Sylhet Technical School & College","Rajshahi Technical School & College","Khulna Technical School & College","Government Latifa Bawany Vocational Institute","Government Sheikh Hasina Polytechnic Institute","Government BM College","City BM College","National BM College"],
+
+  // Generic undergrad — combined list from public + private (covers most cases)
+  undergrad:        ["University of Dhaka","BUET","Jahangirnagar University","Rajshahi University","Chittagong University","SUST","Bangladesh Agricultural University","Bangabandhu Sheikh Mujib Medical University","KUET","RUET","CUET","DUET","IUT","MIST","Khulna University","Jagannath University","Bangladesh University of Professionals","Comilla University","Barishal University","North South University (NSU)","BRAC University","Independent University Bangladesh (IUB)","East West University (EWU)","Daffodil International University","United International University","American International University-Bangladesh (AIUB)","Ahsanullah University of Science & Technology (AUST)","Notre Dame University Bangladesh","ULAB","UAP","National University (Honours)","Islamic Arabic University (Fazil)","Bangladesh Open University","Various Honours / Degree colleges affiliated with NU"],
 
   madrasa:          ["Al-Jamiatul Ahlia Darul Ulum Moinul Islam (Hathazari)","Jamia Islamia Patiya","Jamia Ahmadia Sunnia (Tongi)","Jamia Qurania Arabia Lalbagh","Tamirul Millat Kamil Madrasa","Tejgaon Madrasa-e-Alia","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Jamia Tawakkulia Renga","Faridabad Madrasa","Char Monai Madrasa","Mohammadpur Markaz Madrasa","Banani Bait-ul-Mukarram Madrasa","Jamia Rahmania Arabia Dhaka","Darul Ulum Moinul Islam Hathazari","Jamia Islamia Yunusia Brahmanbaria","Jamia Madinatul Ulum Bashundhara","Jamia Hossainia Ashraful Ulum Boro Katara","Jamiatul Ummahatil Mu'minin","Jamia Imdadia Mahmoodia","Jamia Quranic Arabic University Lalbagh","Bhairab Hafizia Kawmi Madrasa","Mirpur Jamia Mohammadia Arabia","Mohila Madrasa Ar Rabita Tejgaon","Mahmudia Mohila Madrasa Mirpur","Darul Ihsan Madrasa Uttara","Sylhet Government Madrasa","Rajshahi Government Alia Madrasa","Chittagong Government Madrasa","Khulna Darus Salam Madrasa"],
 
