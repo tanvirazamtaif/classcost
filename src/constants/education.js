@@ -233,14 +233,37 @@ export const EDU = {
       {v:"mphil",l:"MPhil"},{v:"phd",l:"PhD"},{v:"integrated",l:"Integrated MPhil-PhD"},
     ],
   },
+  diploma: {
+    id:"diploma", group:"diploma", label:"Diploma", shortLabel:"Diploma",
+    icon:"📜", color:"emerald", bgColor:"bg-emerald-50", borderColor:"border-emerald-300",
+    desc:"Diploma in Engineering / Medical Tech / Nursing / Pharmacy (post-SSC, 3–4 yrs)",
+    levels:["1st Semester","2nd Semester","3rd Semester","4th Semester","5th Semester","6th Semester","7th Semester","8th Semester"],
+    periodLabel:"Semester", semLabel:"Semester", courseLabel:"Subject",
+    institutionLabel:"Polytechnic / Institute",
+    hasSemesterChoice:false,
+    feeTypes:["Admission Fee","Semester Fee","Tuition Fee","Lab Fee","Workshop Fee","Library Fee","Practical Exam Fee","Board Registration Fee","Industrial Attachment Fee","Development Fee","Re-admission Fee"],
+    periodicUnit:"semester",
+    hasHostel:true, hasCoaching:true, hasBatch:true, hasExam:true,
+    hasCanteen:true, hasTransport:true, hasTiffin:false,
+    hasPenalty:true, hasLabFee:true, hasWaiver:false,
+    note:"4-year polytechnic diploma (8 semesters). BTEB / State Board affiliated.",
+    variants:[
+      {v:"engineering", l:"Diploma in Engineering"},
+      {v:"medical",     l:"Diploma in Medical Technology"},
+      {v:"nursing",     l:"Diploma in Nursing"},
+      {v:"pharmacy",    l:"Diploma in Pharmacy"},
+      {v:"agriculture", l:"Diploma in Agriculture"},
+      {v:"textile",     l:"Diploma in Textile"},
+      {v:"other",       l:"Other Diploma"},
+    ],
+  },
 };
 
 export const EDU_GROUPS = [
-  { id:"early",     label:"Early Education", icon:"🧒",  color:"rose",   ids:["preprimary"] },
-  { id:"school",    label:"School",          icon:"🏫",  color:"sky",    ids:["primary","junior","secondary","fullschool"] },
-  { id:"college",   label:"College",         icon:"🏛️",  color:"violet", ids:["hsc","degree_college","honours_college"] },
-  { id:"university",label:"University",      icon:"🎓",  color:"indigo", ids:["undergrad_private","undergrad_public"] },
-  { id:"postgrad",  label:"Postgraduate",    icon:"👩‍🎓", color:"purple", ids:["masters","research"] },
+  { id:"school",    label:"School",     icon:"🏫",  color:"sky",     ids:["primary","junior","secondary","fullschool"] },
+  { id:"college",   label:"College",    icon:"🏛️",  color:"violet",  ids:["hsc","degree_college","honours_college"] },
+  { id:"diploma",   label:"Diploma",    icon:"📜",  color:"emerald", ids:["diploma"] },
+  { id:"university",label:"University", icon:"🎓",  color:"indigo",  ids:["undergrad_private","undergrad_public"] },
 ];
 
 export const PROMOTION_CONFIG = {
@@ -262,6 +285,7 @@ export const PROMOTION_CONFIG = {
                       secondNudge:{ month:11, day:15 } },
   research:         { mode:"never",  nudgeMonth:0, nudgeDay:1,  snoozeDays:365, termLabel:"year",
                       manualNote:"Research duration is open-ended. Update year manually." },
+  diploma:          { mode:"smart",  nudgeMonth:5, nudgeDay:15, snoozeDays:30,  termLabel:"semester" },
 };
 
 export const shouldNudgeToday = (profile, promotionState) => {
@@ -372,6 +396,8 @@ export const INSTITUTIONS = {
   masters:          ["University of Dhaka","BUET","NSU (MBA/MS)","BRAC University","IUB Graduate","IBA — MBA","East West University Graduate","SUST Graduate","Jahangirnagar University Graduate","BUP Graduate","Jagannath University Graduate","Khulna University Graduate","Rajshahi University Graduate","Chittagong University Graduate","IUT Graduate","MIST Graduate","Islamic University Graduate","DUET","KUET","RUET","CUET","Bangladesh Agricultural University Graduate","Bangabandhu Sheikh Mujib Medical University","BSMRSTU Graduate","HSTU Graduate","AIUB Graduate","UIU Graduate","Daffodil International University Graduate","Premier University Chittagong Graduate"],
 
   research:         ["University of Dhaka","BUET","Jahangirnagar University","SUST","University of Rajshahi","University of Chittagong","Bangladesh Agricultural University","Bangabandhu Sheikh Mujib Medical University","Khulna University","Jagannath University","Islamic University Bangladesh","Bangladesh University of Professionals","KUET","RUET","CUET","DUET","IUT","MIST","Bangabandhu Sheikh Mujibur Rahman Agricultural University","Sher-e-Bangla Agricultural University","Bangladesh Council of Scientific and Industrial Research (BCSIR)","Bangladesh Atomic Energy Commission","Bangladesh Institute of Development Studies (BIDS)","Centre for Policy Dialogue (CPD)","International Centre for Diarrhoeal Disease Research, Bangladesh (icddr,b)"],
+
+  diploma:          ["Dhaka Polytechnic Institute","Chittagong Polytechnic Institute","Rajshahi Polytechnic Institute","Khulna Polytechnic Institute","Sylhet Polytechnic Institute","Barishal Polytechnic Institute","Mymensingh Polytechnic Institute","Comilla Polytechnic Institute","Faridpur Polytechnic Institute","Bogra Polytechnic Institute","Rangpur Polytechnic Institute","Pabna Polytechnic Institute","Dinajpur Polytechnic Institute","Tangail Polytechnic Institute","Bangladesh Sweden Polytechnic Institute (Kaptai)","Graphic Arts Institute","Bangladesh Institute of Glass and Ceramics","Bangladesh Survey Institute","Institute of Marine Technology","Institute of Health Technology (IHT)","Ahsanullah Institute of Technical Education","Daffodil Polytechnic Institute","BCMC College of Engineering and Technology","Imperial College of Engineering","Eastern University Polytechnic Wing"],
 
   madrasa:          ["Al-Jamiatul Ahlia Darul Ulum Moinul Islam (Hathazari)","Jamia Islamia Patiya","Jamia Ahmadia Sunnia (Tongi)","Jamia Qurania Arabia Lalbagh","Tamirul Millat Kamil Madrasa","Tejgaon Madrasa-e-Alia","Government Madrasa-e-Alia (Dhaka)","Dhaka Alia Madrasa","Jamia Tawakkulia Renga","Faridabad Madrasa","Char Monai Madrasa","Mohammadpur Markaz Madrasa","Banani Bait-ul-Mukarram Madrasa","Jamia Rahmania Arabia Dhaka","Darul Ulum Moinul Islam Hathazari","Jamia Islamia Yunusia Brahmanbaria","Jamia Madinatul Ulum Bashundhara","Jamia Hossainia Ashraful Ulum Boro Katara","Jamiatul Ummahatil Mu'minin","Jamia Imdadia Mahmoodia","Jamia Quranic Arabic University Lalbagh","Bhairab Hafizia Kawmi Madrasa","Mirpur Jamia Mohammadia Arabia","Mohila Madrasa Ar Rabita Tejgaon","Mahmudia Mohila Madrasa Mirpur","Darul Ihsan Madrasa Uttara","Sylhet Government Madrasa","Rajshahi Government Alia Madrasa","Chittagong Government Madrasa","Khulna Darus Salam Madrasa"],
 

@@ -45,11 +45,10 @@ export const OnboardingWizard = () => {
   const getInstitutionPlaceholder = () => {
     const group = mod?.group;
     switch (group) {
-      case 'early': return 'e.g., ABC Kindergarten';
       case 'school': return 'e.g., Dhaka Residential Model College';
       case 'college': return 'e.g., Notre Dame College';
+      case 'diploma': return 'e.g., Dhaka Polytechnic Institute';
       case 'university': return 'e.g., BUET, DU, NSU';
-      case 'postgrad': return 'e.g., BUET, DU';
       default: return 'Enter institution name';
     }
   };
