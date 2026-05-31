@@ -1,10 +1,13 @@
 import React from 'react';
 
+// Soft, modern toast styles. `warn` uses translucent amber + dark text so it
+// reads as friendly nudge instead of alarming error. `error` stays red for real
+// failures (e.g. "Failed to save").
 const TOAST_STYLES = {
-  success: "bg-emerald-500",
-  error: "bg-red-500",
-  warn: "bg-amber-500",
-  info: "bg-slate-800",
+  success: "bg-emerald-500 text-white",
+  error:   "bg-red-500 text-white",
+  warn:    "bg-amber-100/90 text-amber-900 border border-amber-300/60 backdrop-blur-md",
+  info:    "bg-slate-800 text-white",
 };
 
 export const ToastContainer = React.memo(({ toasts }) => (
@@ -13,7 +16,7 @@ export const ToastContainer = React.memo(({ toasts }) => (
       <div
         key={t.id}
         style={{ animation: "slideDown .3s ease" }}
-        className={`px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold text-white text-center ${TOAST_STYLES[t.type] || TOAST_STYLES.info}`}
+        className={`px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold text-center ${TOAST_STYLES[t.type] || TOAST_STYLES.info}`}
       >
         {t.msg}
       </div>

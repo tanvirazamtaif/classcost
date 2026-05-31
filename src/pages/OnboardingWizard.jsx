@@ -335,7 +335,7 @@ export const OnboardingWizard = () => {
         }} className="flex-1">← Back</Btn>}
         {step < 4
           ? <Btn onClick={() => {
-              if (!canProceed()) { addToast("Please complete this step", "error"); return; }
+              if (!canProceed()) { addToast("Please complete this step", "warn"); return; }
               let nextStep = step + 1;
               if (nextStep === 2) {
                 const selectedMod = EDU[form.educationLevel];
