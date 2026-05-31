@@ -18,13 +18,28 @@ import { ListAddView } from '../components/education/ListAddView';
 import { SemesterDetailSheet } from '../components/education/SemesterDetailSheet';
 import { LayoutBottomNav } from '../components/layout';
 
-// Map EDU group values to fee filter categories
+// Map EDU group values to fee filter categories.
+// Covers original groups + all stream-derived groups added recently
+// (em_*, madrasha_*, tech_*) + diploma so new buckets route correctly.
 const GROUP_TO_FILTER = {
   early: 'school',
   school: 'school',
   college: 'college',
   university: 'university',
   postgrad: 'university',
+  diploma: 'university',
+  // English Medium
+  em_school: 'school',
+  em_college: 'college',
+  // Madrasha
+  madrasha_primary: 'school',
+  madrasha_secondary: 'school',
+  madrasha_college: 'college',
+  madrasha_university: 'university',
+  madrasha_postgrad: 'university',
+  // Technical Vocational
+  tech_school: 'school',
+  tech_college: 'college',
 };
 
 export const EducationFeePage = () => {

@@ -8,8 +8,13 @@ import { BottomSheet } from '../components/ui';
 import { redeemPromoCode } from '../api';
 import { EDUCATION_LEVELS } from '../types/educationFees';
 
-// Map EDU group to fee filter category
-const GROUP_TO_FILTER = { early: 'school', school: 'school', college: 'college', university: 'university', postgrad: 'university' };
+// Map EDU group to fee filter category (covers all original + new stream-derived groups)
+const GROUP_TO_FILTER = {
+  early: 'school', school: 'school', college: 'college', university: 'university', postgrad: 'university', diploma: 'university',
+  em_school: 'school', em_college: 'college',
+  madrasha_primary: 'school', madrasha_secondary: 'school', madrasha_college: 'college', madrasha_university: 'university', madrasha_postgrad: 'university',
+  tech_school: 'school', tech_college: 'college',
+};
 
 const SettingsView = () => {
   useEffect(() => { document.title = "Settings — ClassCost"; }, []);

@@ -120,8 +120,12 @@ const ViewRouter = () => {
         {view === "add-housing" && <AddHousingPage />}
         {view === "housing-detail" && <HousingDetailPage />}
         {view === "education-home" && <EducationHomePage />}
+        {/* V3 EntityDetail needs routeParams.entityId; the older EducationHomePage
+            navigates with just {institutionName, institutionType}. Fall back to the
+            old InstitutionDetailPage when entityId is missing so the click doesn't
+            land on V3's "Entity not found" screen. */}
         {view === "institution-detail" && (
-          isEnabled('USE_NEW_ARCHITECTURE')
+          isEnabled('USE_NEW_ARCHITECTURE') && routeParams?.entityId
             ? <EntityDetailV3 />
             : <InstitutionDetailPage />
         )}
