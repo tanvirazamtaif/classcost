@@ -46,13 +46,41 @@ const indexPayment = (paymentsByPeriod, period, paymentId) => {
   return { ...paymentsByPeriod, [period]: [...existing, paymentId] };
 };
 
-// localStorage key for migration
-const LOCAL_STORAGE_KEY = 'classcost_education_fees';
+// localStorage keys. The fees key is per-user so multiple test accounts on
+// the same browser don't collide. The legacy global key (`classcost_education_fees`)
+// is read once and migrated to the per-user key on first run.
+const LEGACY_FEES_KEY = 'classcost_education_fees';
+const feesKeyFor = (uid) => `classcost_education_fees_${uid || 'anon'}`;
 const CREDIT_RATES_KEY = 'classcost_credit_rates';
+
+// Read fees from localStorage with safe parsing.
+const readLocalFees = (uid) => {
+  try {
+    const raw = localStorage.getItem(feesKeyFor(uid));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    // Fall back to legacy key (one-time migration trigger)
+    const legacy = localStorage.getItem(LEGACY_FEES_KEY);
+    if (legacy) {
+      const parsed = JSON.parse(legacy);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch { /* ignore */ }
+  return [];
+};
+// Write fees to localStorage (write-through) so reload never loses data.
+const writeLocalFees = (uid, fees) => {
+  try { localStorage.setItem(feesKeyFor(uid), JSON.stringify(fees || [])); } catch { /* quota */ }
+};
 
 export const EducationFeeProvider = ({ children }) => {
   const { user } = useApp();
-  const [fees, setFees] = useState([]);
+  // Hydrate from localStorage IMMEDIATELY on mount so reload doesn't show
+  // empty data while we wait for the backend. The backend (if reachable)
+  // overlays this once it loads.
+  const [fees, setFees] = useState(() => readLocalFees(user?.id));
   const [loading, setLoading] = useState(true);
   const [savedCreditRates, setSavedCreditRates] = useState({
     regular: CONSTANTS.DEFAULT_CREDIT_RATE,
@@ -64,36 +92,45 @@ export const EducationFeeProvider = ({ children }) => {
   const syncTimeoutRef = useRef(null);
   const isInitialLoad = useRef(true);
 
-  // Load fees from database when user logs in
+  // Persist fees to localStorage on EVERY change. This is the durable store —
+  // backend sync is best-effort on top. Without this, a reload while offline
+  // (or during a failed backend round-trip) wiped all user input.
+  useEffect(() => {
+    if (!user?.id) return;
+    writeLocalFees(user.id, fees);
+  }, [fees, user?.id]);
+
+  // Load fees from database when user logs in. Backend is the SOURCE OF TRUTH
+  // when reachable, but we never drop local data just because the backend is
+  // down or returns empty.
   useEffect(() => {
     if (!user?.id) {
       setFees([]);
       setLoading(false);
       return;
     }
+    // Re-hydrate from per-user localStorage in case user just switched accounts.
+    setFees(readLocalFees(user.id));
 
     const loadFees = async () => {
       setLoading(true);
       try {
         const dbFees = await api.getEducationFees(user.id);
         if (dbFees && dbFees.length > 0) {
+          // Backend has authoritative data — use it.
           setFees(dbFees);
         } else {
-          // Check localStorage for migration
-          const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-          if (localData) {
+          // Backend returned empty. If we have local data (either per-user or
+          // the legacy global key), push it up so the server catches up.
+          const local = readLocalFees(user.id);
+          if (local.length > 0) {
+            setFees(local);
             try {
-              const localFees = JSON.parse(localData);
-              if (Array.isArray(localFees) && localFees.length > 0) {
-                setFees(localFees);
-                // Sync to database
-                await api.syncEducationFees(user.id, localFees);
-                // Clear localStorage after successful migration
-                localStorage.removeItem(LOCAL_STORAGE_KEY);
-              }
-            } catch (e) {
-              console.error('Failed to migrate localStorage fees:', e);
-            }
+              await api.syncEducationFees(user.id, local);
+              // Migrate legacy key (only after the per-user key is also saved).
+              writeLocalFees(user.id, local);
+              localStorage.removeItem(LEGACY_FEES_KEY);
+            } catch { /* keep local — server will catch up later */ }
           }
         }
 
@@ -104,11 +141,7 @@ export const EducationFeeProvider = ({ children }) => {
         }
       } catch (err) {
         console.error('Failed to load education fees:', err);
-        // Fallback to localStorage if API fails
-        const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (localData) {
-          try { setFees(JSON.parse(localData)); } catch (e) { /* ignore */ }
-        }
+        // Backend unreachable — local data already hydrated; leave it.
       } finally {
         setLoading(false);
         isInitialLoad.current = false;

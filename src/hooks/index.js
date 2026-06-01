@@ -6,3 +6,4 @@ export { usePullToRefresh } from './usePullToRefresh';
 export { useUserProfile } from './useUserProfile';
 export { useOnboarding } from './useOnboarding';
 export { useWizardHistory } from './useWizardHistory';
+export { useUnifiedTotals } from './useUnifiedTotals';

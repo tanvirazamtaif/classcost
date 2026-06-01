@@ -50,6 +50,7 @@ export const AddEntityPage = () => {
   const [eduLevel, setEduLevel] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const blurTimerRef = useRef(null);
 
@@ -78,7 +79,11 @@ export const AddEntityPage = () => {
   useEffect(() => () => clearTimeout(blurTimerRef.current), []);
 
   async function handleCreate() {
+    // Ref-based reentrancy guard. The `creating` state is async, so two rapid
+    // clicks can both pass the `disabled` check before the button repaints.
+    if (creatingRef.current) return;
     if (!name.trim()) { addToast('Enter a name', 'error'); return; }
+    creatingRef.current = true;
     setCreating(true);
     haptics.medium();
     try {
@@ -96,6 +101,7 @@ export const AddEntityPage = () => {
       addToast('Failed to create', 'error');
     } finally {
       setCreating(false);
+      creatingRef.current = false;
     }
   }
 

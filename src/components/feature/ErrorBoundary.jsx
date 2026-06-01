@@ -33,7 +33,19 @@ export class ErrorBoundary extends React.Component {
   }
 
   handleReset = () => {
-    localStorage.clear();
+    // Only clear app-owned keys so we don't wipe unrelated localStorage data
+    // (other tabs / extensions / OAuth tokens cached by SDKs).
+    try {
+      const toRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('ut_v3_') || k.startsWith('classcost_'))) {
+          toRemove.push(k);
+        }
+      }
+      toRemove.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.removeItem('classcost_chunk_reload');
+    } catch { /* ignore quota / security errors */ }
     window.location.reload();
   };
 

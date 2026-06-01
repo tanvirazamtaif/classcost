@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Bell, ChevronRight, Plus } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
+import { useUnifiedTotals } from '../hooks/useUnifiedTotals';
 import { Sidebar } from '../components/layout';
 import { LayoutBottomNav } from '../components/layout/LayoutBottomNav';
 import { AddPaymentV3 } from '../components/feature';
@@ -24,14 +25,19 @@ const CAT_ICONS = {
 
 // Map v3 categories to display categories
 const CATEGORY_MAP = {
+  // Identity entries — when useUnifiedTotals already outputs display category
+  // keys (V1 path adds straight to 'education'/'transport'/etc.), the mapping
+  // must keep them in their bucket instead of falling through to 'other'.
+  education: 'education', transport: 'transport', food: 'food', residence: 'residence',
+  materials: 'materials', clubs: 'clubs', other: 'other',
+  // Fine-grained V3 category names → display category
   semester_fee: 'education', tuition: 'education', exam_fee: 'education', lab_fee: 'education',
   admission_fee: 'education', library_fee: 'education', registration_fee: 'education',
   development_fee: 'education', uniform: 'education', id_card: 'education',
   coaching_monthly: 'education', batch_fee: 'education', coaching_materials: 'education',
-  transport: 'transport', food: 'food',
   rent: 'residence', mess_fee: 'residence', utilities: 'residence', deposit: 'residence', moving: 'residence',
   books: 'materials', stationery: 'materials', devices: 'materials',
-  medical: 'other', internet: 'other', loan_repayment: 'other', other: 'other',
+  medical: 'other', internet: 'other', loan_repayment: 'other',
 };
 
 const SCOPES = [
@@ -78,8 +84,12 @@ export const DashboardV3 = () => {
   const { user, navigate, theme = 'dark' } = useApp();
   const {
     entities, upcomingObligations, ledgerSummary, recentEntries,
-    loading, scopedTotals, monthTrend, recordPayment,
+    loading, monthTrend, recordPayment,
   } = useV3();
+  // Unified totals: V3 ledger + V1 expenses + V1 semester payments + V1 fees.
+  // Updates locally on every state change, so adding a fee anywhere is
+  // reflected on the dashboard immediately — no backend round-trip needed.
+  const scopedTotals = useUnifiedTotals();
 
   const d = theme === 'dark';
   const c = getThemeColors(d);

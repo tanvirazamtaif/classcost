@@ -98,6 +98,10 @@ const ViewRouter = () => {
       {view === "landing" && <LandingPage />}
       {view === "otp" && <OTPVerification />}
       {view === "role-selection" && <RoleSelection />}
+      {/* Route-level error boundary, keyed on `view` so a crashed page resets
+          when the user navigates away — instead of locking the whole app
+          behind the top-level ErrorBoundary's full-page fallback. */}
+      <ErrorBoundary key={`route-${view}`}>
       <Suspense fallback={<PageLoader view={view} dark={dark} />}>
         {view === "phone-auth" && <PhoneAuthView />}
         {view === "admin" && <AdminApp />}
@@ -145,6 +149,7 @@ const ViewRouter = () => {
           <InnerPage />
         )}
       </Suspense>
+      </ErrorBoundary>
     </>
   );
 };

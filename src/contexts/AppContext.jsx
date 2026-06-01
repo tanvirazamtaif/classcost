@@ -126,11 +126,16 @@ export const AppProvider = ({ children }) => {
 
   // In-app navigation stack so the back arrow always works, even when the
   // user landed on a page directly via URL (no browser history to fall back
-  // to). Each non-replace navigate() pushes the current view; goBack() pops.
-  // `currentViewRef` tracks the live view so navigate() can read it without a
-  // setState callback (which React StrictMode runs twice in dev, double-pushing).
+  // to). Each non-replace navigate() pushes a {view, params} snapshot; goBack
+  // pops and restores BOTH. Storing params was added because pages like
+  // InstitutionDetailPage need their routeParams (e.g. institutionName) to
+  // render — without them they show "Institution not found".
+  // `currentViewRef` / `currentParamsRef` track live values so navigate() can
+  // read them without setState callbacks (which React StrictMode runs twice
+  // in dev, double-pushing).
   const navStackRef = useRef([]);
   const currentViewRef = useRef(view);
+  const currentParamsRef = useRef(null);
   // Views that should not be the destination of a "back" action — going back
   // to an auth/onboarding screen after the user is logged in is wrong.
   const NON_BACK_TARGETS = ['landing', 'otp', 'phone-auth', 'role-selection', 'onboarding', 'parent-onboarding'];
@@ -141,9 +146,13 @@ export const AppProvider = ({ children }) => {
   const navigate = useCallback((v, { replace = false, params = null } = {}) => {
     const cur = currentViewRef.current;
     if (!replace && cur && cur !== v && !NON_BACK_TARGETS.includes(cur)) {
-      navStackRef.current = [...navStackRef.current, cur].slice(-30); // cap depth
+      navStackRef.current = [
+        ...navStackRef.current,
+        { view: cur, params: currentParamsRef.current },
+      ].slice(-30); // cap depth
     }
     currentViewRef.current = v; // pre-update so rapid navigate() calls see fresh value
+    currentParamsRef.current = params;
     setView(v);
     setRouteParams(params);
     if (replace) {
@@ -156,12 +165,16 @@ export const AppProvider = ({ children }) => {
   const goBack = useCallback(() => {
     const stack = navStackRef.current;
     if (stack.length > 0) {
-      const prev = stack[stack.length - 1];
+      const popped = stack[stack.length - 1];
       navStackRef.current = stack.slice(0, -1);
-      currentViewRef.current = prev;
-      setView(prev);
-      setRouteParams(null);
-      window.history.replaceState({ view: prev }, '', `/${prev}`);
+      // Legacy entries (pre-fix) were plain strings; treat them as no-params.
+      const prevView = typeof popped === 'string' ? popped : popped.view;
+      const prevParams = typeof popped === 'string' ? null : popped.params;
+      currentViewRef.current = prevView;
+      currentParamsRef.current = prevParams;
+      setView(prevView);
+      setRouteParams(prevParams);
+      window.history.replaceState({ view: prevView }, '', `/${prevView}`);
     } else {
       // No in-app history — fall back to dashboard (if logged in), otherwise
       // to landing. Check both rawUser and the stored ut_v3_user (in case the
@@ -175,6 +188,7 @@ export const AppProvider = ({ children }) => {
       }
       const fallback = isLoggedIn ? 'dashboard' : 'landing';
       currentViewRef.current = fallback;
+      currentParamsRef.current = null;
       setView(fallback);
       setRouteParams(null);
       window.history.replaceState({ view: fallback }, '', `/${fallback}`);
@@ -267,9 +281,15 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
+  // Mirror the latest user into a ref so setUser stays referentially stable
+  // even as user state changes. Consumers can keep setUser in their effect
+  // deps without triggering avoidable re-runs on every user mutation.
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   // Wrapped setters that sync to server
   const setUser = useCallback(async (newUser) => {
-    const u = typeof newUser === 'function' ? newUser(user) : newUser;
+    const u = typeof newUser === 'function' ? newUser(userRef.current) : newUser;
     setUserLocal(u);
     if (u?.id) {
       try {
@@ -288,7 +308,7 @@ export const AppProvider = ({ children }) => {
         });
       } catch (e) { console.error('Failed to sync user:', e); }
     }
-  }, [user]);
+  }, []);
 
   const updateSubscription = useCallback((subscriptionData) => {
     setUser(prev => ({
@@ -458,20 +478,28 @@ export const AppProvider = ({ children }) => {
     catch (e) { console.error('Failed to sync loan payment:', e); }
   }, []);
 
-  // On initial load, if user is logged in, sync from server
+  // Sync user data from server whenever the logged-in user id changes.
+  // (Previously this had empty deps, so logging in AFTER mount never triggered
+  // the sync.) `loadedForUserRef` guards against re-fetching for the same user
+  // when other unrelated user fields change.
+  const loadedForUserRef = useRef(null);
   useEffect(() => {
-    if (user?.isLoggedIn && user?.id) {
+    if (user?.isLoggedIn && user?.id && loadedForUserRef.current !== user.id) {
+      loadedForUserRef.current = user.id;
       loadUserData(user.id);
+    } else if (!user?.isLoggedIn) {
+      loadedForUserRef.current = null; // allow re-fetch after re-login
     }
-  }, []);
+  }, [user?.isLoggedIn, user?.id, loadUserData]);
 
+  // Redirect logged-in users away from auth/landing screens. Previously had
+  // empty deps so it never fired post-login from the same mount; now it
+  // properly reacts to login completing while still on an auth view.
   useEffect(() => {
-    if (user?.isLoggedIn) {
-      if (["landing", "otp", "role-selection"].includes(view)) {
-        navigate("dashboard", { replace: true });
-      }
+    if (user?.isLoggedIn && ['landing', 'otp', 'phone-auth', 'role-selection'].includes(view)) {
+      navigate('dashboard', { replace: true });
     }
-  }, []);
+  }, [user?.isLoggedIn, view, navigate]);
 
   // ─── Category entries ───────────────────────────────────────────────────
   const addEntry = useCallback(async (entry) => {
