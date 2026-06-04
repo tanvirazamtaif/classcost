@@ -573,6 +573,14 @@ export async function askAssistant(message, history = []) {
   });
 }
 
+// Agent mode: returns { type:'text', text } or { type:'action', action:{name,input}, text }.
+export async function askAssistantAgent(message, history = [], snapshot = null) {
+  return request('/api/assistant/agent', {
+    method: 'POST',
+    body: JSON.stringify({ message, history, snapshot }),
+  });
+}
+
 // ── Closure & Story Cards (Phase 5) ──────────────────────────────────────────
 
 export async function getClosures(userId) {

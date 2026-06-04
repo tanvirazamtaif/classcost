@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { SYSTEM_PROMPT, stubReply } = require('../lib/assistantKnowledge.cjs');
+const { TOOLS, AGENT_SYSTEM_PROMPT, stubPlan } = require('../lib/assistantTools.cjs');
 
 /**
  * "Ask ClassCost" help assistant — POST /api/assistant  { message, history }
@@ -118,6 +119,68 @@ router.post('/', async (req, res) => {
       reply: "Sorry, I'm having trouble answering right now. Please try again in a moment.",
       source: 'error',
     });
+  }
+});
+
+// ── Agent mode — POST /api/assistant/agent  { message, history, snapshot } ───
+// Returns a PROPOSED action (tool_use) or a text reply. Never executes writes;
+// the client confirms + executes. See server/lib/assistantTools.cjs.
+const MAX_SNAPSHOT_CHARS = 12_000;
+
+router.post('/agent', async (req, res) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+  if (rateLimited(ip)) {
+    return res.status(429).json({ error: 'Too many messages. Please wait a minute and try again.' });
+  }
+
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!message) return res.status(400).json({ error: 'Please type a command or question.' });
+  if (message.length > MAX_MESSAGE_CHARS) {
+    return res.status(400).json({ error: 'That message is too long — please shorten it.' });
+  }
+
+  const client = getClient();
+
+  // ── Stub mode (no key): pattern-based planner so the flow works locally ──
+  if (!client) {
+    return res.json(stubPlan(message));
+  }
+
+  // ── Real mode (Claude with tools) ────────────────────────────────────────
+  try {
+    const history = sanitizeHistory(req.body?.history);
+    let snapshotStr = '';
+    if (req.body?.snapshot && typeof req.body.snapshot === 'object') {
+      try { snapshotStr = JSON.stringify(req.body.snapshot).slice(0, MAX_SNAPSHOT_CHARS); } catch { /* ignore */ }
+    }
+
+    const system = [
+      { type: 'text', text: AGENT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+    ];
+    if (snapshotStr) {
+      system.push({ type: 'text', text: `CURRENT USER DATA (snapshot, JSON). Use it to answer questions and to find the id of an item to edit/delete:\n${snapshotStr}` });
+    }
+
+    const resp = await client.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      thinking: { type: 'disabled' },
+      system,
+      tools: TOOLS,
+      messages: [...history, { role: 'user', content: message }],
+    });
+
+    const blocks = resp.content || [];
+    const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+    const toolUse = blocks.find((b) => b.type === 'tool_use');
+
+    if (toolUse) {
+      return res.json({ type: 'action', action: { name: toolUse.name, input: toolUse.input || {} }, text });
+    }
+    return res.json({ type: 'text', text: text || "I'm not sure how to help with that. Try asking about your expenses, fees, or reminders." });
+  } catch (err) {
+    console.error('[assistant/agent] Claude error:', err.status || '', err.message);
+    return res.json({ type: 'text', text: "Sorry, I'm having trouble right now. Please try again in a moment." });
   }
 });
 
