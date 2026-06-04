@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { prisma } = require('../db.cjs');
 const { isValidCategory, isValidSubCategory } = require('../lib/categories.cjs');
+const { effectiveDue } = require('../lib/obligationMath.cjs');
 
 const VALID_LEDGER_TYPES = ['PAYMENT', 'INCOME', 'REFUND', 'WAIVER_CREDIT', 'ADJUSTMENT', 'CORRECTION'];
 const VALID_DIRECTIONS = ['DEBIT', 'CREDIT'];
@@ -43,10 +44,10 @@ async function recalcObligationStatus(obligationId) {
   });
 
   const totalPaid = result._sum.amountMinor || 0;
-  const effectiveDue = obligation.amountMinor - obligation.waiverAmountMinor;
+  const due = effectiveDue(obligation);
 
   let newStatus;
-  if (totalPaid >= effectiveDue) {
+  if (totalPaid >= due) {
     newStatus = 'PAID';
   } else if (totalPaid > 0) {
     newStatus = 'PARTIALLY_PAID';

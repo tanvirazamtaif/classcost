@@ -10,6 +10,7 @@
 
 require('dotenv/config');
 const { PrismaClient } = require('@prisma/client');
+const { effectiveDue } = require('../lib/obligationMath.cjs');
 const prisma = new PrismaClient();
 
 // ── feeType → v3 category mapping ──────────────────────────────────────────
@@ -248,8 +249,8 @@ async function migrateEducationFee(record) {
       const totalPaid = agg._sum.amountMinor || 0;
       const obl = await prisma.obligation.findUnique({ where: { id: obligationId } });
       if (obl) {
-        const effectiveDue = obl.amountMinor - obl.waiverAmountMinor;
-        const newStatus = totalPaid >= effectiveDue ? 'PAID' : totalPaid > 0 ? 'PARTIALLY_PAID' : obl.status;
+        const due = effectiveDue(obl);
+        const newStatus = totalPaid >= due ? 'PAID' : totalPaid > 0 ? 'PARTIALLY_PAID' : obl.status;
         await prisma.obligation.update({
           where: { id: obligationId },
           data: { status: newStatus },

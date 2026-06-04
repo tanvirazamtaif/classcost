@@ -359,6 +359,10 @@ model Tracker {
   installmentCount   Int? // 1-4 for pooled mode
   grossMinor         Int? // cached gross total of all FeeItems (for display, recomputed on change)
   netMinor           Int? // cached net after waivers (for display, recomputed on change)
+  // Phase 2 — frozen post-waiver breakdown {grossMinor, netMinor, totalWaiverMinor, ...}
+  // for reports/closure to read a stable figure instead of recomputing.
+  profileSnapshot    Json?
+  profileFrozenAt    DateTime? // set when a semester closes (Phase 5); null = live/recomputable
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -389,6 +393,7 @@ model Obligation {
   status            ObligationStatus @default(UPCOMING)
   waiverPct         Int              @default(0) // DEPRECATED — use waiverAmountMinor
   waiverAmountMinor Int              @default(0) // Absolute waiver in minor units
+  customAmount      Boolean          @default(false) // Phase 2 — user hand-edited this installment; redistribute() must not overwrite it
   waiverReason      String? // "Merit scholarship", "Sports waiver 20%"
   period            String? // "2026-03", "2026-yearly", "spring-2026"
   installmentSeq    Int? // 1, 2, 3 for installment parts
