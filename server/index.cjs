@@ -23,6 +23,7 @@ const obligationRoutes = require('./routes/obligations.cjs');
 const ledgerRoutes = require('./routes/ledger.cjs');
 const allocationRoutes = require('./routes/allocations.cjs');
 const semesterEngineRoutes = require('./routes/semesterEngine.cjs');
+const institutionRoutes = require('./routes/institutions.cjs');
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/obligations', obligationRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/allocations', allocationRoutes);
 app.use('/api/semester-engine', semesterEngineRoutes);
+app.use('/api/institutions', institutionRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {

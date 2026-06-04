@@ -320,6 +320,12 @@ model Entity {
   meta           Json? // DEPRECATED — use metadata
   metadata       Json?
   parentEntityId String? // For club-to-institution linkage
+  // Phase 1 — soft links into the curated Institution Data Center (templates).
+  // Nullable, no relation/FK by design: existing string-named entities keep
+  // working untouched; new entities MAY attach to a curated template.
+  institutionId  String? // → Institution.id (curated template)
+  branchId       String? // → Branch.id
+  sectionId      String? // → Section.id
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -329,6 +335,7 @@ model Entity {
 
   @@index([userId, type])
   @@index([userId, isActive])
+  @@index([institutionId])
 }
 
 // Section 2: Tracker — a time-bound cost container (e.g. "Fall 2025 semester")
@@ -544,4 +551,74 @@ model Waiver {
   createdAt     DateTime  @default(now())
 
   @@index([trackerId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INSTITUTION DATA CENTER — curated, global reference templates (Phase 1)
+//
+// These are NOT user-scoped. They are read-only reference data the onboarding
+// flow searches. A user's `Entity` row is the INSTANCE that optionally points
+// at (Institution, Branch, Section) via the nullable soft-link columns on Entity.
+// Three-dimensional addressing: Institution (identity) × Branch (location) × Section (program).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Curated canonical identity — the brand/charter (e.g. "Monipur High School and College")
+model Institution {
+  id         String   @id @default(cuid())
+  name       String
+  nameBn     String?
+  aliases    String[] @default([]) // ["BRACU","ব্র্যাক","Brac Uni"] for search
+  type       String // school | college | university | coaching | cadet | residential_school_college | madrasa
+  eduLevel   String? // coarse level hint
+  division   String?
+  district   String?
+  area       String?
+  trustLevel String   @default("approximate") // verified | approximate | community_reported
+  metadata   Json? // capability flags, calendar profile hints, etc.
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  branches Branch[]
+
+  @@index([type])
+  @@index([district])
+}
+
+// A physical campus/location of an Institution (e.g. "Monipur — Mirpur-2 Main Campus")
+model Branch {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name          String
+  nameBn        String?
+  isPrimary     Boolean     @default(false)
+  division      String?
+  district      String?
+  area          String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  sections Section[]
+
+  @@index([institutionId])
+}
+
+// An academic program type offered at a branch (e.g. "School Section, Classes 1-10")
+model Section {
+  id              String   @id @default(cuid())
+  branchId        String
+  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name            String
+  nameBn          String?
+  sectionType     String? // school | college | undergraduate | coaching-course | cadet-junior | ...
+  eduLevel        String?
+  classRangeFrom  String? // "Class 1" / "Year 1" / "HSC 1st Year"
+  classRangeTo    String? // "Class 10 (SSC)" / "Year 4"
+  residencePolicy String   @default("none") // none | optional | mandatory | phased
+  metadata        Json? // feeKit hints, calendarProfileId, residence variants
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([branchId])
 }
