@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, ChevronRight, User, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useV3 } from '../contexts/V3Context';
+import { useEducationFees } from '../contexts/EducationFeeContext';
 import { getThemeColors } from '../lib/themeColors';
+import { semesterTotals } from '../lib/universalInstallments';
 
 import { LayoutBottomNav } from '../components/layout/LayoutBottomNav';
 import { haptics } from '../lib/haptics';
@@ -46,6 +48,7 @@ function fmtDate(d) {
 export const EntityDetailV3 = () => {
   const { goBack, navigate, addToast, routeParams, user, theme = 'dark' } = useApp();
   const { entities, trackers, ledgerSummary, addEntity, allEntries } = useV3();
+  const { activeFees } = useEducationFees();
   const c = getThemeColors(theme === 'dark');
   const { entityId } = routeParams || {};
   const fmt = makeFmt(user?.profile?.currency || 'BDT');
@@ -60,6 +63,12 @@ export const EntityDetailV3 = () => {
   const [showClubForm, setShowClubForm] = useState(false);
 
   const entity = useMemo(() => (entities || []).find(e => e.id === entityId), [entities, entityId]);
+  // New Universal-Installment semesters live in EducationFeeContext as
+  // semester_container fees tagged with this entity's id.
+  const clientSemesters = useMemo(
+    () => (activeFees || []).filter(f => f.feeType === 'semester_container' && f.semester?.entityId === entityId),
+    [activeFees, entityId]
+  );
   const activeEntities = useMemo(() => (entities || []).filter(e => e.isActive), [entities]);
   const tabs = useMemo(() => getTabsForEntity(entity), [entity]);
   const parentEntity = useMemo(() => {
@@ -247,42 +256,72 @@ export const EntityDetailV3 = () => {
               <div className="py-12 text-center">
                 <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" />
               </div>
-            ) : semesters.length === 0 ? (
+            ) : (clientSemesters.length === 0 && semesters.length === 0) ? (
               <div className="rounded-xl p-8 text-center" style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
                 <p className="text-sm" style={{ color: c.text3 }}>No semesters yet</p>
+                <p className="text-xs mt-1" style={{ color: c.text3 }}>Tap below to plan one with the wizard.</p>
               </div>
             ) : (
-              semesters.map(sem => {
-                const paid = getSemesterPaid(sem);
-                const total = getSemesterTotal(sem);
-                const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
-                const overdueInfo = getOverdueInfo(sem);
-                const isCompleted = sem.status === 'COMPLETED';
-                return (
-                  <motion.button key={sem.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('semester-detail-v3', { params: { trackerId: sem.id } })}
-                    className="w-full text-left rounded-xl p-4"
-                    style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold" style={{ color: c.text1 }}>{sem.label}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full"
-                        style={{ background: isCompleted ? c.accentLight : 'rgba(34,197,94,0.1)', color: isCompleted ? c.accent : '#22c55e' }}>
-                        {isCompleted ? 'Completed' : 'Active'}
-                      </span>
-                    </div>
-                    <p className="text-xs mt-1.5" style={{ color: c.text2 }}>{fmt(paid / 100)} paid of {fmt(total / 100)}</p>
-                    <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ background: c.border }}>
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.accent }} />
-                    </div>
-                    {overdueInfo && (
-                      <p className="text-[11px] mt-2" style={{ color: '#f59e0b' }}>{overdueInfo.label} overdue by {overdueInfo.days} days</p>
-                    )}
-                  </motion.button>
-                );
-              })
+              <>
+                {/* New Universal-Installment semesters */}
+                {clientSemesters.map(sem => {
+                  const t = semesterTotals(sem.semester?.fees || []);
+                  return (
+                    <motion.button key={sem.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => navigate('semester-detail', { params: { semesterId: sem.id } })}
+                      className="w-full text-left rounded-xl p-4"
+                      style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold" style={{ color: c.text1 }}>{sem.semester?.semesterName || sem.name}</p>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full"
+                          style={{ background: t.pct >= 100 ? c.accentLight : 'rgba(34,197,94,0.1)', color: t.pct >= 100 ? c.accent : '#22c55e' }}>
+                          {t.pct >= 100 ? 'Completed' : 'Active'}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-1.5" style={{ color: c.text2 }}>{fmt(t.paid)} paid of {fmt(t.finalNet)}</p>
+                      <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ background: c.border }}>
+                        <div className="h-full rounded-full" style={{ width: `${t.pct}%`, background: c.accent }} />
+                      </div>
+                      {t.installmentsLeft > 0 && (
+                        <p className="text-[11px] mt-2" style={{ color: c.text3 }}>{t.installmentsLeft} installment(s) left</p>
+                      )}
+                    </motion.button>
+                  );
+                })}
+                {/* Legacy V3 server semesters (if any) still open on the V3 detail page */}
+                {semesters.map(sem => {
+                  const paid = getSemesterPaid(sem);
+                  const total = getSemesterTotal(sem);
+                  const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+                  const overdueInfo = getOverdueInfo(sem);
+                  const isCompleted = sem.status === 'COMPLETED';
+                  return (
+                    <motion.button key={sem.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => navigate('semester-detail-v3', { params: { trackerId: sem.id } })}
+                      className="w-full text-left rounded-xl p-4"
+                      style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold" style={{ color: c.text1 }}>{sem.label}</p>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full"
+                          style={{ background: isCompleted ? c.accentLight : 'rgba(34,197,94,0.1)', color: isCompleted ? c.accent : '#22c55e' }}>
+                          {isCompleted ? 'Completed' : 'Active'}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-1.5" style={{ color: c.text2 }}>{fmt(paid / 100)} paid of {fmt(total / 100)}</p>
+                      <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ background: c.border }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.accent }} />
+                      </div>
+                      {overdueInfo && (
+                        <p className="text-[11px] mt-2" style={{ color: '#f59e0b' }}>{overdueInfo.label} overdue by {overdueInfo.days} days</p>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </>
             )}
-            <button onClick={() => navigate('create-semester', { params: { entityId: entity.id, entityName: entity.name } })}
+            <button onClick={() => navigate('payment-wizard', { params: { entityId: entity.id, entityName: entity.name, institutionName: entity.name, institutionType: entity.type } })}
               className="w-full py-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
               style={{ border: `1.5px dashed ${c.border}`, color: c.accent }}>
               <Plus size={16} /> Create new semester

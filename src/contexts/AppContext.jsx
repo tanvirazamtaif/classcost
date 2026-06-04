@@ -48,7 +48,7 @@ const VALID_VIEWS = new Set([
   'education-setup', 'historical-data', 'budget-settings',
   'dashboard', 'reports', 'settings', 'loans', 'schedule',
   'education-fee-form', 'semester-landing', 'add-semester', 'semester-detail',
-  'semester-detail-v3', 'create-semester',
+  'semester-detail-v3', 'create-semester', 'payment-wizard',
   'transport', 'transport-page', 'study-materials', 'materials-page',
   'food-page', 'other-page',
   'housing-landing', 'add-housing', 'housing-detail',

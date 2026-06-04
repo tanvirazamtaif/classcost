@@ -30,6 +30,8 @@ const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
 const SemesterLandingPage = lazy(() => import('./pages/SemesterLandingPage'));
 const AddSemesterPage = lazy(() => import('./pages/AddSemesterPage'));
 const SemesterDetailPage = lazy(() => import('./pages/SemesterDetailPage'));
+const SemesterDetailUniversal = lazy(() => import('./pages/SemesterDetailUniversal'));
+const PaymentWizard = lazy(() => import('./pages/PaymentWizard'));
 const TransportPage = lazy(() => import('./pages/TransportPage'));
 const StudyMaterialsPage = lazy(() => import('./pages/StudyMaterialsPage'));
 const HousingLandingPage = lazy(() => import('./pages/HousingLandingPage'));
@@ -119,7 +121,11 @@ const ViewRouter = () => {
         {view === "education-fee-form" && <EducationFeeFormPage />}
         {view === "semester-landing" && <SemesterLandingPage />}
         {view === "add-semester" && <AddSemesterPage />}
-        {view === "semester-detail" && <SemesterDetailPage />}
+        {/* New Universal Installment semester system (replaces the legacy
+            SemesterDetailPage on this route). The legacy component is kept
+            imported as a fallback but is no longer routed. */}
+        {view === "semester-detail" && <SemesterDetailUniversal />}
+        {view === "payment-wizard" && <PaymentWizard />}
         {view === "transport" && <TransportPage />}
         {view === "study-materials" && <StudyMaterialsPage />}
         {view === "housing-landing" && <HousingLandingPage />}
