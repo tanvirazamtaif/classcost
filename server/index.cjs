@@ -23,11 +23,20 @@ const obligationRoutes = require('./routes/obligations.cjs');
 const ledgerRoutes = require('./routes/ledger.cjs');
 const allocationRoutes = require('./routes/allocations.cjs');
 const semesterEngineRoutes = require('./routes/semesterEngine.cjs');
+const institutionRoutes = require('./routes/institutions.cjs');
+const recurringRoutes = require('./routes/recurring.cjs');
+const reportsRoutes = require('./routes/reports.cjs');
+const closureRoutes = require('./routes/closure.cjs');
+const circlesRoutes = require('./routes/circles.cjs');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// User auth gate for student routes (no-op unless REQUIRE_AUTH==='true').
+const { userAuthGuard } = require('./lib/userAuth.cjs');
+app.use('/api', userAuthGuard);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
@@ -49,6 +58,11 @@ app.use('/api/obligations', obligationRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/allocations', allocationRoutes);
 app.use('/api/semester-engine', semesterEngineRoutes);
+app.use('/api/institutions', institutionRoutes);
+app.use('/api/recurring', recurringRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/closure', closureRoutes);
+app.use('/api/circles', circlesRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {

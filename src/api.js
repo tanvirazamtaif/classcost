@@ -1,9 +1,26 @@
 const BASE = import.meta.env.VITE_API_URL || '';
 
+// ── Auth token (set at login, sent on every request) ──────────────────────────
+const TOKEN_KEY = 'ut_v3_token';
+let authToken = null;
+try { authToken = (typeof localStorage !== 'undefined' && localStorage.getItem(TOKEN_KEY)) || null; } catch { /* no storage */ }
+
+export function setAuthToken(token) {
+  authToken = token || null;
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch { /* ignore */ }
+}
+
 async function request(url, options = {}) {
   const res = await fetch(`${BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(options.headers || {}),
+    },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -22,17 +39,21 @@ export async function sendOTP(email) {
 }
 
 export async function verifyOTP(email, code) {
-  return request('/api/auth/verify-otp', {
+  const result = await request('/api/auth/verify-otp', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });
+  if (result?.token) setAuthToken(result.token);
+  return result;
 }
 
 export async function googleSignIn(credential) {
-  return request('/api/auth/google', {
+  const result = await request('/api/auth/google', {
     method: 'POST',
     body: JSON.stringify({ credential }),
   });
+  if (result?.token) setAuthToken(result.token);
+  return result;
 }
 
 export async function registerUser(email) {
@@ -480,4 +501,79 @@ export async function addWaiver(trackerId, userId, data) {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+// ── Reports / Forecast (Phase 4) ─────────────────────────────────────────────
+
+export async function getReportsSummary(userId) {
+  return request(`/api/reports/${userId}/summary`);
+}
+
+export async function getWaiverSaved(userId) {
+  return request(`/api/reports/${userId}/waiver-saved`);
+}
+
+export async function getForecast(userId, params = {}) {
+  const qs = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null)
+  ).toString();
+  return request(`/api/reports/${userId}/forecast${qs ? `?${qs}` : ''}`);
+}
+
+// ── Trusted Circles (Phase 6) ────────────────────────────────────────────────
+
+export async function getCircles(userId) {
+  return request(`/api/circles/${userId}`);
+}
+
+export async function createCircle(userId, data) {
+  return request(`/api/circles/${userId}`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function setCircleStatus(userId, circleId, status) {
+  return request(`/api/circles/${userId}/${circleId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+export async function setCirclePermission(userId, circleId, section, visibility) {
+  return request(`/api/circles/${userId}/${circleId}/permission`, { method: 'PATCH', body: JSON.stringify({ section, visibility }) });
+}
+
+// ── Recurring payments (Phase 3) ─────────────────────────────────────────────
+
+export async function getSchedules(userId) {
+  return request(`/api/recurring/${userId}`);
+}
+
+export async function createRecurringSchedule(userId, data) {
+  return request(`/api/recurring/${userId}`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getScheduleSlots(userId, scheduleId) {
+  return request(`/api/recurring/${userId}/${scheduleId}/slots`);
+}
+
+export async function paySlot(userId, slotId) {
+  return request(`/api/recurring/${userId}/slots/${slotId}/pay`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export async function unpaySlot(userId, slotId) {
+  return request(`/api/recurring/${userId}/slots/${slotId}/unpay`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export async function applyAdvance(userId, scheduleId, data) {
+  return request(`/api/recurring/${userId}/${scheduleId}/advance`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+// ── Closure & Story Cards (Phase 5) ──────────────────────────────────────────
+
+export async function getClosures(userId) {
+  return request(`/api/closure/${userId}/closures`);
+}
+
+export async function closeSemester(userId, trackerId, data) {
+  return request(`/api/closure/${userId}/semester/${trackerId}/close`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function settleClosure(userId, closureId) {
+  return request(`/api/closure/${userId}/closures/${closureId}/settle`, { method: 'POST', body: JSON.stringify({}) });
 }

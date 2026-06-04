@@ -6,6 +6,8 @@ import { GCard, GCardContent } from '../components/ui';
 import { ExpenseChart } from '../components/feature';
 import { pageTransition } from '../lib/animations';
 import { makeFmt } from '../utils/format';
+import { isEnabled } from '../lib/featureFlags';
+import { ReportsV2 } from './ReportsV2';
 
 export const ReportsView = () => {
   const { expenses, user, theme } = useApp();
@@ -63,6 +65,10 @@ export const ReportsView = () => {
     education: '🎓 Education', transport: '🚌 Transport', canteen: '🍽️ Food',
     hostel: '🏠 Housing', books: '📚 Books', uniform: '👔 Uniform'
   };
+
+  // Phase 4 — when enabled, render the server-side 4-tab Reports surface.
+  // Placed AFTER all hooks so the Rules of Hooks hold; legacy view is the default.
+  if (isEnabled('ENABLE_REPORTS_V2')) return <ReportsV2 />;
 
   if (expenses.length === 0 && !getTotalPaidAllTime) {
     return (

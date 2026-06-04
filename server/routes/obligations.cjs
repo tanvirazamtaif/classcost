@@ -3,6 +3,7 @@ const router = express.Router();
 const { prisma } = require('../db.cjs');
 const { isValidCategory } = require('../lib/categories.cjs');
 const { generateMissingObligations } = require('../services/obligationGenerator.cjs');
+const { amountRemaining: calcAmountRemaining } = require('../lib/obligationMath.cjs');
 
 // Status transition map — only listed transitions are allowed
 // Terminal states (PAID, WAIVED, SKIPPED, VOIDED) have no outgoing transitions
@@ -84,7 +85,7 @@ router.get('/:userId/upcoming', async (req, res) => {
     // Derive amountPaid and amountRemaining, sort OVERDUE first
     const results = obligations.map((obl) => {
       const amountPaid = obl.ledgerEntries.reduce((sum, le) => sum + le.amountMinor, 0);
-      const amountRemaining = obl.amountMinor - obl.waiverAmountMinor - amountPaid;
+      const amountRemaining = calcAmountRemaining(obl, amountPaid);
       const { ledgerEntries, ...rest } = obl;
       return { ...rest, amountPaid, amountRemaining };
     });

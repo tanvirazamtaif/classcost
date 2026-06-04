@@ -25,6 +25,7 @@ const EducationSetupView = lazy(() => import('./pages/EducationSetupView'));
 const HistoricalDataView = lazy(() => import('./pages/HistoricalDataView'));
 const BudgetSettingsView = lazy(() => import('./pages/BudgetSettingsView'));
 const ScheduleView = lazy(() => import('./pages/ScheduleView').then(m => ({ default: m.ScheduleView })));
+const ClosuresView = lazy(() => import('./pages/ClosuresView').then(m => ({ default: m.ClosuresView })));
 const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
 const SemesterLandingPage = lazy(() => import('./pages/SemesterLandingPage'));
 const AddSemesterPage = lazy(() => import('./pages/AddSemesterPage'));
@@ -72,6 +73,7 @@ const InnerPage = () => {
     settings: <SettingsView />,
     "budget-settings": <BudgetSettingsView />,
     schedule: <ScheduleView />,
+    closures: <ClosuresView />,
   };
 
   return (
@@ -145,7 +147,7 @@ const ViewRouter = () => {
         {view === "record-payment" && <RecordPaymentPage />}
         {view === "general-cost-tracker" && <GeneralCostTrackerPage />}
         {view === "club-detail" && <ClubDetailPage />}
-        {["reports", "settings", "loans", "budget-settings", "schedule"].includes(view) && (
+        {["reports", "settings", "loans", "budget-settings", "schedule", "closures"].includes(view) && (
           <InnerPage />
         )}
       </Suspense>

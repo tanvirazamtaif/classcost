@@ -52,6 +52,11 @@ model User {
   linkedAsChild       LinkedAccount[] @relation("ChildLink")
   feeItems            FeeItem[]
   waivers             Waiver[]
+  recurringSchedules  RecurringSchedule[]
+  academicTerms       AcademicTerm[]
+  closureRecords      ClosureRecord[]
+  trustedCircles      TrustedCircle[]     @relation("CircleOwner")
+  identityLayers      IdentityLayer[]
 }
 
 model PromoCode {
@@ -320,6 +325,13 @@ model Entity {
   meta           Json? // DEPRECATED — use metadata
   metadata       Json?
   parentEntityId String? // For club-to-institution linkage
+  // Phase 1 — soft links into the curated Institution Data Center (templates).
+  // Nullable, no relation/FK by design: existing string-named entities keep
+  // working untouched; new entities MAY attach to a curated template.
+  institutionId  String? // → Institution.id (curated template)
+  branchId       String? // → Branch.id
+  sectionId      String? // → Section.id
+  coupledTermId  String? // Phase 6 — residence Entity coupled to an AcademicTerm
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -329,6 +341,7 @@ model Entity {
 
   @@index([userId, type])
   @@index([userId, isActive])
+  @@index([institutionId])
 }
 
 // Section 2: Tracker — a time-bound cost container (e.g. "Fall 2025 semester")
@@ -352,6 +365,10 @@ model Tracker {
   installmentCount   Int? // 1-4 for pooled mode
   grossMinor         Int? // cached gross total of all FeeItems (for display, recomputed on change)
   netMinor           Int? // cached net after waivers (for display, recomputed on change)
+  // Phase 2 — frozen post-waiver breakdown {grossMinor, netMinor, totalWaiverMinor, ...}
+  // for reports/closure to read a stable figure instead of recomputing.
+  profileSnapshot    Json?
+  profileFrozenAt    DateTime? // set when a semester closes (Phase 5); null = live/recomputable
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -382,6 +399,7 @@ model Obligation {
   status            ObligationStatus @default(UPCOMING)
   waiverPct         Int              @default(0) // DEPRECATED — use waiverAmountMinor
   waiverAmountMinor Int              @default(0) // Absolute waiver in minor units
+  customAmount      Boolean          @default(false) // Phase 2 — user hand-edited this installment; redistribute() must not overwrite it
   waiverReason      String? // "Merit scholarship", "Sports waiver 20%"
   period            String? // "2026-03", "2026-yearly", "spring-2026"
   installmentSeq    Int? // 1, 2, 3 for installment parts
@@ -544,4 +562,262 @@ model Waiver {
   createdAt     DateTime  @default(now())
 
   @@index([trackerId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INSTITUTION DATA CENTER — curated, global reference templates (Phase 1)
+//
+// These are NOT user-scoped. They are read-only reference data the onboarding
+// flow searches. A user's `Entity` row is the INSTANCE that optionally points
+// at (Institution, Branch, Section) via the nullable soft-link columns on Entity.
+// Three-dimensional addressing: Institution (identity) × Branch (location) × Section (program).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Curated canonical identity — the brand/charter (e.g. "Monipur High School and College")
+model Institution {
+  id         String   @id @default(cuid())
+  name       String
+  nameBn     String?
+  aliases    String[] @default([]) // ["BRACU","ব্র্যাক","Brac Uni"] for search
+  type       String // school | college | university | coaching | cadet | residential_school_college | madrasa
+  eduLevel   String? // coarse level hint
+  division   String?
+  district   String?
+  area       String?
+  trustLevel String   @default("approximate") // verified | approximate | community_reported
+  metadata   Json? // capability flags, calendar profile hints, etc.
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  branches Branch[]
+
+  @@index([type])
+  @@index([district])
+}
+
+// A physical campus/location of an Institution (e.g. "Monipur — Mirpur-2 Main Campus")
+model Branch {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name          String
+  nameBn        String?
+  isPrimary     Boolean     @default(false)
+  division      String?
+  district      String?
+  area          String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  sections Section[]
+
+  @@index([institutionId])
+}
+
+// An academic program type offered at a branch (e.g. "School Section, Classes 1-10")
+model Section {
+  id              String   @id @default(cuid())
+  branchId        String
+  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name            String
+  nameBn          String?
+  sectionType     String? // school | college | undergraduate | coaching-course | cadet-junior | ...
+  eduLevel        String?
+  classRangeFrom  String? // "Class 1" / "Year 1" / "HSC 1st Year"
+  classRangeTo    String? // "Class 10 (SSC)" / "Year 4"
+  residencePolicy String   @default("none") // none | optional | mandatory | phased
+  metadata        Json? // feeKit hints, calendarProfileId, residence variants
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([branchId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RECURRING PAYMENTS ENGINE (Phase 3)
+//
+// A RecurringSchedule defines a monthly/quarterly/yearly charge (rent, school
+// tuition, coaching fee). PaymentSlots are the materialized per-period instances
+// (idempotent via UNIQUE(scheduleId, period)). ScheduleVersion records amount
+// changes over time. AdvancePayment models pre-paid months. Coexists with the
+// legacy lazy obligationGenerator — slots are additive and opt-in.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model RecurringSchedule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackerId   String? // optional link to a Tracker
+  entityId    String? // optional link to an Entity (residence/institution)
+  category    String // rent | school_tuition | coaching_monthly | ...
+  label       String
+  cadence     String   @default("MONTHLY") // MONTHLY | QUARTERLY | YEARLY
+  dueDay      Int      @default(1) // 1-28, clamped to short months
+  amountMinor Int // current expected amount (also tracked via ScheduleVersion)
+  startDate   DateTime
+  endDate     DateTime? // null = open-ended
+  autoCreate  Boolean  @default(true) // false = manual mode (no auto slots)
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions ScheduleVersion[]
+  slots    PaymentSlot[]
+  advances AdvancePayment[]
+
+  @@index([userId, isActive])
+  @@index([entityId])
+  @@index([trackerId])
+}
+
+model ScheduleVersion {
+  id            String            @id @default(cuid())
+  scheduleId    String
+  schedule      RecurringSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  amountMinor   Int
+  effectiveFrom DateTime
+  reason        String?
+  createdAt     DateTime          @default(now())
+
+  @@index([scheduleId])
+}
+
+model PaymentSlot {
+  id            String            @id @default(cuid())
+  scheduleId    String
+  schedule      RecurringSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  userId        String // scalar (cascades via schedule → user)
+  period        String // canonical "YYYY-MM" (or "YYYY-Qn" / "YYYY")
+  dueDate       DateTime
+  expectedMinor Int
+  status        String            @default("PENDING") // PENDING | PAID | PAID_ADVANCE | SKIPPED | VOID
+  origin        String            @default("AUTO") // AUTO | ADVANCE | MANUAL | BACKFILL
+  obligationId  String? // optional link if mirrored as an Obligation
+  paidDate      DateTime?
+  advanceId     String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([scheduleId, period]) // hard idempotency — cron cannot duplicate
+  @@index([userId, status])
+  @@index([scheduleId, status])
+}
+
+model AdvancePayment {
+  id            String            @id @default(cuid())
+  scheduleId    String
+  schedule      RecurringSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  userId        String
+  monthsCovered Int
+  amountMinor   Int // total lump sum
+  perPeriodMinor Int // floor(total / months); remainder on last covered slot
+  startPeriod   String
+  endPeriod     String
+  paidOn        DateTime
+  paidBy        String            @default("SELF") // SELF | PARENT | OTHER
+  ledgerEntryId String?
+  createdAt     DateTime          @default(now())
+
+  @@index([scheduleId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLOSURE & PROMOTION (Phase 5)
+//
+// AcademicTerm groups trackers under one institution for promotion chains.
+// ClosureRecord is the immutable settlement snapshot written when a semester/
+// tenancy closes (sets the source Tracker.status=ARCHIVED, never deletes).
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AcademicTerm {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionId     String? // → Institution template (optional)
+  label             String // "Class 9", "Fall 2026"
+  termType          String // school_class | college_year | university_semester | coaching_course | residence_tenancy
+  startDate         DateTime
+  endDate           DateTime?
+  status            String   @default("active") // active | sealed_promoted | sealed_completed | sealed_transferred_out | sealed_dropped | sealed_repeated
+  predecessorTermId String?
+  successorTermId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([institutionId])
+}
+
+model ClosureRecord {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackerId        String? // the closed Tracker
+  termId           String? // optional AcademicTerm
+  closureReason    String // completed | moved_out | dropped | promoted | transferred | repeated | other
+  effectiveEndDate DateTime
+  status           String   @default("confirmed") // draft | confirmed | settled
+  grossMinor       Int      @default(0)
+  netMinor         Int      @default(0)
+  waiverMinor      Int      @default(0)
+  paidMinor        Int      @default(0)
+  outstandingMinor Int      @default(0)
+  refundableMinor  Int      @default(0)
+  storyCard        Json? // frozen rendered snapshot {title, stats, narrative}
+  coupledClosureId String? // paired institution↔residence closure
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([trackerId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROFILE: TRUSTED CIRCLES + IDENTITY LAYERS + RESIDENCE COUPLING (Phase 6)
+//
+// TrustedCircle generalizes the flat LinkedAccount into a named recipient with
+// per-section share permissions. IdentityLayer stores the layered identity graph.
+// Entity gains coupledTermId for residence↔institution coupling.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model TrustedCircle {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  owner       User     @relation("CircleOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  label       String // "Abba", "Amma", "Boro Bhai"
+  relation    String? // father | mother | sibling | guardian | other
+  phoneE164   String?
+  preset      String   @default("fee_buddy") // fee_buddy | full_picture | custodian | custom
+  status      String   @default("active") // active | paused | revoked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions SharePermission[]
+
+  @@index([ownerUserId, status])
+}
+
+model SharePermission {
+  id         String        @id @default(cuid())
+  circleId   String
+  circle     TrustedCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  section    String // institutions | residence | forecast | fees | reminders | food | transit | other
+  visibility String        @default("hidden") // visible | hidden
+  notify     Boolean       @default(false)
+
+  @@unique([circleId, section])
+  @@index([circleId])
+}
+
+model IdentityLayer {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  layerType String // identity | academic | living | money | privacy
+  payload   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, layerType])
 }

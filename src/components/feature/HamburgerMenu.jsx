@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
+import { setAuthToken } from '../../api';
 
 export const HamburgerMenu = () => {
   const { user, navigate, theme, toggleTheme, setUser, addToast } = useApp();
@@ -24,6 +25,7 @@ export const HamburgerMenu = () => {
 
   const handleSignOut = () => {
     setIsOpen(false);
+    setAuthToken(null); // clear the auth token alongside the user
     setUser(null);
     navigate('landing', { replace: true });
     addToast('Signed out', 'info');

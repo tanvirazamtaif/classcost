@@ -1,4 +1,5 @@
 const { prisma } = require('../db.cjs');
+const { planRedistribution } = require('../lib/installmentMath.cjs');
 
 // ─── CONSTANTS ─────────────────────────────────────────────────
 const VALID_FEE_CATEGORIES = [
@@ -129,7 +130,20 @@ async function generateObligations(trackerId, userId) {
 
   await prisma.tracker.update({
     where: { id: trackerId },
-    data: { grossMinor, netMinor },
+    data: {
+      grossMinor,
+      netMinor,
+      // Cache the post-waiver breakdown so reports/closure read a stable figure.
+      // profileFrozenAt stays null until a semester closes (Phase 5).
+      profileSnapshot: {
+        grossMinor,
+        netMinor,
+        totalWaiverMinor,
+        installmentCount: tracker.installmentCount || null,
+        obligationMode: tracker.obligationMode || 'pooled',
+        computedAt: new Date().toISOString(),
+      },
+    },
   });
 
   const mode = tracker.obligationMode || 'pooled';
@@ -206,7 +220,7 @@ async function redistribute(trackerId, userId) {
 
   if (!tracker) throw new Error('Tracker not found');
 
-  const { netMinor, resolved } = resolveWaivers(tracker.feeItems, tracker.waivers);
+  const { grossMinor: resolvedGross, netMinor, totalWaiverMinor, resolved } = resolveWaivers(tracker.feeItems, tracker.waivers);
 
   for (const r of resolved) {
     await prisma.waiver.update({ where: { id: r.waiverId }, data: { resolvedMinor: r.resolvedMinor } });
@@ -224,21 +238,30 @@ async function redistribute(trackerId, userId) {
 
   if (unpaid.length === 0) return { netMinor, alreadyPaid, remainingDue };
 
-  const perObligation = Math.floor(remainingDue / unpaid.length);
-  const redistributionRemainder = remainingDue - (perObligation * unpaid.length);
-
-  for (let i = 0; i < unpaid.length; i++) {
-    const amount = i === 0 ? perObligation + redistributionRemainder : perObligation;
+  // Preserve hand-edited installments (customAmount); split the rest evenly.
+  const updates = planRedistribution(netMinor, alreadyPaid, unpaid);
+  for (const u of updates) {
     await prisma.obligation.update({
-      where: { id: unpaid[i].id },
-      data: { amountMinor: amount },
+      where: { id: u.id },
+      data: { amountMinor: u.amountMinor },
     });
   }
 
   const grossMinor = tracker.feeItems.filter(f => f.isActive).reduce((s, f) => s + f.amountMinor, 0);
   await prisma.tracker.update({
     where: { id: trackerId },
-    data: { grossMinor, netMinor },
+    data: {
+      grossMinor,
+      netMinor,
+      profileSnapshot: {
+        grossMinor: resolvedGross,
+        netMinor,
+        totalWaiverMinor,
+        installmentCount: tracker.installmentCount || null,
+        obligationMode: tracker.obligationMode || 'pooled',
+        computedAt: new Date().toISOString(),
+      },
+    },
   });
 
   return { netMinor, alreadyPaid, remainingDue };

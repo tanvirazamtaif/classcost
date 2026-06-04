@@ -5,6 +5,7 @@ import { useApp } from '../../contexts/AppContext';
 import { Logo } from '../ui';
 import { haptics } from '../../lib/haptics';
 import { signOutFirebase } from '../../lib/firebase';
+import { setAuthToken } from '../../api';
 
 export const Header = ({ onMenuClick }) => {
   const { user, navigate, setUser, addToast, scheduledPayments = [], getUpcomingPayments } = useApp();
@@ -52,6 +53,7 @@ export const Header = ({ onMenuClick }) => {
     haptics.medium();
     setShowProfile(false);
     await signOutFirebase();
+    setAuthToken(null); // clear the auth token alongside the user
     setUser(null);
     navigate('landing', { replace: true });
     addToast('Signed out', 'info');
