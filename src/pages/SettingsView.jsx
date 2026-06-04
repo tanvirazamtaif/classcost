@@ -64,6 +64,15 @@ const SettingsView = () => {
       <h2 className="text-xl font-bold text-slate-900 dark:text-white" style={{fontFamily:"'Fraunces',serif"}}>Settings</h2>
       {/* Phase 6 — layered profile + Trusted Circles (additive, flagged) */}
       {isEnabled('ENABLE_PROFILE_V2') && <ProfileV2 />}
+      {/* Phase 5 — entry point to Closures (additive, flagged) */}
+      {isEnabled('ENABLE_CLOSURE_UI') && (
+        <Card className="p-4">
+          <button onClick={() => navigate('closures')} className="w-full flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-800 dark:text-white">📦 Semester Closures</span>
+            <span className="text-slate-400 dark:text-surface-500 text-sm">›</span>
+          </button>
+        </Card>
+      )}
       <Card className="p-5">
         <div className="flex items-center gap-4 mb-4">
           <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl font-bold text-indigo-600">{profile?.fullName?.[0]||user?.email?.[0]?.toUpperCase()||"?"}</div>

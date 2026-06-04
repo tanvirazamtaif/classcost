@@ -542,3 +542,17 @@ export async function unpaySlot(userId, slotId) {
 export async function applyAdvance(userId, scheduleId, data) {
   return request(`/api/recurring/${userId}/${scheduleId}/advance`, { method: 'POST', body: JSON.stringify(data) });
 }
+
+// ── Closure & Story Cards (Phase 5) ──────────────────────────────────────────
+
+export async function getClosures(userId) {
+  return request(`/api/closure/${userId}/closures`);
+}
+
+export async function closeSemester(userId, trackerId, data) {
+  return request(`/api/closure/${userId}/semester/${trackerId}/close`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function settleClosure(userId, closureId) {
+  return request(`/api/closure/${userId}/closures/${closureId}/settle`, { method: 'POST', body: JSON.stringify({}) });
+}
