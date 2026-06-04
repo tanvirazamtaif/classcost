@@ -3,6 +3,7 @@ const router = express.Router();
 const { prisma } = require('../db.cjs');
 const { generateOTP, sendOTPEmail } = require('../mail.cjs');
 const { OAuth2Client } = require('google-auth-library');
+const { signUserToken } = require('../lib/userAuth.cjs');
 
 const googleClient = new OAuth2Client();
 
@@ -73,7 +74,7 @@ router.post('/verify-otp', async (req, res) => {
     // Clean up old OTPs for this email
     await prisma.otp.deleteMany({ where: { email } });
 
-    res.json({ ...user, isNew });
+    res.json({ ...user, isNew, token: signUserToken(user.id) });
   } catch (err) {
     console.error('Verify OTP error:', err);
     res.status(500).json({ error: 'Failed to verify OTP' });
@@ -121,7 +122,7 @@ router.post('/google', async (req, res) => {
       });
     }
 
-    res.json({ ...user, isNew, googleName: name, googlePicture: picture });
+    res.json({ ...user, isNew, googleName: name, googlePicture: picture, token: signUserToken(user.id) });
   } catch (err) {
     console.error('Google auth error:', err);
     res.status(401).json({ error: 'Invalid Google credential' });

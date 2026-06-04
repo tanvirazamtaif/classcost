@@ -34,6 +34,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// User auth gate for student routes (no-op unless REQUIRE_AUTH==='true').
+const { userAuthGuard } = require('./lib/userAuth.cjs');
+app.use('/api', userAuthGuard);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/semesters', semesterRoutes);

@@ -1,9 +1,26 @@
 const BASE = import.meta.env.VITE_API_URL || '';
 
+// ── Auth token (set at login, sent on every request) ──────────────────────────
+const TOKEN_KEY = 'ut_v3_token';
+let authToken = null;
+try { authToken = (typeof localStorage !== 'undefined' && localStorage.getItem(TOKEN_KEY)) || null; } catch { /* no storage */ }
+
+export function setAuthToken(token) {
+  authToken = token || null;
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch { /* ignore */ }
+}
+
 async function request(url, options = {}) {
   const res = await fetch(`${BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(options.headers || {}),
+    },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -22,17 +39,21 @@ export async function sendOTP(email) {
 }
 
 export async function verifyOTP(email, code) {
-  return request('/api/auth/verify-otp', {
+  const result = await request('/api/auth/verify-otp', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });
+  if (result?.token) setAuthToken(result.token);
+  return result;
 }
 
 export async function googleSignIn(credential) {
-  return request('/api/auth/google', {
+  const result = await request('/api/auth/google', {
     method: 'POST',
     body: JSON.stringify({ credential }),
   });
+  if (result?.token) setAuthToken(result.token);
+  return result;
 }
 
 export async function registerUser(email) {
