@@ -59,8 +59,26 @@ git push    # ← only when you say so; this triggers the live deploy
 - Phase 5 — closure wizard screens + Story Card share UI (the data/engine is done)
 - Phase 6 — full profile redesign (Trusted Circles UI, Wholeness ring; the data/engine is done)
 
-## Open decision
+## Security — user auth (now fixed, off by default)
 
-- **App-wide auth**: `req.params.userId` is not validated against a session on ANY
-  route (pre-existing across the whole app — the new routes match the existing
-  pattern). Fixing it is an app-wide middleware change, not a per-phase task.
+Student routes used to trust the `:userId` in the URL with no session check
+(admin already had JWT). This is now fixed with a SAFE, off-by-default rollout:
+
+- Login issues a JWT; the client sends it on every request; a guard rejects
+  requests whose token doesn't match the `:userId`. Enforcement is gated by
+  `REQUIRE_AUTH` — **default off**, so merging changes nothing.
+
+To turn enforcement ON (do this once the deployed clients are sending tokens):
+
+```bash
+# 1. Set a strong secret in the PROD environment (required before enforcing):
+export USER_JWT_SECRET="<long-random-string>"
+
+# 2. (after a day or two so logged-in users have re-fetched a token, OR accept a
+#    one-time re-login) enable enforcement:
+export REQUIRE_AUTH=true
+# restart the server. From now on, a user can only access their own data.
+```
+
+Note: when you flip `REQUIRE_AUTH=true`, anyone with an OLD session (saved before
+this deploy, no token) is asked to log in once more — expected and harmless.
