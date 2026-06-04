@@ -6,6 +6,66 @@ import { GCard, GCardContent } from '../components/ui';
 import { ExpenseChart } from '../components/feature';
 import { pageTransition } from '../lib/animations';
 import { makeFmt } from '../utils/format';
+import { isEnabled } from '../lib/featureFlags';
+import { getForecast } from '../api';
+
+/**
+ * Phase 4 — Cost-to-graduation forecast card. Behind ENABLE_REPORTS_V2.
+ * Reads the server-side decomposed forecast (honest low–high band). Read-only;
+ * fails silently to nothing so it can never break the existing Reports view.
+ */
+function ForecastCard({ userId, fmt, dark }) {
+  const [state, setState] = useState({ loading: true, data: null, error: null });
+
+  useEffect(() => {
+    let alive = true;
+    if (!userId) { setState({ loading: false, data: null, error: null }); return; }
+    getForecast(userId)
+      .then((data) => { if (alive) setState({ loading: false, data, error: null }); })
+      .catch((err) => { if (alive) setState({ loading: false, data: null, error: err.message }); });
+    return () => { alive = false; };
+  }, [userId]);
+
+  if (state.loading) {
+    return (
+      <GCard><GCardContent className="py-6 text-center">
+        <p className={`text-sm ${dark ? 'text-surface-400' : 'text-surface-500'}`}>Building your forecast…</p>
+      </GCardContent></GCard>
+    );
+  }
+  if (state.error || !state.data) return null; // never break the page
+  if (!state.data.available) {
+    return (
+      <GCard><GCardContent className="py-6">
+        <p className={`text-xs uppercase tracking-wide font-semibold mb-1 ${dark ? 'text-surface-500' : 'text-surface-400'}`}>Cost to graduation</p>
+        <p className={`text-sm ${dark ? 'text-surface-400' : 'text-surface-500'}`}>{state.data.reason}</p>
+      </GCardContent></GCard>
+    );
+  }
+
+  const { combined, confidence, assumptions, pastActualMinor } = state.data;
+  return (
+    <GCard>
+      <GCardContent className="py-6">
+        <div className="flex items-center justify-between mb-2">
+          <p className={`text-xs uppercase tracking-wide font-semibold ${dark ? 'text-primary-400' : 'text-primary-600'}`}>Cost to graduation</p>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${dark ? 'bg-surface-800 text-surface-300' : 'bg-surface-100 text-surface-600'}`}>
+            {confidence} confidence
+          </span>
+        </div>
+        <p className={`text-2xl font-bold ${dark ? 'text-white' : 'text-surface-900'}`} style={{ fontFamily: "'Fraunces',serif" }}>
+          {fmt(combined.medianMinor / 100)}
+        </p>
+        <p className={`text-xs mt-1 ${dark ? 'text-surface-400' : 'text-surface-500'}`}>
+          Range {fmt(combined.lowMinor / 100)} – {fmt(combined.highMinor / 100)} · ~{assumptions.semestersRemaining} semesters left
+        </p>
+        <p className={`text-[11px] mt-2 ${dark ? 'text-surface-500' : 'text-surface-400'}`}>
+          Already spent {fmt(pastActualMinor / 100)} · assumes {assumptions.inflationPct}% inflation
+        </p>
+      </GCardContent>
+    </GCard>
+  );
+}
 
 export const ReportsView = () => {
   const { expenses, user, theme } = useApp();
@@ -92,6 +152,9 @@ export const ReportsView = () => {
           </p>
         </GCardContent>
       </GCard>
+
+      {/* Phase 4 — server-side forecast (flagged) */}
+      {isEnabled('ENABLE_REPORTS_V2') && <ForecastCard userId={user?.id} fmt={fmt} dark={d} />}
 
       {/* Chart */}
       <GCard>

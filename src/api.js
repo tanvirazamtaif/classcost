@@ -481,3 +481,20 @@ export async function addWaiver(trackerId, userId, data) {
     body: JSON.stringify(data),
   });
 }
+
+// ── Reports / Forecast (Phase 4) ─────────────────────────────────────────────
+
+export async function getReportsSummary(userId) {
+  return request(`/api/reports/${userId}/summary`);
+}
+
+export async function getWaiverSaved(userId) {
+  return request(`/api/reports/${userId}/waiver-saved`);
+}
+
+export async function getForecast(userId, params = {}) {
+  const qs = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null)
+  ).toString();
+  return request(`/api/reports/${userId}/forecast${qs ? `?${qs}` : ''}`);
+}

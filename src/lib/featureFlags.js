@@ -2,6 +2,7 @@ const DEFAULT_FLAGS = {
   USE_NEW_ARCHITECTURE: true,
   ENABLE_TRACKER_UI: false,
   ENABLE_ALLOCATION_UI: false,
+  ENABLE_REPORTS_V2: false, // Phase 4 — server-side forecast card in Reports
 };
 
 function getOverrides() {
