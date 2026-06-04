@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, Bell, BellOff, Edit2, Calendar, Plus, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, Bell, BellOff, Edit2, Calendar, Plus, AlertCircle, Trash2, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
 import { GButton } from '../components/ui';
@@ -54,6 +54,10 @@ export const SemesterDetailPage = () => {
   const [addFeeType, setAddFeeType] = useState(null);
   const [addFeeAmount, setAddFeeAmount] = useState('');
   const [addFeeNote, setAddFeeNote] = useState('');
+  // Inline editing state for individual semester fees (Lab Fee, Tuition, etc.)
+  const [editingFeeId, setEditingFeeId] = useState(null);
+  const [editFeeLabel, setEditFeeLabel] = useState('');
+  const [editFeeAmount, setEditFeeAmount] = useState('');
 
   // Close popover on outside click
   useEffect(() => {
@@ -79,17 +83,33 @@ export const SemesterDetailPage = () => {
     });
   }, [installments]);
 
+  // Semester containers store paid amounts inside fee.semester.fees[].paidAmount —
+  // that's where the "+ Add Fee" / "Mark Paid" UI writes. The top-level hero
+  // card must include these or it shows ৳0 even when every inner fee is paid.
+  const semesterInnerFees = fee?.semester?.fees || [];
+  const semesterInnerTotal = semesterInnerFees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  const semesterInnerPaid = semesterInnerFees.reduce(
+    (s, f) => s + (Number(f.paidAmount) || (f.isPaid ? Number(f.amount) || 0 : 0)),
+    0
+  );
+  const semesterInnerAllPaid = semesterInnerFees.length > 0
+    && semesterInnerFees.every(f => f.isPaid || (Number(f.paidAmount) || 0) >= (Number(f.amount) || 0));
+
   const totalPaid = useMemo(() => {
     if (!fee) return 0;
-    if (fee.payments && Array.isArray(fee.payments)) {
+    if (fee.payments && Array.isArray(fee.payments) && fee.payments.length > 0) {
       return fee.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
     }
     if (isInstallment) {
       return installments.reduce((sum, i) => sum + (i.paidAmount || (i.status === 'paid' ? i.amount : 0) || 0), 0);
     }
+    // Semester container — sum inner fees' paid amounts
+    if (semesterInnerFees.length > 0) {
+      return semesterInnerPaid;
+    }
     if (fee.isPaid) return fee.amount || 0;
     return 0;
-  }, [fee, installments, isInstallment]);
+  }, [fee, installments, isInstallment, semesterInnerFees.length, semesterInnerPaid]);
 
   // Derive totalExpected from actual installment amounts (not stale field)
   // For non-installment fees, fall back to fee amount
@@ -583,14 +603,24 @@ export const SemesterDetailPage = () => {
               <div>
                 <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Payment Amount</p>
                 <p className={`text-lg font-bold ${d ? 'text-white' : 'text-surface-900'}`}>
-                  ৳{(fee.amount || 0).toLocaleString()}
+                  ৳{(semesterInnerFees.length > 0 ? semesterInnerTotal : (fee.amount || 0)).toLocaleString()}
                 </p>
               </div>
               <div className="text-right">
                 <p className={`text-xs ${d ? 'text-surface-500' : 'text-surface-500'}`}>Status</p>
-                <p className={`text-sm font-semibold ${fee.isPaid ? (d ? 'text-emerald-400' : 'text-emerald-600') : (d ? 'text-amber-400' : 'text-amber-600')}`}>
-                  {fee.isPaid ? 'Paid' : 'Pending'}
-                </p>
+                {(() => {
+                  // Status reflects either the top-level isPaid flag OR — for
+                  // semester containers — whether every inner fee is paid.
+                  const isFullyPaid = fee.isPaid || semesterInnerAllPaid;
+                  const isPartial = !isFullyPaid && semesterInnerPaid > 0;
+                  const label = isFullyPaid ? 'Paid' : isPartial ? 'Partial' : 'Pending';
+                  const cls = isFullyPaid
+                    ? (d ? 'text-emerald-400' : 'text-emerald-600')
+                    : isPartial
+                      ? (d ? 'text-sky-400' : 'text-sky-600')
+                      : (d ? 'text-amber-400' : 'text-amber-600');
+                  return <p className={`text-sm font-semibold ${cls}`}>{label}</p>;
+                })()}
               </div>
             </div>
             {fee.paidAt && (
@@ -733,13 +763,73 @@ export const SemesterDetailPage = () => {
           };
 
           const handleToggleFeePaid = (feeItem) => {
-            if (feeItem.isPaid) return;
             haptics.success();
+            const becomingPaid = !feeItem.isPaid;
             const updatedFees = (fee.semester?.fees || []).map(f =>
-              f.id === feeItem.id ? { ...f, isPaid: true, paidAmount: f.amount, paidAt: new Date().toISOString() } : f
+              f.id === feeItem.id
+                ? becomingPaid
+                  ? { ...f, isPaid: true, paidAmount: f.amount, paidAt: new Date().toISOString() }
+                  : { ...f, isPaid: false, paidAmount: 0, paidAt: null }
+                : f
             );
-            updateFee(fee.id, { semester: { ...fee.semester, fees: updatedFees } }, `Paid ${feeItem.label}`);
-            addToast(`${feeItem.label} marked paid`, 'success');
+            updateFee(
+              fee.id,
+              { semester: { ...fee.semester, fees: updatedFees } },
+              becomingPaid ? `Paid ${feeItem.label}` : `Unmarked ${feeItem.label}`,
+            );
+            addToast(becomingPaid ? `${feeItem.label} marked paid` : `${feeItem.label} unmarked`, 'success');
+          };
+
+          const handleStartEdit = (feeItem) => {
+            haptics.light();
+            setEditingFeeId(feeItem.id);
+            setEditFeeLabel(feeItem.label || '');
+            setEditFeeAmount(String(feeItem.amount || ''));
+          };
+
+          const handleCancelEdit = () => {
+            setEditingFeeId(null);
+            setEditFeeLabel('');
+            setEditFeeAmount('');
+          };
+
+          const handleSaveEdit = (feeItem) => {
+            const newAmt = parseAmount(editFeeAmount);
+            const newLabel = (editFeeLabel || '').trim();
+            if (!newLabel) { haptics.error(); addToast('Fee name required', 'error'); return; }
+            if (newAmt <= 0) { haptics.error(); addToast('Amount must be > 0', 'error'); return; }
+            haptics.success();
+            const oldAmount = Number(feeItem.amount) || 0;
+            const updatedFees = (fee.semester?.fees || []).map(f =>
+              f.id === feeItem.id
+                ? { ...f, label: newLabel, amount: newAmt, paidAmount: f.isPaid ? newAmt : (f.paidAmount || 0) }
+                : f
+            );
+            updateFee(
+              fee.id,
+              {
+                semester: { ...fee.semester, fees: updatedFees },
+                amount: (fee.amount || 0) - oldAmount + newAmt,
+              },
+              `Edited ${newLabel} ৳${newAmt}`,
+            );
+            addToast(`${newLabel} updated`, 'success');
+            handleCancelEdit();
+          };
+
+          const handleDeleteFee = (feeItem) => {
+            haptics.medium();
+            const updatedFees = (fee.semester?.fees || []).filter(f => f.id !== feeItem.id);
+            updateFee(
+              fee.id,
+              {
+                semester: { ...fee.semester, fees: updatedFees },
+                amount: (fee.amount || 0) - (Number(feeItem.amount) || 0),
+              },
+              `Deleted ${feeItem.label}`,
+            );
+            addToast(`${feeItem.label} deleted`, 'success');
+            if (editingFeeId === feeItem.id) handleCancelEdit();
           };
 
           return (
@@ -750,27 +840,90 @@ export const SemesterDetailPage = () => {
               {semFees.length > 0 && (
                 <div className="space-y-2">
                   {semFees.map(f => (
-                    <motion.button key={f.id} whileTap={{ scale: 0.98 }}
-                      onClick={() => handleToggleFeePaid(f)}
-                      disabled={f.isPaid}
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition ${
+                    <div key={f.id}
+                      className={`rounded-xl border transition ${
                         f.isPaid
                           ? d ? 'bg-emerald-900/10 border-emerald-800/20' : 'bg-emerald-50/50 border-emerald-200/50'
                           : d ? 'bg-surface-900 border-surface-800' : 'bg-white border-surface-200'
                       }`}>
-                      {f.isPaid
-                        ? <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shrink-0"><Check className="w-3 h-3 text-white" /></div>
-                        : <div className={`w-5 h-5 rounded-full border-2 shrink-0 ${d ? 'border-surface-600' : 'border-surface-300'}`} />
-                      }
-                      <span className="text-sm">{f.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${f.isPaid ? 'line-through text-surface-400' : d ? 'text-white' : 'text-surface-900'}`}>{f.label}</p>
-                        {f.note && <p className="text-xs text-surface-500">{f.note}</p>}
-                      </div>
-                      <p className={`text-sm font-semibold shrink-0 ${f.isPaid ? (d ? 'text-emerald-400' : 'text-emerald-600') : d ? 'text-white' : 'text-surface-900'}`}>
-                        ৳{(f.amount || 0).toLocaleString()}
-                      </p>
-                    </motion.button>
+                      {editingFeeId === f.id ? (
+                        // ── Inline edit form ─────────────────────────────
+                        <div className="p-3 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{f.icon}</span>
+                            <input
+                              value={editFeeLabel}
+                              onChange={(e) => setEditFeeLabel(e.target.value)}
+                              placeholder="Fee name"
+                              className={`flex-1 px-3 py-2 rounded-lg text-sm outline-none border ${
+                                d ? 'bg-surface-950 border-surface-700 text-white placeholder-surface-600 focus:border-primary-500'
+                                  : 'bg-white border-surface-300 text-surface-900 placeholder-surface-400 focus:border-primary-500'
+                              }`}
+                            />
+                          </div>
+                          <AmountInput value={editFeeAmount} onChange={setEditFeeAmount} placeholder="Amount" autoFocus={false} />
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleDeleteFee(f)}
+                              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium ${
+                                d ? 'bg-danger-900/30 text-danger-300 hover:bg-danger-900/50'
+                                  : 'bg-danger-50 text-danger-600 hover:bg-danger-100'
+                              }`}
+                              aria-label={`Delete ${f.label}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Delete
+                            </button>
+                            <div className="flex-1" />
+                            <button
+                              onClick={handleCancelEdit}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                                d ? 'text-surface-400 hover:text-white' : 'text-surface-500 hover:text-surface-900'
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleSaveEdit(f)}
+                              className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-500 active:scale-[0.98] transition"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        // ── Default row: tap circle to toggle paid, pencil to edit ──
+                        <div className="flex items-center gap-3 p-3">
+                          <button
+                            onClick={() => handleToggleFeePaid(f)}
+                            aria-label={f.isPaid ? `Unmark ${f.label} as paid` : `Mark ${f.label} paid`}
+                            className="shrink-0"
+                          >
+                            {f.isPaid
+                              ? <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>
+                              : <div className={`w-5 h-5 rounded-full border-2 ${d ? 'border-surface-600' : 'border-surface-300'}`} />
+                            }
+                          </button>
+                          <span className="text-sm">{f.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${f.isPaid ? 'line-through text-surface-400' : d ? 'text-white' : 'text-surface-900'}`}>{f.label}</p>
+                            {f.note && <p className="text-xs text-surface-500 truncate">{f.note}</p>}
+                          </div>
+                          <p className={`text-sm font-semibold shrink-0 ${f.isPaid ? (d ? 'text-emerald-400' : 'text-emerald-600') : d ? 'text-white' : 'text-surface-900'}`}>
+                            ৳{(f.amount || 0).toLocaleString()}
+                          </p>
+                          <button
+                            onClick={() => handleStartEdit(f)}
+                            aria-label={`Edit ${f.label}`}
+                            className={`p-1.5 rounded-lg transition ${
+                              d ? 'text-surface-500 hover:text-white hover:bg-surface-800'
+                                : 'text-surface-400 hover:text-surface-900 hover:bg-surface-100'
+                            }`}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   ))}
 
                   {/* Totals */}
