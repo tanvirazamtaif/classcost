@@ -12,6 +12,7 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 // Canonical period key for a Date (month granularity for all cadences).
 function periodKey(date) {
   const d = new Date(date);
+  if (isNaN(d.getTime())) throw new TypeError('periodKey: invalid date');
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
