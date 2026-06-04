@@ -4,6 +4,7 @@ const DEFAULT_FLAGS = {
   ENABLE_ALLOCATION_UI: false,
   ENABLE_REPORTS_V2: false, // Phase 4 — server-side forecast card in Reports
   ENABLE_PROFILE_V2: false, // Phase 6 — layered profile: Wholeness ring + Trusted Circles
+  ENABLE_RECURRING_UI: false, // Phase 3 — server-side recurring schedules + slots
 };
 
 function getOverrides() {

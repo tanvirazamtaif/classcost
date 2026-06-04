@@ -6,6 +6,8 @@ import { GCard, GCardContent, GButton, BottomSheet } from '../components/ui';
 import { haptics } from '../lib/haptics';
 import { pageTransition, fadeInUp } from '../lib/animations';
 import { makeFmt } from '../utils/format';
+import { isEnabled } from '../lib/featureFlags';
+import { RecurringV2 } from './RecurringV2';
 
 function getDaySuffix(day) {
   if (day >= 11 && day <= 13) return 'th';
@@ -43,6 +45,10 @@ export const ScheduleView = () => {
       deleteScheduledPayment(id);
     }
   };
+
+  // Phase 3 — when enabled, render the server-side recurring schedule view.
+  // Placed after all hooks (Rules of Hooks); legacy localStorage view is default.
+  if (isEnabled('ENABLE_RECURRING_UI')) return <RecurringV2 />;
 
   return (
     <motion.div {...pageTransition} className="flex flex-col gap-5 pb-4">

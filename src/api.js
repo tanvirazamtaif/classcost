@@ -516,3 +516,29 @@ export async function setCircleStatus(userId, circleId, status) {
 export async function setCirclePermission(userId, circleId, section, visibility) {
   return request(`/api/circles/${userId}/${circleId}/permission`, { method: 'PATCH', body: JSON.stringify({ section, visibility }) });
 }
+
+// ── Recurring payments (Phase 3) ─────────────────────────────────────────────
+
+export async function getSchedules(userId) {
+  return request(`/api/recurring/${userId}`);
+}
+
+export async function createRecurringSchedule(userId, data) {
+  return request(`/api/recurring/${userId}`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getScheduleSlots(userId, scheduleId) {
+  return request(`/api/recurring/${userId}/${scheduleId}/slots`);
+}
+
+export async function paySlot(userId, slotId) {
+  return request(`/api/recurring/${userId}/slots/${slotId}/pay`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export async function unpaySlot(userId, slotId) {
+  return request(`/api/recurring/${userId}/slots/${slotId}/unpay`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export async function applyAdvance(userId, scheduleId, data) {
+  return request(`/api/recurring/${userId}/${scheduleId}/advance`, { method: 'POST', body: JSON.stringify(data) });
+}
