@@ -52,6 +52,7 @@ model User {
   linkedAsChild       LinkedAccount[] @relation("ChildLink")
   feeItems            FeeItem[]
   waivers             Waiver[]
+  recurringSchedules  RecurringSchedule[]
 }
 
 model PromoCode {
@@ -626,4 +627,93 @@ model Section {
   updatedAt       DateTime @updatedAt
 
   @@index([branchId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RECURRING PAYMENTS ENGINE (Phase 3)
+//
+// A RecurringSchedule defines a monthly/quarterly/yearly charge (rent, school
+// tuition, coaching fee). PaymentSlots are the materialized per-period instances
+// (idempotent via UNIQUE(scheduleId, period)). ScheduleVersion records amount
+// changes over time. AdvancePayment models pre-paid months. Coexists with the
+// legacy lazy obligationGenerator — slots are additive and opt-in.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model RecurringSchedule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackerId   String? // optional link to a Tracker
+  entityId    String? // optional link to an Entity (residence/institution)
+  category    String // rent | school_tuition | coaching_monthly | ...
+  label       String
+  cadence     String   @default("MONTHLY") // MONTHLY | QUARTERLY | YEARLY
+  dueDay      Int      @default(1) // 1-28, clamped to short months
+  amountMinor Int // current expected amount (also tracked via ScheduleVersion)
+  startDate   DateTime
+  endDate     DateTime? // null = open-ended
+  autoCreate  Boolean  @default(true) // false = manual mode (no auto slots)
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions ScheduleVersion[]
+  slots    PaymentSlot[]
+  advances AdvancePayment[]
+
+  @@index([userId, isActive])
+  @@index([entityId])
+  @@index([trackerId])
+}
+
+model ScheduleVersion {
+  id            String            @id @default(cuid())
+  scheduleId    String
+  schedule      RecurringSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  amountMinor   Int
+  effectiveFrom DateTime
+  reason        String?
+  createdAt     DateTime          @default(now())
+
+  @@index([scheduleId])
+}
+
+model PaymentSlot {
+  id            String            @id @default(cuid())
+  scheduleId    String
+  schedule      RecurringSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  userId        String // scalar (cascades via schedule → user)
+  period        String // canonical "YYYY-MM" (or "YYYY-Qn" / "YYYY")
+  dueDate       DateTime
+  expectedMinor Int
+  status        String            @default("PENDING") // PENDING | PAID | PAID_ADVANCE | SKIPPED | VOID
+  origin        String            @default("AUTO") // AUTO | ADVANCE | MANUAL | BACKFILL
+  obligationId  String? // optional link if mirrored as an Obligation
+  paidDate      DateTime?
+  advanceId     String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([scheduleId, period]) // hard idempotency — cron cannot duplicate
+  @@index([userId, status])
+  @@index([scheduleId, status])
+}
+
+model AdvancePayment {
+  id            String            @id @default(cuid())
+  scheduleId    String
+  schedule      RecurringSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  userId        String
+  monthsCovered Int
+  amountMinor   Int // total lump sum
+  perPeriodMinor Int // floor(total / months); remainder on last covered slot
+  startPeriod   String
+  endPeriod     String
+  paidOn        DateTime
+  paidBy        String            @default("SELF") // SELF | PARENT | OTHER
+  ledgerEntryId String?
+  createdAt     DateTime          @default(now())
+
+  @@index([scheduleId])
 }
