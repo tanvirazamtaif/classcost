@@ -53,6 +53,10 @@ model User {
   feeItems            FeeItem[]
   waivers             Waiver[]
   recurringSchedules  RecurringSchedule[]
+  academicTerms       AcademicTerm[]
+  closureRecords      ClosureRecord[]
+  trustedCircles      TrustedCircle[]     @relation("CircleOwner")
+  identityLayers      IdentityLayer[]
 }
 
 model PromoCode {
@@ -327,6 +331,7 @@ model Entity {
   institutionId  String? // → Institution.id (curated template)
   branchId       String? // → Branch.id
   sectionId      String? // → Section.id
+  coupledTermId  String? // Phase 6 — residence Entity coupled to an AcademicTerm
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -716,4 +721,103 @@ model AdvancePayment {
   createdAt     DateTime          @default(now())
 
   @@index([scheduleId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLOSURE & PROMOTION (Phase 5)
+//
+// AcademicTerm groups trackers under one institution for promotion chains.
+// ClosureRecord is the immutable settlement snapshot written when a semester/
+// tenancy closes (sets the source Tracker.status=ARCHIVED, never deletes).
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AcademicTerm {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionId     String? // → Institution template (optional)
+  label             String // "Class 9", "Fall 2026"
+  termType          String // school_class | college_year | university_semester | coaching_course | residence_tenancy
+  startDate         DateTime
+  endDate           DateTime?
+  status            String   @default("active") // active | sealed_promoted | sealed_completed | sealed_transferred_out | sealed_dropped | sealed_repeated
+  predecessorTermId String?
+  successorTermId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([institutionId])
+}
+
+model ClosureRecord {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackerId        String? // the closed Tracker
+  termId           String? // optional AcademicTerm
+  closureReason    String // completed | moved_out | dropped | promoted | transferred | repeated | other
+  effectiveEndDate DateTime
+  status           String   @default("confirmed") // draft | confirmed | settled
+  grossMinor       Int      @default(0)
+  netMinor         Int      @default(0)
+  waiverMinor      Int      @default(0)
+  paidMinor        Int      @default(0)
+  outstandingMinor Int      @default(0)
+  refundableMinor  Int      @default(0)
+  storyCard        Json? // frozen rendered snapshot {title, stats, narrative}
+  coupledClosureId String? // paired institution↔residence closure
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([trackerId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROFILE: TRUSTED CIRCLES + IDENTITY LAYERS + RESIDENCE COUPLING (Phase 6)
+//
+// TrustedCircle generalizes the flat LinkedAccount into a named recipient with
+// per-section share permissions. IdentityLayer stores the layered identity graph.
+// Entity gains coupledTermId for residence↔institution coupling.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model TrustedCircle {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  owner       User     @relation("CircleOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  label       String // "Abba", "Amma", "Boro Bhai"
+  relation    String? // father | mother | sibling | guardian | other
+  phoneE164   String?
+  preset      String   @default("fee_buddy") // fee_buddy | full_picture | custodian | custom
+  status      String   @default("active") // active | paused | revoked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions SharePermission[]
+
+  @@index([ownerUserId, status])
+}
+
+model SharePermission {
+  id         String        @id @default(cuid())
+  circleId   String
+  circle     TrustedCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  section    String // institutions | residence | forecast | fees | reminders | food | transit | other
+  visibility String        @default("hidden") // visible | hidden
+  notify     Boolean       @default(false)
+
+  @@unique([circleId, section])
+  @@index([circleId])
+}
+
+model IdentityLayer {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  layerType String // identity | academic | living | money | privacy
+  payload   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, layerType])
 }

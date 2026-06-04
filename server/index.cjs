@@ -26,6 +26,8 @@ const semesterEngineRoutes = require('./routes/semesterEngine.cjs');
 const institutionRoutes = require('./routes/institutions.cjs');
 const recurringRoutes = require('./routes/recurring.cjs');
 const reportsRoutes = require('./routes/reports.cjs');
+const closureRoutes = require('./routes/closure.cjs');
+const circlesRoutes = require('./routes/circles.cjs');
 
 const app = express();
 
@@ -55,6 +57,8 @@ app.use('/api/semester-engine', semesterEngineRoutes);
 app.use('/api/institutions', institutionRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/closure', closureRoutes);
+app.use('/api/circles', circlesRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {
