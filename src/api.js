@@ -498,3 +498,21 @@ export async function getForecast(userId, params = {}) {
   ).toString();
   return request(`/api/reports/${userId}/forecast${qs ? `?${qs}` : ''}`);
 }
+
+// ── Trusted Circles (Phase 6) ────────────────────────────────────────────────
+
+export async function getCircles(userId) {
+  return request(`/api/circles/${userId}`);
+}
+
+export async function createCircle(userId, data) {
+  return request(`/api/circles/${userId}`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function setCircleStatus(userId, circleId, status) {
+  return request(`/api/circles/${userId}/${circleId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+export async function setCirclePermission(userId, circleId, section, visibility) {
+  return request(`/api/circles/${userId}/${circleId}/permission`, { method: 'PATCH', body: JSON.stringify({ section, visibility }) });
+}

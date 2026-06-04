@@ -7,6 +7,8 @@ import { Btn, Card, Input, Badge, Toggle } from '../components/ui';
 import { BottomSheet } from '../components/ui';
 import { redeemPromoCode } from '../api';
 import { EDUCATION_LEVELS } from '../types/educationFees';
+import { isEnabled } from '../lib/featureFlags';
+import { ProfileV2 } from './ProfileV2';
 
 // Map EDU group to fee filter category (covers all original + new stream-derived groups)
 const GROUP_TO_FILTER = {
@@ -59,7 +61,9 @@ const SettingsView = () => {
 
   return (
     <div className="flex flex-col gap-5 pb-24">
-      <h2 className="text-xl font-bold text-slate-900" style={{fontFamily:"'Fraunces',serif"}}>Settings</h2>
+      <h2 className="text-xl font-bold text-slate-900 dark:text-white" style={{fontFamily:"'Fraunces',serif"}}>Settings</h2>
+      {/* Phase 6 — layered profile + Trusted Circles (additive, flagged) */}
+      {isEnabled('ENABLE_PROFILE_V2') && <ProfileV2 />}
       <Card className="p-5">
         <div className="flex items-center gap-4 mb-4">
           <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl font-bold text-indigo-600">{profile?.fullName?.[0]||user?.email?.[0]?.toUpperCase()||"?"}</div>
