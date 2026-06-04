@@ -6,6 +6,7 @@ const DEFAULT_FLAGS = {
   ENABLE_PROFILE_V2: false, // Phase 6 — layered profile: Wholeness ring + Trusted Circles
   ENABLE_RECURRING_UI: false, // Phase 3 — server-side recurring schedules + slots
   ENABLE_CLOSURE_UI: false, // Phase 5 — closure wizard + Story Cards
+  ENABLE_ASSISTANT: true, // "Ask ClassCost" help assistant (floating chat). ON for local testing; flip to false before production if not wanted.
 };
 
 function getOverrides() {

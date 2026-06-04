@@ -28,6 +28,7 @@ const recurringRoutes = require('./routes/recurring.cjs');
 const reportsRoutes = require('./routes/reports.cjs');
 const closureRoutes = require('./routes/closure.cjs');
 const circlesRoutes = require('./routes/circles.cjs');
+const assistantRoutes = require('./routes/assistant.cjs');
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/recurring', recurringRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/closure', closureRoutes);
 app.use('/api/circles', circlesRoutes);
+app.use('/api/assistant', assistantRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {

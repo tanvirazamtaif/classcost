@@ -564,6 +564,15 @@ export async function applyAdvance(userId, scheduleId, data) {
   return request(`/api/recurring/${userId}/${scheduleId}/advance`, { method: 'POST', body: JSON.stringify(data) });
 }
 
+// ── Ask ClassCost — help assistant ───────────────────────────────────────────
+
+export async function askAssistant(message, history = []) {
+  return request('/api/assistant', {
+    method: 'POST',
+    body: JSON.stringify({ message, history }),
+  });
+}
+
 // ── Closure & Story Cards (Phase 5) ──────────────────────────────────────────
 
 export async function getClosures(userId) {

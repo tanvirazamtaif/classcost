@@ -3,7 +3,7 @@ import { AppProvider, useApp } from './contexts/AppContext';
 import { EducationFeeProvider } from './contexts/EducationFeeContext';
 import { V3Provider } from './contexts/V3Context';
 import { isEnabled } from './lib/featureFlags';
-import { ErrorBoundary, RoleSelection } from './components/feature';
+import { ErrorBoundary, RoleSelection, AssistantWidget } from './components/feature';
 import { ToastContainer, DashboardSkeleton, ReportsSkeleton, LoadingOverlay } from './components/ui';
 import { Header, LayoutBottomNav, Sidebar } from './components/layout';
 
@@ -152,6 +152,12 @@ const ViewRouter = () => {
         )}
       </Suspense>
       </ErrorBoundary>
+      {/* "Ask ClassCost" help assistant — global floating chat, behind a flag.
+          Hidden on pre-login / full-screen views where it would get in the way. */}
+      {isEnabled('ENABLE_ASSISTANT') &&
+        !['landing', 'otp', 'role-selection', 'admin'].includes(view) && (
+          <AssistantWidget />
+        )}
     </>
   );
 };
