@@ -180,7 +180,7 @@ export const ACTIONS = {
       };
     },
     execute: async ({ fee_id, new_amount }, ctx) => {
-      ctx.updateFeeAmount(fee_id, Number(new_amount), today(), 'Changed via Ask ClassCost');
+      ctx.updateFeeAmount(fee_id, Number(new_amount), today(), 'Changed via Leeboon');
     },
   },
 
