@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { EducationFeeProvider } from './contexts/EducationFeeContext';
+import { UniversalSemesterProvider } from './contexts/UniversalSemesterContext';
 import { V3Provider } from './contexts/V3Context';
 import { isEnabled } from './lib/featureFlags';
 import { ErrorBoundary, RoleSelection, AssistantWidget } from './components/feature';
@@ -30,6 +31,7 @@ const EducationFeeFormPage = lazy(() => import('./pages/EducationFeeFormPage'));
 const SemesterLandingPage = lazy(() => import('./pages/SemesterLandingPage'));
 const AddSemesterPage = lazy(() => import('./pages/AddSemesterPage'));
 const SemesterDetailPage = lazy(() => import('./pages/SemesterDetailPage'));
+const UniversalSemesterDetailPage = lazy(() => import('./pages/UniversalSemesterDetailPage').then(m => ({ default: m.UniversalSemesterDetailPage })));
 const TransportPage = lazy(() => import('./pages/TransportPage'));
 const StudyMaterialsPage = lazy(() => import('./pages/StudyMaterialsPage'));
 const HousingLandingPage = lazy(() => import('./pages/HousingLandingPage'));
@@ -120,6 +122,7 @@ const ViewRouter = () => {
         {view === "semester-landing" && <SemesterLandingPage />}
         {view === "add-semester" && <AddSemesterPage />}
         {view === "semester-detail" && <SemesterDetailPage />}
+        {view === "universal-semester" && <UniversalSemesterDetailPage />}
         {view === "transport" && <TransportPage />}
         {view === "study-materials" && <StudyMaterialsPage />}
         {view === "housing-landing" && <HousingLandingPage />}
@@ -189,9 +192,11 @@ export default function App() {
         `}</style>
         <AppProvider>
           <EducationFeeProvider>
-            <V3Provider>
-              <ViewRouter />
-            </V3Provider>
+            <UniversalSemesterProvider>
+              <V3Provider>
+                <ViewRouter />
+              </V3Provider>
+            </UniversalSemesterProvider>
           </EducationFeeProvider>
         </AppProvider>
       </div>

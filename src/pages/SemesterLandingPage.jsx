@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, ChevronRight } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useEducationFees } from '../contexts/EducationFeeContext';
+import { useUniversalSemesters } from '../contexts/UniversalSemesterContext';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { calcTotals, fmt } from '../lib/installmentEngine';
 import { GButton } from '../components/ui';
 import { LayoutBottomNav } from '../components/layout';
 import { haptics } from '../lib/haptics';
@@ -51,12 +53,15 @@ function getTotalPaid(fee) {
 export const SemesterLandingPage = () => {
   const { navigate, goBack, theme } = useApp();
   const { activeFees } = useEducationFees();
+  const { semesters: universalSemesters } = useUniversalSemesters();
   const { institutionName } = useUserProfile();
   const d = theme === 'dark';
 
   const semesterFees = useMemo(() => {
     return activeFees.filter(f => f.feeType === 'semester_fee' && !f.isDeleted);
   }, [activeFees]);
+
+  const hasAny = universalSemesters.length > 0 || semesterFees.length > 0;
 
   // ══════════════════════════════════════════════════════════════
   // RENDER: EMPTY STATE
@@ -86,7 +91,56 @@ export const SemesterLandingPage = () => {
   );
 
   // ══════════════════════════════════════════════════════════════
-  // RENDER: SEMESTER CARD
+  // RENDER: UNIVERSAL SEMESTER CARD
+  // ══════════════════════════════════════════════════════════════
+
+  const renderUniversalCard = (sem) => {
+    const t = calcTotals(sem.fees || [], sem.profile?.waiverPercent || 0);
+    const planLabel = sem.profile?.installmentPreference === 1 || sem.profile?.installmentPreference === undefined
+      ? 'Full' : sem.profile?.installmentPreference === 'custom' ? 'Custom' : 'Installment';
+    const planBg = planLabel === 'Full'
+      ? (d ? 'bg-emerald-900/30 text-emerald-300' : 'bg-emerald-100 text-emerald-700')
+      : (d ? 'bg-primary-900/30 text-primary-300' : 'bg-primary-100 text-primary-700');
+    return (
+      <motion.button
+        key={sem.id}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => { haptics.light(); navigate('universal-semester', { params: { semesterId: sem.id } }); }}
+        className={`w-full text-left p-4 rounded-2xl border transition-all ${
+          d ? 'bg-surface-900 border-surface-800 hover:border-surface-700' : 'bg-white border-surface-200 hover:border-surface-300'
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-base">🎓</span>
+              <p className={`text-sm font-semibold truncate ${d ? 'text-white' : 'text-surface-900'}`}>{sem.semesterName || 'Semester'}</p>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${planBg}`}>{planLabel}</span>
+            </div>
+            {sem.universityName && <p className={`text-xs mb-2 ${d ? 'text-surface-400' : 'text-surface-500'}`}>{sem.universityName}</p>}
+            {t.totalInst > 0 && (
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-xs ${d ? 'text-surface-400' : 'text-surface-500'}`}>{t.paidInst} of {t.totalInst} paid</span>
+                </div>
+                <div className={`w-full h-1.5 rounded-full overflow-hidden ${d ? 'bg-surface-800' : 'bg-surface-200'}`}>
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${t.pct}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} className="h-full rounded-full bg-primary-500" />
+                </div>
+              </div>
+            )}
+            <p className={`text-xs ${d ? 'text-surface-400' : 'text-surface-500'}`}>
+              Paid: <span className={`font-semibold ${d ? 'text-emerald-400' : 'text-emerald-600'}`}>{fmt(t.paid)}</span>
+              {t.final > 0 && <span> / {fmt(t.final)}</span>}
+            </p>
+          </div>
+          <ChevronRight className={`w-4 h-4 mt-1 shrink-0 ${d ? 'text-surface-600' : 'text-surface-400'}`} />
+        </div>
+      </motion.button>
+    );
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER: SEMESTER CARD (legacy)
   // ══════════════════════════════════════════════════════════════
 
   const renderCard = (fee) => {
@@ -176,7 +230,7 @@ export const SemesterLandingPage = () => {
 
       <main className="max-w-md mx-auto p-4 space-y-4">
         {/* Add Semester button */}
-        {semesterFees.length > 0 && (
+        {hasAny && (
           <GButton
             fullWidth
             size="lg"
@@ -188,8 +242,9 @@ export const SemesterLandingPage = () => {
         )}
 
         {/* Semester list or empty state */}
-        {semesterFees.length === 0 ? renderEmpty() : (
+        {!hasAny ? renderEmpty() : (
           <div className="space-y-3">
+            {universalSemesters.map(sem => renderUniversalCard(sem))}
             {semesterFees.map(fee => renderCard(fee))}
           </div>
         )}
