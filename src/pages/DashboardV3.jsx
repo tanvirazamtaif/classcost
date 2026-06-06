@@ -235,14 +235,61 @@ export const DashboardV3 = () => {
           </div>
         </motion.div>
 
-        {/* ── Welcome banner (new users only) ────────────── */}
-        {!loading && activeEntities.length === 0 && recentList.length === 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="rounded-xl p-4 mb-4 text-center"
-            style={{ background: c.card, border: `0.5px solid ${c.border}` }}>
-            <p className="text-sm font-medium" style={{ color: c.text1 }}>Welcome to ClassCost</p>
-            <p className="text-xs mt-1" style={{ color: c.text3 }}>
-              Tap the <span style={{ color: c.accent }}>+</span> button below to add your first expense
+        {/* ── Getting Started card (new users with no institution yet) ────────
+            Shows a clear primary CTA to add an institution + secondary actions.
+            Auto-hides as soon as the user has an entity or any expense logged. */}
+        {!loading && activeEntities.length === 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+            className="rounded-2xl p-4 mb-4"
+            style={{ background: c.card, border: `0.5px solid ${c.heroBorder}` }}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: c.text1 }}>
+                  Hey {firstName} 👋
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: c.text3 }}>
+                  Let's set up your education tracker.
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                style={{ background: c.accentLight, color: c.accent }}>
+                Getting started
+              </span>
+            </div>
+
+            {/* Primary CTA — add your institution */}
+            <button onClick={() => { haptics.light(); navigate('add-entity', { params: { defaultType: 'INSTITUTION' } }); }}
+              className="w-full rounded-xl p-3 flex items-center gap-3 text-left transition active:scale-[0.98]"
+              style={{ background: c.accent }}>
+              <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg"
+                style={{ background: 'rgba(255,255,255,0.2)' }}>
+                🎓
+              </span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">Add your institution</p>
+                <p className="text-[11px] text-white/70 mt-0.5">School, college, university — we auto-detect the rest</p>
+              </div>
+              <ChevronRight size={18} color="white" />
+            </button>
+
+            {/* Secondary actions */}
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button onClick={() => { haptics.light(); setSheetOpen(true); }}
+                className="rounded-xl p-2.5 flex items-center gap-2 transition active:scale-[0.98]"
+                style={{ background: c.heroBg, border: `0.5px solid ${c.border}` }}>
+                <span className="text-base">➕</span>
+                <span className="text-[11px] font-medium" style={{ color: c.text2 }}>Log an expense</span>
+              </button>
+              <button onClick={() => { haptics.light(); navigate('schedule'); }}
+                className="rounded-xl p-2.5 flex items-center gap-2 transition active:scale-[0.98]"
+                style={{ background: c.heroBg, border: `0.5px solid ${c.border}` }}>
+                <span className="text-base">🔔</span>
+                <span className="text-[11px] font-medium" style={{ color: c.text2 }}>Set reminders</span>
+              </button>
+            </div>
+
+            <p className="text-[10px] mt-3 text-center" style={{ color: c.text3 }}>
+              You can also explore the app first — adding an institution is optional.
             </p>
           </motion.div>
         )}
