@@ -1,0 +1,198 @@
+// ClassCost v2 — Leeboon: a free-roaming, moody, draggable teddy (no circle). Behavior ported
+// from the v1 AssistantWidget; chat brain is client-side (leeboonBrain) with a Claude-ready seam.
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LeeboonMascot } from '../components/feature/LeeboonMascot';
+import { useV2 } from './store';
+import { fmt } from './engine';
+import { interpret } from './leeboonBrain';
+
+const SPRITE_W = 52;
+const SPRITE_H = Math.round((SPRITE_W * 30) / 28);
+const TOP_MIN = 96;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+export function Leeboon({ nav, d }) {
+  const store = useV2();
+  const [open, setOpen] = useState(false);
+  const [msgs, setMsgs] = useState([]);
+  const [input, setInput] = useState('');
+  const [pending, setPending] = useState(null);
+  const endRef = useRef(null);
+
+  // ── roaming / mood state ──
+  const wanderPaused = useRef(false);
+  const dragInfo = useRef({ moved: false });
+  const movingRef = useRef('none');
+  const moodRef = useRef('happy');
+  const sadTimer = useRef(null), angryTimer = useRef(null), moveTimer = useRef(null), waveTimer = useRef(null);
+  const posRef = useRef({
+    top: typeof window !== 'undefined' ? window.innerHeight - 200 : 520,
+    left: typeof window !== 'undefined' ? window.innerWidth - SPRITE_W - 14 : 320,
+  });
+  const [pos, setPosState] = useState(posRef.current);
+  const [dragging, setDragging] = useState(false);
+  const [facing, setFacing] = useState('left');
+  const [moving, setMoving] = useState('none');
+  const [waving, setWaving] = useState(false);
+  const [mood, setMood] = useState('happy');
+  const setPos = (p) => { posRef.current = p; setPosState(p); };
+  const setMove = (m) => { movingRef.current = m; setMoving(m); };
+  const applyMood = (m) => { moodRef.current = m; setMood(m); };
+
+  // talking/touching → happy, then drifts sad → angry if ignored.
+  const interact = () => {
+    applyMood('happy');
+    clearTimeout(sadTimer.current); clearTimeout(angryTimer.current);
+    sadTimer.current = setTimeout(() => applyMood('sad'), 16000);
+    angryTimer.current = setTimeout(() => applyMood('angry'), 45000);
+  };
+  const triggerWave = () => {
+    if (movingRef.current !== 'none' || moodRef.current !== 'happy') return;
+    setWaving(true);
+    clearTimeout(waveTimer.current);
+    waveTimer.current = setTimeout(() => setWaving(false), 2300);
+  };
+  const goTo = (top, left) => {
+    const prev = posRef.current, dx = left - prev.left, dy = top - prev.top;
+    if (Math.abs(dx) >= 18 && Math.abs(dx) >= Math.abs(dy)) { setFacing(dx < 0 ? 'left' : 'right'); setMove('horizontal'); }
+    else if (Math.abs(dy) >= 18) setMove('vertical');
+    setPos({ top, left });
+    clearTimeout(moveTimer.current);
+    moveTimer.current = setTimeout(() => setMove('none'), 2300);
+  };
+
+  useEffect(() => {
+    if (open) return;
+    const roam = () => {
+      if (wanderPaused.current || dragging) return;
+      const w = window.innerWidth, h = window.innerHeight, m = 12;
+      goTo(clamp(TOP_MIN + Math.random() * (h - SPRITE_H - TOP_MIN - 110), TOP_MIN, h - SPRITE_H - 90), Math.random() < 0.5 ? m : w - SPRITE_W - m);
+    };
+    const id = setInterval(roam, 20000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, dragging]);
+
+  useEffect(() => {
+    if (open) return;
+    const id = setInterval(triggerWave, 30000);
+    const kick = setTimeout(triggerWave, 2500);
+    return () => { clearInterval(id); clearTimeout(kick); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => { interact(); return () => [sadTimer, angryTimer, moveTimer, waveTimer].forEach((t) => clearTimeout(t.current)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, open]);
+
+  // ── drag ──
+  const onPointerDown = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragInfo.current = { moved: false, sx: e.clientX, sy: e.clientY, ox: e.clientX - rect.left, oy: e.clientY - rect.top, lx: e.clientX, ly: e.clientY };
+    wanderPaused.current = true; setDragging(true); interact();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+  };
+  const onPointerMove = (e) => {
+    if (!dragging) return;
+    const di = dragInfo.current;
+    if (Math.hypot(e.clientX - di.sx, e.clientY - di.sy) > 6) di.moved = true;
+    const ddx = e.clientX - di.lx, ddy = e.clientY - di.ly;
+    if (Math.abs(ddx) > 2 || Math.abs(ddy) > 2) { if (Math.abs(ddx) >= Math.abs(ddy)) { setFacing(ddx < 0 ? 'left' : 'right'); setMove('horizontal'); } else setMove('vertical'); interact(); }
+    di.lx = e.clientX; di.ly = e.clientY;
+    const w = window.innerWidth, h = window.innerHeight;
+    setPos({ left: clamp(e.clientX - di.ox, 4, w - SPRITE_W - 4), top: clamp(e.clientY - di.oy, 4, h - SPRITE_H - 4) });
+  };
+  const onPointerUp = () => {
+    if (!dragging) return;
+    setDragging(false); wanderPaused.current = false; setMove('none');
+    if (dragInfo.current.moved) {
+      const w = window.innerWidth, h = window.innerHeight, m = 12, p = posRef.current;
+      setPos({ left: (p.left + SPRITE_W / 2) < w / 2 ? m : w - SPRITE_W - m, top: clamp(p.top, TOP_MIN, h - SPRITE_H - 80) });
+    }
+  };
+  const onClick = () => { if (dragInfo.current.moved) { dragInfo.current.moved = false; return; } interact(); openChat(); };
+  const helloRight = (pos.left + SPRITE_W / 2) > (typeof window !== 'undefined' ? window.innerWidth / 2 : 99999);
+
+  // ── chat ──
+  const ctx = {
+    spaces: store.topSpaces(), personalSpace: store.personalSpace, spaceById: store.spaceById,
+    summary: store.summary, categoryTotals: store.categoryTotals, fmt,
+    nav: (v, p) => { nav(v, p); setOpen(false); },
+    logDaily: store.logDaily, createInstitute: store.createInstitute,
+  };
+  const openChat = () => { setOpen(true); if (msgs.length === 0) setMsgs([{ who: 'bot', text: "Hiii, I'm Leeboon 🐥 — tell me what you spent, what to create, or where to go." }]); };
+  const send = () => {
+    const text = input.trim(); if (!text) return;
+    setInput(''); setPending(null); interact();
+    const res = interpret(text, ctx);
+    setMsgs((m) => [...m, { who: 'me', text }, { who: 'bot', text: res.text }]);
+    if (res.confirm) setPending(res.confirm);
+  };
+  const confirm = () => { if (!pending) return; let ok = true; try { pending.run(); } catch { ok = false; } setMsgs((m) => [...m, { who: 'bot', text: ok ? 'Done ✓' : "Hmm, that didn't work." }]); setPending(null); };
+
+  return (
+    <>
+      <AnimatePresence>
+        {!open && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
+            transition={{ scale: { type: 'spring', stiffness: 400, damping: 25 }, opacity: { duration: 0.2 } }}
+            whileTap={{ scale: 0.94 }}
+            onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
+            onHoverStart={() => { wanderPaused.current = true; interact(); triggerWave(); }}
+            onHoverEnd={() => { if (!dragging) wanderPaused.current = false; }}
+            onClick={onClick}
+            aria-label="Play with Leeboon — drag to move"
+            className={`fixed z-50 flex items-center justify-center bg-transparent border-0 p-0 touch-none select-none ${dragging ? 'cursor-grabbing' : 'cursor-grab'} ${dragging ? '' : 'transition-[top,left] duration-[2200ms] ease-in-out'}`}
+            style={{ top: pos.top, left: pos.left, width: SPRITE_W }}
+          >
+            <AnimatePresence>
+              {waving && (
+                <motion.span
+                  initial={{ opacity: 0, y: 8, scale: 0.7 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.7 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                  className={`absolute ${helloRight ? 'right-0' : 'left-0'} px-2.5 py-1 rounded-2xl text-[12px] font-bold whitespace-nowrap pointer-events-none shadow-md`}
+                  style={{ bottom: 'calc(100% + 7px)', background: d ? '#1e1e2e' : '#fffaf0', color: d ? '#fde68a' : '#7a4a1e', border: `1px solid ${d ? '#33334a' : '#fde9c8'}` }}
+                >
+                  Hi there! 👋
+                  <span className={`absolute -bottom-1 ${helloRight ? 'right-4' : 'left-4'} w-2.5 h-2.5 rotate-45`} style={{ background: d ? '#1e1e2e' : '#fffaf0' }} />
+                </motion.span>
+              )}
+            </AnimatePresence>
+            <LeeboonMascot size={SPRITE_W} animated expression={mood} facing={facing} moving={moving} waving={waving} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {open && (
+        <div className="v2-backdrop" onClick={() => setOpen(false)}>
+          <div className="v2-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <LeeboonMascot size={28} animated expression="happy" />
+              <p className="font-semibold t-hi">Leeboon</p>
+              <button className="ml-auto text-[13px] t-mid" onClick={() => setOpen(false)}>Close</button>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-2 py-2" style={{ minHeight: 180 }}>
+              {msgs.map((m, i) => (
+                <div key={i} className={`flex ${m.who === 'me' ? 'justify-end' : 'justify-start'}`}>
+                  <div className="max-w-[82%] px-3 py-2 rounded-2xl text-[13px] leading-snug" style={m.who === 'me' ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--pill-bg)', color: 'var(--text1)', border: '.5px solid var(--border)' }}>{m.text}</div>
+                </div>
+              ))}
+              {pending && (
+                <div className="card p-3 mt-1">
+                  <p className="text-[12px] t-mid mb-2">Confirm?</p>
+                  <div className="flex gap-2"><button className="btn btn-primary" onClick={confirm}>{pending.label}</button><button className="btn btn-ghost" onClick={() => setPending(null)}>Cancel</button></div>
+                </div>
+              )}
+              <div ref={endRef} />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <input className="field" placeholder="e.g. spent 200 on lunch" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} autoFocus />
+              <button className="minibtn btn-primary" style={{ width: 'auto', padding: '.65rem 1rem' }} onClick={send}>Send</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
