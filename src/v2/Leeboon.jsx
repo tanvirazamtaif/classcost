@@ -12,12 +12,45 @@ const SPRITE_H = Math.round((SPRITE_W * 30) / 28);
 const TOP_MIN = 96;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// Map the server's (v1-shaped) tool proposals onto v2 store actions. Returns {text, confirm?}.
+const SRV_CAT = { canteen: ['Food', '🍔'], transport: ['Transport', '🚌'], books: ['Books', '📚'], education: ['Education', '🎓'], hostel: ['Rent', '🏠'], uniform: ['Uniform', '👕'], health: ['Health', '💊'], other: ['Others', '📦'] };
+const catFromServer = (c) => SRV_CAT[c] || ['Others', '📦'];
+function mapAction(action, lead, ctx) {
+  const { name, input = {} } = action || {};
+  if (name === 'add_expense') {
+    const amount = Math.max(0, Number(input.amount) || 0);
+    const [catName, icon] = catFromServer(input.category);
+    const sector = ctx.personalSpace();
+    return { text: `${lead ? lead + ' ' : ''}Add ${ctx.fmt(amount)} ${catName}${input.note ? ` (${input.note})` : ''} under ${sector?.name || 'Personal'}?`, confirm: { label: `Add ${ctx.fmt(amount)} ${catName}`, run: () => sector && ctx.logDaily(catName, icon, sector.id, amount) } };
+  }
+  if (name === 'create_reminder') {
+    const amount = Math.max(0, Number(input.amount) || 0);
+    const day = Math.min(28, Math.max(1, Number(input.due_day) || 1));
+    const sector = ctx.personalSpace();
+    return { text: `${lead ? lead + ' ' : ''}Set a monthly reminder "${input.name || 'Reminder'}" of ${ctx.fmt(amount)} on day ${day}?`, confirm: { label: 'Add reminder', run: () => sector && ctx.addRecurring(sector.id, input.name || 'Reminder', amount, day) } };
+  }
+  return { text: lead || "I can guide you, but I can't make that exact change yet — open the relevant space to do it." };
+}
+// Real Claude brain via the existing server. Throws on any failure so the caller falls back to the client brain.
+async function serverBrain(text, priorMsgs, store, ctx) {
+  const history = (priorMsgs || []).slice(-10).map((m) => ({ role: m.who === 'me' ? 'user' : 'assistant', content: m.text }));
+  const snapshot = { spaces: (store.db && store.db.spaces) || store.spaces || [] };
+  const r = await fetch('/api/assistant/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history, snapshot }) });
+  if (!r.ok) throw new Error('assistant unavailable');
+  const data = await r.json();
+  if (data.error) throw new Error(data.error);
+  if (data.type === 'action' && data.action) return mapAction(data.action, data.text, ctx);
+  if (data.type === 'text' || data.reply) return { text: data.text || data.reply };
+  throw new Error('unrecognized response');
+}
+
 export function Leeboon({ nav, d }) {
   const store = useV2();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
   const [pending, setPending] = useState(null);
+  const [thinking, setThinking] = useState(false);
   const endRef = useRef(null);
 
   // ── roaming / mood state ──
@@ -83,7 +116,7 @@ export function Leeboon({ nav, d }) {
   }, [open]);
 
   useEffect(() => { interact(); return () => [sadTimer, angryTimer, moveTimer, waveTimer].forEach((t) => clearTimeout(t.current)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, open]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, thinking, open]);
 
   // ── drag ──
   const onPointerDown = (e) => {
@@ -118,14 +151,20 @@ export function Leeboon({ nav, d }) {
     spaces: store.topSpaces(), personalSpace: store.personalSpace, spaceById: store.spaceById,
     summary: store.summary, categoryTotals: store.categoryTotals, fmt,
     nav: (v, p) => { nav(v, p); setOpen(false); },
-    logDaily: store.logDaily, createInstitute: store.createInstitute,
+    logDaily: store.logDaily, createInstitute: store.createInstitute, addRecurring: store.addRecurring,
   };
   const openChat = () => { setOpen(true); if (msgs.length === 0) setMsgs([{ who: 'bot', text: "Hiii, I'm Leeboon 🐥 — tell me what you spent, what to create, or where to go." }]); };
-  const send = () => {
+  const send = async () => {
     const text = input.trim(); if (!text) return;
+    const prior = msgs;
     setInput(''); setPending(null); interact();
-    const res = interpret(text, ctx);
-    setMsgs((m) => [...m, { who: 'me', text }, { who: 'bot', text: res.text }]);
+    setMsgs((m) => [...m, { who: 'me', text }]);
+    setThinking(true);
+    let res;
+    try { res = await serverBrain(text, prior, store, ctx); } // real Claude
+    catch { res = interpret(text, ctx); }                     // offline / no-server fallback
+    setThinking(false);
+    setMsgs((m) => [...m, { who: 'bot', text: res.text }]);
     if (res.confirm) setPending(res.confirm);
   };
   const confirm = () => { if (!pending) return; let ok = true; try { pending.run(); } catch { ok = false; } setMsgs((m) => [...m, { who: 'bot', text: ok ? 'Done ✓' : "Hmm, that didn't work." }]); setPending(null); };
@@ -184,6 +223,7 @@ export function Leeboon({ nav, d }) {
                   <div className="flex gap-2"><button className="btn btn-primary" onClick={confirm}>{pending.label}</button><button className="btn btn-ghost" onClick={() => setPending(null)}>Cancel</button></div>
                 </div>
               )}
+              {thinking && <div className="flex justify-start"><div className="px-3 py-2 rounded-2xl text-[13px]" style={{ background: 'var(--pill-bg)', color: 'var(--text2)', border: '.5px solid var(--border)' }}>Leeboon is thinking…</div></div>}
               <div ref={endRef} />
             </div>
             <div className="flex gap-2 pt-2">

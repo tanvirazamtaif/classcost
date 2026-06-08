@@ -29,6 +29,7 @@ const reportsRoutes = require('./routes/reports.cjs');
 const closureRoutes = require('./routes/closure.cjs');
 const circlesRoutes = require('./routes/circles.cjs');
 const assistantRoutes = require('./routes/assistant.cjs');
+const v2dataRoutes = require('./routes/v2data.cjs');
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/closure', closureRoutes);
 app.use('/api/circles', circlesRoutes);
 app.use('/api/assistant', assistantRoutes);
+app.use('/api/v2data', v2dataRoutes);
 
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {

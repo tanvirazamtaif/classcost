@@ -7,6 +7,7 @@ import { getThemeColors } from '../lib/themeColors';
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
+import { sendOTP, verifyOTP } from '../api';
 import './v2.css';
 
 /* ---------------- shared UI ---------------- */
@@ -747,7 +748,7 @@ function SettingsScreen({ d, toggleTheme }) {
   );
 }
 function Profile({ back }) {
-  const { user, setUser } = useV2();
+  const { user, setUser, logout } = useV2();
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -778,7 +779,7 @@ function Profile({ back }) {
           <button className="w-full flex items-center gap-3 p-4" onClick={() => setPwOpen(true)}>
             <Lock size={18} className="t-mid" /><span className="flex-1 text-left text-[14px] font-medium t-hi">{user?.hasPassword ? 'Change password' : 'Create password'}</span><ChevronRight size={16} className="t-lo" />
           </button>
-          <button className="w-full flex items-center gap-3 p-4" style={{ borderTop: '.5px solid var(--border)' }} onClick={() => { if (window.confirm('Log out?\n\n(Preview: no account session yet — your data stays on this device.)')) back(); }}>
+          <button className="w-full flex items-center gap-3 p-4" style={{ borderTop: '.5px solid var(--border)' }} onClick={() => { if (window.confirm('Log out of ClassCost?')) logout(); }}>
             <LogOut size={18} style={{ color: '#ef4444' }} /><span className="flex-1 text-left text-[14px] font-medium" style={{ color: '#ef4444' }}>Log out</span>
           </button>
         </div>
@@ -806,10 +807,59 @@ function PasswordSheet({ onClose }) {
   );
 }
 
+/* ---------------- LOGIN (require-login gate) ---------------- */
+function V2Login({ onGuest }) {
+  const { login } = useV2();
+  const [stage, setStage] = useState('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submitEmail = async () => {
+    const e = email.trim(); if (!e || busy) return;
+    setBusy(true); setErr('');
+    try { await sendOTP(e); setStage('code'); }
+    catch (x) { setErr(x.message || 'Could not send the code. Is the server running?'); }
+    finally { setBusy(false); }
+  };
+  const submitCode = async () => {
+    if (busy) return;
+    setBusy(true); setErr('');
+    try { const res = await verifyOTP(email.trim(), code.trim()); await login(res); }
+    catch (x) { setErr(x.message || 'Invalid or expired code.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: '100vh' }}>
+      <Logo size={56} animated />
+      <h1 className="text-xl font-bold t-hi mt-4">ClassCost</h1>
+      <p className="text-[13px] t-mid mb-6 mt-1 text-center max-w-[300px]">{stage === 'email' ? 'Sign in to track and sync your student money across devices.' : `Enter the 6-digit code sent to ${email}.`}</p>
+      <div className="w-full max-w-[320px] space-y-3">
+        {stage === 'email' ? (
+          <>
+            <input className="field" type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitEmail(); }} autoFocus />
+            <button className="btn btn-primary" disabled={busy || !email.trim()} onClick={submitEmail}>{busy ? 'Sending…' : 'Send code'}</button>
+          </>
+        ) : (
+          <>
+            <input className="field text-center text-lg" style={{ letterSpacing: '0.3em' }} inputMode="numeric" placeholder="------" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => { if (e.key === 'Enter') submitCode(); }} autoFocus />
+            <button className="btn btn-primary" disabled={busy || code.length < 4} onClick={submitCode}>{busy ? 'Verifying…' : 'Verify & sign in'}</button>
+            <button className="text-[12px] t-mid w-full text-center py-1" onClick={() => { setStage('email'); setCode(''); setErr(''); }}>← Use a different email</button>
+          </>
+        )}
+        {err && <p className="text-[12px] text-center" style={{ color: '#ef4444' }}>{err}</p>}
+      </div>
+      {onGuest && <button className="text-[12px] t-lo mt-8 underline" onClick={onGuest}>Continue as guest (dev preview)</button>}
+    </div>
+  );
+}
+
 /* ---------------- shell + router ---------------- */
 function Shell() {
+  const { user } = useV2();
   const [route, setRoute] = useState({ view: 'home', params: {} });
   const [theme, setTheme] = useState(() => { try { return localStorage.getItem('cc_v2_theme') || 'dark'; } catch { return 'dark'; } });
+  const [guest, setGuest] = useState(() => { try { return localStorage.getItem('cc_v2_guest') === '1'; } catch { return false; } });
   const stack = useRef([]);
   const d = theme === 'dark';
   const c = getThemeColors(d);
@@ -842,6 +892,9 @@ function Shell() {
     '--text1': c.text1, '--text2': c.text2, '--text3': c.text3, '--hero-bg': c.heroBg, '--hero-border': c.heroBorder,
     '--pill-bg': c.pillBg, '--nav-bg': c.navBg, '--sheet-bg': c.sheetBg, '--card-shadow': c.cardShadow,
   };
+  const authed = !!user?.id || guest;
+  const guestBtn = import.meta.env.DEV ? () => { try { localStorage.setItem('cc_v2_guest', '1'); } catch { /* ignore */ } setGuest(true); } : null;
+  if (!authed) return (<div className="v2-app" style={vars}><V2Login onGuest={guestBtn} /></div>);
   return (
     <div className="v2-app" style={vars}>
       {screen}

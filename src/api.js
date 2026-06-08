@@ -179,6 +179,19 @@ export async function updateSettings(userId, data) {
   });
 }
 
+// ── ClassCost v2 — whole-tree document sync ───────────────────────────────────
+
+export async function getV2Data(userId) {
+  return request(`/api/v2data/${userId}`);
+}
+
+export async function saveV2Data(userId, data) {
+  return request(`/api/v2data/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ data }),
+  });
+}
+
 // ── Education Fees ─────────────────────────────────────────────────────────
 
 export async function getEducationFees(userId) {

@@ -2,6 +2,7 @@
 // persisted to localStorage. React reads via useV2(); actions mutate then commit().
 import React, { createContext, useContext, useRef, useReducer, useEffect } from 'react';
 import { uid, split, monthlyDates, genWeekdayDues, iso, parse, today, inMonth, remOf, detectInstitute, setCurrency, MNS } from './engine';
+import { setAuthToken, getV2Data, saveV2Data } from '../api';
 
 const KEY = 'cc_v2_data';
 function load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && Array.isArray(d.spaces)) return d; } catch { /* ignore */ } return { spaces: [] }; }
@@ -13,7 +14,12 @@ export function V2Provider({ children }) {
   const ref = useRef(load());
   const [, bump] = useReducer((x) => x + 1, 0);
   const db = ref.current;
-  const commit = () => { save(db); bump(); };
+  const saveTimer = useRef(null);
+  const pickUser = (u) => ({ name: u?.name || 'Student', email: u?.email || '', currency: u?.currency || '৳' });
+  // Push the whole tree to the server (best-effort; silent when signed-out or offline).
+  const pushToServer = async () => { if (!db.user?.id) return; try { await saveV2Data(db.user.id, { spaces: db.spaces, user: pickUser(db.user) }); } catch { /* offline — retried on next change */ } };
+  const scheduleSync = () => { if (!db.user?.id) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(pushToServer, 1200); };
+  const commit = () => { save(db); bump(); scheduleSync(); };
 
   // Personal is auto-created (the always-on daily row needs a home from day one).
   useEffect(() => {
@@ -25,6 +31,9 @@ export function V2Provider({ children }) {
     commit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Hydrate from the server on load if already signed in.
+  useEffect(() => { if (db.user?.id) pullFromServer(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   // ---- selectors (pure reads over db) ----
   const spaceById = (i) => db.spaces.find((s) => s.id === i);
@@ -111,7 +120,44 @@ export function V2Provider({ children }) {
   const removeBlock = (blockId) => { for (const sp of db.spaces) { const i = sp.blocks.findIndex((b) => b.id === blockId); if (i >= 0) { sp.blocks.splice(i, 1); commit(); return; } } };
   const payDue = (dueId, amount) => { const d = findDue(dueId); if (d) { d.payments.push(amount == null ? remOf(d) : Math.min(amount, remOf(d))); commit(); } };
   const deleteSpace = (id) => { db.spaces = db.spaces.filter((s) => s.id !== id && s.parentId !== id); ref.current = db; commit(); };
-  const resetAll = () => { db.spaces = []; delete db.user; ref.current = db; save(db); window.location.reload(); };
+  // ---- auth + cloud sync ----
+  const ensurePersonal = () => { if (!db.spaces.some((s) => s.type === 'personal')) db.spaces.push({ id: uid('sp'), type: 'personal', name: 'Personal', icon: '👤', blocks: [] }); };
+  // Adopt server data if present, else seed the server with local data. Always keeps a Personal space.
+  const pullFromServer = async () => {
+    if (!db.user?.id) return;
+    try {
+      const res = await getV2Data(db.user.id);
+      const remote = res && res.data && Array.isArray(res.data.spaces) ? res.data : null;
+      if (remote && remote.spaces.length) {
+        db.spaces = remote.spaces;
+        if (remote.user) db.user = { ...db.user, ...remote.user, id: db.user.id };
+        if (db.user.currency) setCurrency(db.user.currency);
+        ensurePersonal();
+        commit();
+      } else {
+        ensurePersonal();
+        commit();
+        await pushToServer(); // server empty → seed it
+      }
+    } catch { ensurePersonal(); commit(); /* offline — keep local */ }
+  };
+  const login = async (result) => {
+    if (!result?.id) return;
+    if (result.token) setAuthToken(result.token);
+    db.user = { ...(db.user || {}), id: result.id, email: result.email || db.user?.email || '', name: result.name || db.user?.name || 'Student', currency: db.user?.currency || '৳' };
+    db.spaces = []; // clean slate — the server is the source of truth for this account
+    try { localStorage.removeItem('cc_v2_guest'); } catch { /* ignore */ }
+    commit();
+    await pullFromServer();
+  };
+  const logout = () => {
+    setAuthToken(null);
+    try { localStorage.removeItem('cc_v2_guest'); } catch { /* ignore */ }
+    db.user = { name: 'Student', email: '', currency: db.user?.currency || '৳' };
+    db.spaces = []; // don't leak one account's data into the next sign-in on a shared device
+    commit();
+  };
+  const resetAll = () => { db.spaces = []; save(db); if (db.user?.id) saveV2Data(db.user.id, { spaces: [], user: pickUser(db.user) }).catch(() => {}); window.location.reload(); };
   const setUser = (patch) => { db.user = { ...(db.user || { name: 'Student', email: '', currency: '৳' }), ...patch }; if (patch.currency) setCurrency(patch.currency); commit(); };
 
   const value = {
@@ -122,6 +168,8 @@ export function V2Provider({ children }) {
     // actions
     createInstitute, createResidence, createSimple, createAsset, addSemester,
     addCategory, addRecurring, addOneTime, logExpense, logDaily, addScheduledCategory, removeBlock, payDue, deleteSpace, resetAll, setUser,
+    // auth + sync
+    login, logout, pullFromServer, isLoggedIn: !!db.user?.id,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
