@@ -4,7 +4,21 @@ import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Ho
 import { motion } from 'framer-motion';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute } from './engine';
-import { getThemeColors } from '../lib/themeColors';
+// ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
+// neutrals + one accent that inverts per mode (navy-on-cream / cream-on-navy) + muted gold.
+const v2Palette = (d) => d ? {
+  bg: '#0F1537', card: '#171E42', border: '#262E55',
+  accent: '#EAD9B0', accentText: '#0F1537', accentLight: 'rgba(234,217,176,.14)', gold: '#E3C078',
+  text1: '#F4EEE1', text2: '#A6ACC9', text3: '#6B7299',
+  heroBg: '#141B3E', heroBorder: 'rgba(234,217,176,.18)',
+  pillBg: '#141B3E', navBg: 'rgba(15,21,55,.92)', sheetBg: '#171E42', cardShadow: 'none',
+} : {
+  bg: '#F4EEE1', card: '#FCF9F2', border: '#E6DFCE',
+  accent: '#16204A', accentText: '#FBF7EF', accentLight: 'rgba(22,32,74,.10)', gold: '#9A6A12',
+  text1: '#1B2138', text2: '#6E6755', text3: '#9C957F',
+  heroBg: '#FCF9F2', heroBorder: '#E6DFCE',
+  pillBg: '#EFE8D7', navBg: 'rgba(244,238,225,.92)', sheetBg: '#FCF9F2', cardShadow: '0 1px 2px rgba(20,25,50,.05)',
+};
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
@@ -102,8 +116,8 @@ function Home({ nav, tab, d }) {
         {/* hero (matches v1 DashboardV3) */}
         <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
           <div className="grid grid-cols-2 gap-4">
-            <div><p className="text-[10px] font-medium" style={{ color: '#8b5cf6' }}>Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi">{fmt(sm.life)}</p></div>
-            <div className="text-right"><p className="text-[10px] font-medium" style={{ color: '#8b5cf6' }}>This month</p><p className="text-[22px] font-medium mt-0.5 t-hi">{fmt(sm.month)}</p></div>
+            <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
+            <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
             <div><p className="text-[10px] t-lo">This year</p><p className="text-sm font-medium t-mid">{fmt(sm.year)}</p></div>
             <div className="text-right"><p className="text-[10px] t-lo">Last month</p><p className="text-sm font-medium t-mid">{fmt(sm.last)}</p></div>
           </div>
@@ -126,7 +140,7 @@ function Home({ nav, tab, d }) {
 
         {/* spaces — one big box */}
         <h2 className="text-sm font-semibold t-hi mb-2">Your spaces</h2>
-        <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: d ? '1px solid #2c2c40' : '1px solid #e2e4e8', borderRadius: '1rem', boxShadow: d ? '0 12px 30px rgba(0,0,0,.5)' : '0 8px 22px rgba(60,64,67,.14)' }}>
+        <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
           {tops.map((s, i) => {
             const mo = monthTotal(spaceDues(s));
             return (
@@ -197,7 +211,7 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
   return (
     <div className="v2-drawer-backdrop" onClick={onClose}>
       <aside className="v2-drawer" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2.5 mb-5 px-1.5"><Logo size={30} /><span className="text-[17px] font-bold t-hi">ClassCost</span></div>
+        <div className="flex items-center gap-2.5 mb-5 px-1.5"><Logo size={30} /><span className="text-[17px] font-bold t-hi t-serif">ClassCost</span></div>
         <button className="w-full text-left flex items-center gap-3 mb-5 rounded-lg" onClick={() => go(() => nav('profile'))}>
           <span className="w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
           <div className="min-w-0"><p className="font-semibold t-hi truncate">{user?.name || 'Student'}</p><p className="text-[11px] t-mid truncate">{user?.email || 'View profile'}</p></div>
@@ -604,7 +618,7 @@ function ReportsScreen() {
                   <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--text2)' }} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{ fill: 'var(--pill-bg)' }} contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text1)' }} formatter={(v) => [fmt(v), 'Spent']} labelStyle={{ color: 'var(--text2)' }} />
-                    <Bar dataKey="total" radius={[5, 5, 0, 0]} fill="#6366f1" />
+                    <Bar dataKey="total" radius={[5, 5, 0, 0]} fill="var(--accent)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1109,11 +1123,11 @@ function PasswordSheet({ onClose }) {
 function Shell() {
   const { user } = useV2();
   const [route, setRoute] = useState({ view: 'home', params: {} });
-  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('cc_v2_theme') || 'dark'; } catch { return 'dark'; } });
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('cc_v2_theme') || 'light'; } catch { return 'light'; } });
   const [guest, setGuest] = useState(() => { try { return localStorage.getItem('cc_v2_guest') === '1'; } catch { return false; } });
   const stack = useRef([]);
   const d = theme === 'dark';
-  const c = getThemeColors(d);
+  const c = v2Palette(d);
   const toggleTheme = () => setTheme((tm) => { const n = tm === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('cc_v2_theme', n); } catch { /* noop */ } return n; });
   const nav = (view, params = {}) => { stack.current.push(route); setRoute({ view, params }); try { window.scrollTo(0, 0); } catch { /* noop */ } };
   const back = () => { const p = stack.current.pop(); setRoute(p || { view: 'home', params: {} }); };
@@ -1140,7 +1154,7 @@ function Shell() {
   }
   const homeActive = !['calendar', 'feed', 'reports', 'settings'].includes(view);
   const vars = {
-    '--bg': c.bg, '--card': c.card, '--border': c.border, '--accent': c.accent, '--accent-light': c.accentLight,
+    '--bg': c.bg, '--card': c.card, '--border': c.border, '--accent': c.accent, '--accent-text': c.accentText, '--accent-light': c.accentLight, '--gold': c.gold,
     '--text1': c.text1, '--text2': c.text2, '--text3': c.text3, '--hero-bg': c.heroBg, '--hero-border': c.heroBorder,
     '--pill-bg': c.pillBg, '--nav-bg': c.navBg, '--sheet-bg': c.sheetBg, '--card-shadow': c.cardShadow,
   };
