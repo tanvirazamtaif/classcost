@@ -1,8 +1,12 @@
-// ClassCost v2 — Leeboon: a free-roaming, moody, draggable teddy (no circle). Behavior ported
-// from the v1 AssistantWidget; chat brain is client-side (leeboonBrain) with a Claude-ready seam.
+// ClassCost v2 — Leeboon: a free-roaming, expressive, draggable teddy (no circle).
+// Outer behavior inherited from v1's AssistantWidget: pet brain (friendship),
+// hover affection, Talking-Tom ignore ladder, tap-to-pet, fling→dizzy/fall.
+// Chat brain: real Claude via the server (/api/assistant/agent) with a client fallback.
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LeeboonMascot } from '../components/feature/LeeboonMascot';
+import { loadBrain, onPet, onHit, onTalk, onIgnore, onHover } from '../lib/leboonBrain';
+import { haptics } from '../lib/haptics';
 import { useV2 } from './store';
 import { fmt } from './engine';
 import { interpret } from './leeboonBrain';
@@ -31,7 +35,6 @@ function mapAction(action, lead, ctx) {
   }
   return { text: lead || "I can guide you, but I can't make that exact change yet — open the relevant space to do it." };
 }
-// Real Claude brain via the existing server. Throws on any failure so the caller falls back to the client brain.
 async function serverBrain(text, priorMsgs, store, ctx) {
   const history = (priorMsgs || []).slice(-10).map((m) => ({ role: m.who === 'me' ? 'user' : 'assistant', content: m.text }));
   const snapshot = { spaces: (store.db && store.db.spaces) || store.spaces || [] };
@@ -53,12 +56,18 @@ export function Leeboon({ nav, d }) {
   const [thinking, setThinking] = useState(false);
   const endRef = useRef(null);
 
-  // ── roaming / mood state ──
+  // ── mascot outer behavior (ported from v1 AssistantWidget) ──
   const wanderPaused = useRef(false);
   const dragInfo = useRef({ moved: false });
   const movingRef = useRef('none');
   const moodRef = useRef('happy');
   const sadTimer = useRef(null), angryTimer = useRef(null), moveTimer = useRef(null), waveTimer = useRef(null);
+  const brain = useRef(loadBrain());
+  const fxTimer = useRef(null);
+  const hoverRef = useRef({ timers: [], lastFullTs: 0 });
+  const ignoreTimers = useRef([]);
+  const tapRef = useRef({ n: 0, ts: 0, openT: null, recoverT: null });
+  const spinRef = useRef({ vmax: 0 });
   const posRef = useRef({
     top: typeof window !== 'undefined' ? window.innerHeight - 200 : 520,
     left: typeof window !== 'undefined' ? window.innerWidth - SPRITE_W - 14 : 320,
@@ -69,23 +78,61 @@ export function Leeboon({ nav, d }) {
   const [moving, setMoving] = useState('none');
   const [waving, setWaving] = useState(false);
   const [mood, setMood] = useState('happy');
+  const [fx, setFx] = useState(null);     // transient reaction: { mood, effect, fallen, bubble }
+  const [hover, setHover] = useState(null); // hover affection: { mood, blush, count, tilt, bounce, bubble }
   const setPos = (p) => { posRef.current = p; setPosState(p); };
   const setMove = (m) => { movingRef.current = m; setMoving(m); };
   const applyMood = (m) => { moodRef.current = m; setMood(m); };
 
-  // talking/touching → happy, then drifts sad → angry if ignored.
+  const react = (opts, ms = 1800) => { clearTimeout(fxTimer.current); setFx(opts); fxTimer.current = setTimeout(() => setFx(null), ms); };
+  const PET_LINES = ['Hehe!', 'I like that!', "You're nice 💛", 'Boop!'];
+  const HIT_LINES = ['Ouch!', 'Stop!', 'That hurts!'];
+
+  // talk/touch → happy, then drifts through the ignore ladder if left alone:
+  // 1m curious · 3m sad · 5m angry · 10m sit · 15m sleep.
   const interact = () => {
     applyMood('happy');
-    clearTimeout(sadTimer.current); clearTimeout(angryTimer.current);
-    sadTimer.current = setTimeout(() => applyMood('sad'), 16000);
-    angryTimer.current = setTimeout(() => applyMood('angry'), 45000);
+    ignoreTimers.current.forEach(clearTimeout);
+    const ig = (m) => { brain.current = onIgnore(brain.current); applyMood(m); };
+    ignoreTimers.current = [
+      setTimeout(() => applyMood('curious'), 60000),
+      setTimeout(() => ig('sad'), 180000),
+      setTimeout(() => ig('angry'), 300000),
+      setTimeout(() => ig('sleepy'), 600000),
+      setTimeout(() => ig('sleepy'), 900000),
+    ];
   };
-  const triggerWave = () => {
-    if (movingRef.current !== 'none' || moodRef.current !== 'happy') return;
-    setWaving(true);
-    clearTimeout(waveTimer.current);
-    waveTimer.current = setTimeout(() => setWaving(false), 2300);
+  const pet = () => {
+    brain.current = onPet(brain.current);
+    interact();
+    react({ mood: brain.current.friendship > 65 ? 'shy' : 'happy', effect: 'hearts', bubble: PET_LINES[brain.current.todayPets % PET_LINES.length] }, 1500);
   };
+  const dizzy = (hard) => {
+    brain.current = onHit(brain.current);
+    react({ mood: 'dizzy', effect: 'sweat', bubble: HIT_LINES[brain.current.todayHits % HIT_LINES.length], fallen: hard }, hard ? 2600 : 1600);
+    if (hard) { clearTimeout(tapRef.current.recoverT); tapRef.current.recoverT = setTimeout(() => { interact(); }, 2600); }
+  };
+  const HOVER_LINES = ['Hi! 💜', 'Hehe~', 'You noticed me!', "I'm happy you're here!"];
+  const startHover = (clientX) => {
+    if (dragging) return;
+    wanderPaused.current = true;
+    if (typeof clientX === 'number') setFacing(clientX < posRef.current.left + SPRITE_W / 2 ? 'left' : 'right');
+    if (['sad', 'angry', 'crying', 'sleepy'].includes(moodRef.current)) applyMood('happy');
+    const now = Date.now();
+    const f = brain.current.friendship || 0;
+    const fast = f >= 65;
+    hoverRef.current.timers.forEach(clearTimeout);
+    if (now - hoverRef.current.lastFullTs < 5000) { setHover({ mood: 'happy', blush: 1, count: 1, tilt: 0, bounce: true, bubble: '' }); return; }
+    hoverRef.current.lastFullTs = now;
+    brain.current = onHover(brain.current);
+    setHover({ mood: 'happy', blush: 1, count: 1, tilt: 0, bounce: true, bubble: HOVER_LINES[(f | 0) % HOVER_LINES.length] });
+    hoverRef.current.timers = [
+      setTimeout(() => setHover((hv) => (hv ? { ...hv, mood: 'shy', blush: 2, count: fast ? 4 : 3, tilt: -6, bubble: '' } : hv)), fast ? 900 : 1500),
+      setTimeout(() => setHover((hv) => (hv ? { ...hv, mood: 'excited', blush: 2, count: fast ? 5 : 3, tilt: 0 } : hv)), fast ? 2200 : 3000),
+    ];
+  };
+  const endHover = () => { hoverRef.current.timers.forEach(clearTimeout); setHover(null); if (!dragging) wanderPaused.current = false; };
+  const triggerWave = () => { if (movingRef.current !== 'none' || moodRef.current !== 'happy') return; setWaving(true); clearTimeout(waveTimer.current); waveTimer.current = setTimeout(() => setWaving(false), 2300); };
   const goTo = (top, left) => {
     const prev = posRef.current, dx = left - prev.left, dy = top - prev.top;
     if (Math.abs(dx) >= 18 && Math.abs(dx) >= Math.abs(dy)) { setFacing(dx < 0 ? 'left' : 'right'); setMove('horizontal'); }
@@ -106,7 +153,6 @@ export function Leeboon({ nav, d }) {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, dragging]);
-
   useEffect(() => {
     if (open) return;
     const id = setInterval(triggerWave, 30000);
@@ -114,11 +160,10 @@ export function Leeboon({ nav, d }) {
     return () => { clearInterval(id); clearTimeout(kick); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  useEffect(() => { interact(); return () => [sadTimer, angryTimer, moveTimer, waveTimer].forEach((t) => clearTimeout(t.current)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { interact(); return () => { [sadTimer, angryTimer, moveTimer, waveTimer, fxTimer].forEach((t) => clearTimeout(t.current)); ignoreTimers.current.forEach(clearTimeout); }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, thinking, open]);
 
-  // ── drag ──
+  // ── drag (legs run/swim with direction) + fling→dizzy ──
   const onPointerDown = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     dragInfo.current = { moved: false, sx: e.clientX, sy: e.clientY, ox: e.clientX - rect.left, oy: e.clientY - rect.top, lx: e.clientX, ly: e.clientY };
@@ -130,6 +175,7 @@ export function Leeboon({ nav, d }) {
     const di = dragInfo.current;
     if (Math.hypot(e.clientX - di.sx, e.clientY - di.sy) > 6) di.moved = true;
     const ddx = e.clientX - di.lx, ddy = e.clientY - di.ly;
+    spinRef.current.vmax = Math.max(spinRef.current.vmax, Math.hypot(ddx, ddy));
     if (Math.abs(ddx) > 2 || Math.abs(ddy) > 2) { if (Math.abs(ddx) >= Math.abs(ddy)) { setFacing(ddx < 0 ? 'left' : 'right'); setMove('horizontal'); } else setMove('vertical'); interact(); }
     di.lx = e.clientX; di.ly = e.clientY;
     const w = window.innerWidth, h = window.innerHeight;
@@ -138,12 +184,26 @@ export function Leeboon({ nav, d }) {
   const onPointerUp = () => {
     if (!dragging) return;
     setDragging(false); wanderPaused.current = false; setMove('none');
-    if (dragInfo.current.moved) {
-      const w = window.innerWidth, h = window.innerHeight, m = 12, p = posRef.current;
-      setPos({ left: (p.left + SPRITE_W / 2) < w / 2 ? m : w - SPRITE_W - m, top: clamp(p.top, TOP_MIN, h - SPRITE_H - 80) });
-    }
+    if (dragInfo.current.moved) { const w = window.innerWidth, h = window.innerHeight, m = 12, p = posRef.current; setPos({ left: (p.left + SPRITE_W / 2) < w / 2 ? m : w - SPRITE_W - m, top: clamp(p.top, TOP_MIN, h - SPRITE_H - 80) }); }
+    const v = spinRef.current.vmax; spinRef.current.vmax = 0;
+    if (dragInfo.current.moved && v > 60) dizzy(true);
+    else if (dragInfo.current.moved && v > 32) dizzy(false);
   };
-  const onClick = () => { if (dragInfo.current.moved) { dragInfo.current.moved = false; return; } interact(); openChat(); };
+  const onLeeboonClick = () => {
+    if (dragInfo.current.moved) { dragInfo.current.moved = false; return; }
+    const t = tapRef.current; const now = Date.now();
+    t.n = (now - t.ts < 450) ? t.n + 1 : 1; t.ts = now;
+    clearTimeout(t.openT);
+    haptics.light?.();
+    pet(); // every tap is an affectionate pet (hearts)
+    if (t.n >= 3) { dizzy(false); return; } // lots of fast pokes → "Stop!"
+    t.openT = setTimeout(() => {
+      if (tapRef.current.n >= 2) return; // more taps came → was petting, not "open"
+      brain.current = onTalk(brain.current);
+      haptics.medium?.();
+      openChat();
+    }, 320);
+  };
   const helloRight = (pos.left + SPRITE_W / 2) > (typeof window !== 'undefined' ? window.innerWidth / 2 : 99999);
 
   // ── chat ──
@@ -161,8 +221,8 @@ export function Leeboon({ nav, d }) {
     setMsgs((m) => [...m, { who: 'me', text }]);
     setThinking(true);
     let res;
-    try { res = await serverBrain(text, prior, store, ctx); } // real Claude
-    catch { res = interpret(text, ctx); }                     // offline / no-server fallback
+    try { res = await serverBrain(text, prior, store, ctx); }
+    catch { res = interpret(text, ctx); }
     setThinking(false);
     setMsgs((m) => [...m, { who: 'bot', text: res.text }]);
     if (res.confirm) setPending(res.confirm);
@@ -176,29 +236,34 @@ export function Leeboon({ nav, d }) {
           <motion.button
             initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
             transition={{ scale: { type: 'spring', stiffness: 400, damping: 25 }, opacity: { duration: 0.2 } }}
-            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.12 }} whileTap={{ scale: 0.94 }}
             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
-            onHoverStart={() => { wanderPaused.current = true; interact(); triggerWave(); }}
-            onHoverEnd={() => { if (!dragging) wanderPaused.current = false; }}
-            onClick={onClick}
+            onHoverStart={(e) => startHover(e?.clientX)} onHoverEnd={endHover}
+            onMouseMove={(e) => { if (hover && !dragging) setFacing(e.clientX < posRef.current.left + SPRITE_W / 2 ? 'left' : 'right'); }}
+            onClick={onLeeboonClick}
             aria-label="Play with Leeboon — drag to move"
             className={`fixed z-50 flex items-center justify-center bg-transparent border-0 p-0 touch-none select-none ${dragging ? 'cursor-grabbing' : 'cursor-grab'} ${dragging ? '' : 'transition-[top,left] duration-[2200ms] ease-in-out'}`}
             style={{ top: pos.top, left: pos.left, width: SPRITE_W }}
           >
             <AnimatePresence>
-              {waving && (
+              {(waving || fx?.bubble || hover?.bubble) && (
                 <motion.span
+                  key={hover?.bubble || fx?.bubble || 'hi'}
                   initial={{ opacity: 0, y: 8, scale: 0.7 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.7 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 22 }}
                   className={`absolute ${helloRight ? 'right-0' : 'left-0'} px-2.5 py-1 rounded-2xl text-[12px] font-bold whitespace-nowrap pointer-events-none shadow-md`}
                   style={{ bottom: 'calc(100% + 7px)', background: d ? '#1e1e2e' : '#fffaf0', color: d ? '#fde68a' : '#7a4a1e', border: `1px solid ${d ? '#33334a' : '#fde9c8'}` }}
                 >
-                  Hi there! 👋
+                  {hover?.bubble || fx?.bubble || 'Hi there! 👋'}
                   <span className={`absolute -bottom-1 ${helloRight ? 'right-4' : 'left-4'} w-2.5 h-2.5 rotate-45`} style={{ background: d ? '#1e1e2e' : '#fffaf0' }} />
                 </motion.span>
               )}
             </AnimatePresence>
-            <LeeboonMascot size={SPRITE_W} animated expression={mood} facing={facing} moving={moving} waving={waving} />
+            <LeeboonMascot size={SPRITE_W} animated
+              expression={hover?.mood || fx?.mood || mood}
+              effect={hover ? 'hearts' : (fx?.effect || (mood === 'sleepy' ? 'sleep' : 'none'))}
+              count={hover?.count || 3} blush={hover?.blush || 0} tilt={hover?.tilt || 0} bounce={!!hover?.bounce}
+              fallen={!!fx?.fallen} facing={facing} moving={moving} waving={waving && !fx && !hover} />
           </motion.button>
         )}
       </AnimatePresence>
