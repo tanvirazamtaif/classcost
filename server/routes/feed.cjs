@@ -90,4 +90,108 @@ router.post('/posts', async (req, res) => {
   } catch (err) { console.error('feed post:', err); res.status(500).json({ error: 'Failed to post' }); }
 });
 
+// ── likes ──
+router.post('/posts/:id/like', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    await prisma.feedLike.upsert({ where: { postId_userId: { postId: req.params.id, userId } }, update: {}, create: { postId: req.params.id, userId } });
+    const likes = await prisma.feedLike.count({ where: { postId: req.params.id } });
+    res.json({ likes, likedByMe: true });
+  } catch (err) { console.error('like:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.delete('/posts/:id/like', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    await prisma.feedLike.deleteMany({ where: { postId: req.params.id, userId } });
+    const likes = await prisma.feedLike.count({ where: { postId: req.params.id } });
+    res.json({ likes, likedByMe: false });
+  } catch (err) { console.error('unlike:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── comments ──
+router.get('/posts/:id/comments', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const comments = await prisma.feedComment.findMany({ where: { postId: req.params.id }, orderBy: { createdAt: 'asc' }, take: 200 });
+    const userIds = [...new Set(comments.map((c) => c.userId))];
+    const profiles = userIds.length ? await prisma.feedProfile.findMany({ where: { userId: { in: userIds } } }) : [];
+    const byU = Object.fromEntries(profiles.map((p) => [p.userId, p]));
+    res.json({ comments: comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt, handle: byU[c.userId]?.handle, displayName: byU[c.userId]?.displayName, mine: c.userId === userId })) });
+  } catch (err) { console.error('comments:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.post('/posts/:id/comments', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  const text = String(req.body.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Write a comment' });
+  if (text.length > 1000) return res.status(400).json({ error: 'Too long' });
+  try {
+    const profile = await prisma.feedProfile.findUnique({ where: { userId } });
+    if (!profile) return res.status(400).json({ error: 'Claim a handle first' });
+    const c = await prisma.feedComment.create({ data: { postId: req.params.id, userId, text } });
+    res.json({ comment: { id: c.id, text: c.text, createdAt: c.createdAt, handle: profile.handle, displayName: profile.displayName, mine: true } });
+  } catch (err) { console.error('comment add:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── follow ──
+router.post('/follow/:handle', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const target = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
+    if (!target) return res.status(404).json({ error: 'No such user' });
+    if (target.userId === userId) return res.status(400).json({ error: "You can't follow yourself" });
+    await prisma.feedFollow.upsert({ where: { followerId_followingId: { followerId: userId, followingId: target.userId } }, update: {}, create: { followerId: userId, followingId: target.userId } });
+    res.json({ following: true });
+  } catch (err) { console.error('follow:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.delete('/follow/:handle', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const target = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
+    if (target) await prisma.feedFollow.deleteMany({ where: { followerId: userId, followingId: target.userId } });
+    res.json({ following: false });
+  } catch (err) { console.error('unfollow:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── user search ──
+router.get('/users', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  const q = normHandle(req.query.q);
+  if (!q) return res.json({ users: [] });
+  try {
+    const profiles = await prisma.feedProfile.findMany({ where: { handle: { contains: q } }, take: 20 });
+    const ids = profiles.map((p) => p.userId);
+    const following = ids.length ? await prisma.feedFollow.findMany({ where: { followerId: userId, followingId: { in: ids } }, select: { followingId: true } }) : [];
+    const fSet = new Set(following.map((f) => f.followingId));
+    res.json({ users: profiles.map((p) => ({ handle: p.handle, displayName: p.displayName, isFollowing: fSet.has(p.userId), isMe: p.userId === userId })) });
+  } catch (err) { console.error('search:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── a user's public profile + posts ──
+router.get('/profile/u/:handle', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const profile = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
+    if (!profile) return res.status(404).json({ error: 'No such user' });
+    const [posts, followers, following, isF] = await Promise.all([
+      prisma.feedPost.count({ where: { authorId: profile.userId } }),
+      prisma.feedFollow.count({ where: { followingId: profile.userId } }),
+      prisma.feedFollow.count({ where: { followerId: profile.userId } }),
+      prisma.feedFollow.findFirst({ where: { followerId: userId, followingId: profile.userId } }),
+    ]);
+    res.json({ handle: profile.handle, displayName: profile.displayName, bio: profile.bio, counts: { posts, followers, following }, isFollowing: !!isF, isMe: profile.userId === userId });
+  } catch (err) { console.error('profile:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.get('/profile/u/:handle/posts', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const profile = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
+    if (!profile) return res.status(404).json({ error: 'No such user' });
+    const posts = await prisma.feedPost.findMany({ where: { authorId: profile.userId }, orderBy: { createdAt: 'desc' }, take: 30, include: { author: true, _count: { select: { likes: true, comments: true } } } });
+    const ids = posts.map((p) => p.id);
+    const mine = ids.length ? await prisma.feedLike.findMany({ where: { userId, postId: { in: ids } }, select: { postId: true } }) : [];
+    const likedSet = new Set(mine.map((l) => l.postId));
+    res.json({ posts: posts.map((p) => ({ id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt, handle: p.author?.handle, displayName: p.author?.displayName, likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId })) });
+  } catch (err) { console.error('profile posts:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
 module.exports = router;

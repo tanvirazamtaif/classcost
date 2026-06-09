@@ -8,7 +8,7 @@ import { getThemeColors } from '../lib/themeColors';
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { sendOTP, verifyOTP, googleSignIn, getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost } from '../api';
+import { sendOTP, verifyOTP, googleSignIn, getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts } from '../api';
 import './v2.css';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -712,6 +712,9 @@ function FeedScreen() {
   const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
   const [pane, setPane] = useState(1); // 0 profile · 1 feed · 2 compose
   const [reloadKey, setReloadKey] = useState(0);
+  const [commentsFor, setCommentsFor] = useState(null);
+  const [viewHandle, setViewHandle] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const startX = useRef(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
@@ -719,24 +722,30 @@ function FeedScreen() {
     return () => { on = false; };
   }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
-  const initial = (user?.name || handle.replace('@', '') || 'S').trim().charAt(0).toUpperCase();
+  const myHandle = handle.replace('@', '');
+  const initial = (user?.name || myHandle || 'S').trim().charAt(0).toUpperCase();
   const go = (p) => setPane(Math.max(0, Math.min(2, p)));
+  const onComment = (p) => setCommentsFor(p);
+  const onAuthor = (h) => setViewHandle(h);
   return (
     <div className="v2-scroll" style={{ overflowX: 'hidden' }}>
       <header className="px-4 pt-5 pb-3 flex items-center gap-2.5">
         <button onClick={() => go(0)} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e' }} aria-label="Your profile">{initial}</button>
         <button onClick={() => go(1)} className="flex-1 flex items-center justify-center gap-2"><Logo size={22} /><span className="font-bold t-hi">Feed</span></button>
         <button onClick={() => go(2)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="New post"><PenSquare size={17} /></button>
-        <button className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
+        <button onClick={() => setSearchOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
       </header>
       <div onPointerDown={(e) => { startX.current = e.clientX; }} onPointerUp={(e) => { const dx = e.clientX - startX.current; if (dx < -55 && pane < 2) go(pane + 1); else if (dx > 55 && pane > 0) go(pane - 1); }} style={{ overflow: 'hidden' }}>
         <motion.div className="flex" style={{ width: '300%' }} animate={{ x: `-${pane * (100 / 3)}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
-          <div style={{ width: '33.3333%' }} className="px-4"><FeedProfilePane handle={handle} name={user?.name} initial={initial} /></div>
-          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane reloadKey={reloadKey} onCompose={() => go(2)} /></div>
+          <div style={{ width: '33.3333%' }} className="px-2"><FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} /></div>
+          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane reloadKey={reloadKey} onCompose={() => go(2)} onComment={onComment} onAuthor={onAuthor} /></div>
           <div style={{ width: '33.3333%' }} className="px-4"><FeedComposePane handle={handle} onPosted={() => { setReloadKey((k) => k + 1); go(1); }} /></div>
         </motion.div>
       </div>
       <div className="flex justify-center gap-1.5 mt-4">{['Profile', 'Feed', 'Post'].map((l, i) => (<button key={i} onClick={() => go(i)} className="rounded-full" style={{ width: pane === i ? 18 : 6, height: 6, background: pane === i ? 'var(--accent)' : 'var(--border)', transition: 'all .2s' }} aria-label={l} />))}</div>
+      {searchOpen && <FeedSearch onClose={() => setSearchOpen(false)} onOpen={(h) => { setSearchOpen(false); setViewHandle(h); }} />}
+      {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={(h) => { setCommentsFor(null); setViewHandle(h); }} />}
+      {viewHandle && <FeedProfileView handle={viewHandle} onClose={() => setViewHandle(null)} onComment={onComment} onAuthor={(h) => setViewHandle(h)} />}
     </div>
   );
 }
@@ -769,40 +778,160 @@ function FeedOnboard({ onDone }) {
     </div>
   );
 }
-function FeedProfilePane({ handle, name, initial }) {
-  return (
-    <div className="py-2">
-      <div className="flex flex-col items-center text-center mb-4">
+function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor }) {
+  const h = (handle || '').replace('@', '');
+  const [prof, setProf] = useState(null);
+  const [posts, setPosts] = useState(null);
+  const [err, setErr] = useState('');
+  const [following, setFollowing] = useState(false);
+  const [fBusy, setFBusy] = useState(false);
+  useEffect(() => {
+    let on = true; setErr(''); setProf(null); setPosts(null);
+    getFeedProfile(h).then((r) => { if (on) { setProf(r); setFollowing(!!r.isFollowing); } }).catch((x) => { if (on) setErr(x.message || 'offline'); });
+    getUserPosts(h).then((r) => { if (on) setPosts(r?.posts || []); }).catch(() => { if (on) setPosts([]); });
+    return () => { on = false; };
+  }, [h]);
+  const toggleFollow = async () => {
+    if (fBusy) return; setFBusy(true); const next = !following; setFollowing(next);
+    try { next ? await followUser(h) : await unfollowUser(h); } catch { setFollowing(!next); } finally { setFBusy(false); }
+  };
+  const initial = ((prof?.displayName || h || 'S').charAt(0) || 'S').toUpperCase();
+  const body = (
+    <div className="py-3">
+      <div className="flex flex-col items-center text-center mb-4 px-2">
         <span className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-3" style={{ background: '#22c55e' }}>{initial}</span>
-        <p className="text-lg font-bold t-hi">{name || 'Student'}</p>
-        <p className="text-[13px] t-accent">{handle}</p>
+        <p className="text-lg font-bold t-hi">{prof?.displayName || ('@' + h)}</p>
+        <p className="text-[13px] t-accent">@{h}</p>
+        {prof?.bio && <p className="text-[12px] t-mid mt-1 max-w-[260px]">{prof.bio}</p>}
         <div className="flex gap-7 mt-3">
-          {[['—', 'posts'], ['—', 'followers'], ['—', 'following']].map(([n, l]) => (<div key={l} className="text-center"><p className="font-bold t-hi">{n}</p><p className="text-[11px] t-mid">{l}</p></div>))}
+          {[[prof?.counts?.posts, 'posts'], [prof?.counts?.followers, 'followers'], [prof?.counts?.following, 'following']].map(([n, l]) => (<div key={l} className="text-center"><p className="font-bold t-hi">{n ?? '—'}</p><p className="text-[11px] t-mid">{l}</p></div>))}
+        </div>
+        {prof && !prof.isMe && <button className={`btn ${following ? 'btn-ghost' : 'btn-primary'} mt-4`} style={{ maxWidth: 200 }} onClick={toggleFollow}>{following ? 'Following' : 'Follow'}</button>}
+      </div>
+      <div className="px-2 space-y-3">
+        {err && <div className="card p-6 text-center text-[13px] t-mid">Couldn't load this profile{import.meta.env.DEV ? ' — no backend in local dev.' : '.'}</div>}
+        {!err && posts && posts.length === 0 && <div className="card p-6 text-center text-[13px] t-mid">No posts yet.</div>}
+        {posts && posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} />)}
+      </div>
+      <div className="h-4" />
+    </div>
+  );
+  if (embedded) return body;
+  return (
+    <div className="fixed z-[45] overflow-y-auto" style={{ inset: 0, background: 'var(--bg)' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100%' }}>
+        <Header title={'@' + h} onBack={onClose} />
+        {body}
+      </div>
+    </div>
+  );
+}
+function FeedComments({ post, onClose, onAuthor }) {
+  const [st, setSt] = useState({ loading: true, list: [] });
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let on = true;
+    getComments(post.id).then((r) => { if (on) setSt({ loading: false, list: r?.comments || [] }); }).catch(() => { if (on) setSt({ loading: false, list: [] }); });
+    return () => { on = false; };
+  }, [post.id]);
+  const send = async () => {
+    const t = text.trim(); if (!t || busy) return; setBusy(true);
+    try { const r = await addComment(post.id, t); setSt((s) => ({ ...s, list: [...s.list, r.comment] })); setText(''); }
+    catch (x) { window.alert(x.message || 'Could not comment'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="flex items-center gap-2 mb-1"><p className="font-semibold t-hi">Comments</p><button className="ml-auto text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <div className="flex-1 overflow-y-auto space-y-3 py-2" style={{ minHeight: 120 }}>
+          {st.loading ? <p className="text-[13px] t-mid text-center py-6">Loading…</p>
+            : st.list.length === 0 ? <p className="text-[13px] t-mid text-center py-6">No comments yet — say something.</p>
+              : st.list.map((c) => (
+                <div key={c.id} className="flex gap-2.5">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{(c.displayName || c.handle || 'S').charAt(0).toUpperCase()}</span>
+                  <div className="min-w-0"><p className="text-[12px]"><button className="font-semibold t-hi" onClick={() => onAuthor && c.handle && onAuthor(c.handle)}>@{c.handle}</button> <span className="t-lo">· {timeAgo(c.createdAt)}</span></p><p className="text-[13px] t-hi" style={{ whiteSpace: 'pre-wrap' }}>{c.text}</p></div>
+                </div>
+              ))}
+        </div>
+        <div className="flex gap-2 pt-2"><input className="field" placeholder="Add a comment…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} autoFocus /><button className="minibtn btn-primary" style={{ width: 'auto', padding: '.65rem 1rem' }} disabled={!text.trim() || busy} onClick={send}>Send</button></div>
+      </div>
+    </div>
+  );
+}
+function FeedSearch({ onClose, onOpen }) {
+  const [q, setQ] = useState('');
+  const [st, setSt] = useState({ loading: false, users: [] });
+  useEffect(() => {
+    const t = q.trim(); if (!t) { setSt({ loading: false, users: [] }); return; }
+    setSt((s) => ({ ...s, loading: true }));
+    let on = true;
+    const id = setTimeout(() => { searchUsers(t).then((r) => { if (on) setSt({ loading: false, users: r?.users || [] }); }).catch(() => { if (on) setSt({ loading: false, users: [] }); }); }, 300);
+    return () => { on = false; clearTimeout(id); };
+  }, [q]);
+  return (
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="flex items-center gap-2 mb-3"><Search size={18} className="t-mid shrink-0" /><input className="field" placeholder="Search @handles…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus /><button className="text-[13px] t-mid shrink-0" onClick={onClose}>Close</button></div>
+        <div className="flex-1 overflow-y-auto" style={{ minHeight: 120 }}>
+          {st.loading ? <p className="text-[13px] t-mid text-center py-6">Searching…</p>
+            : !q.trim() ? <p className="text-[13px] t-lo text-center py-6">Find students by their @handle.</p>
+              : st.users.length === 0 ? <p className="text-[13px] t-mid text-center py-6">No one found.</p>
+                : st.users.map((u) => <FeedUserRow key={u.handle} u={u} onOpen={onOpen} />)}
         </div>
       </div>
-      <div className="card p-6 text-center"><div className="text-3xl mb-2">📸</div><p className="text-[13px] t-mid">Your posts + followers show here. Full profile stats arrive in 4C.</p></div>
     </div>
   );
 }
-function FeedPostCard({ p }) {
+function FeedUserRow({ u, onOpen }) {
+  const [following, setFollowing] = useState(!!u.isFollowing);
+  const [busy, setBusy] = useState(false);
+  const toggle = async (e) => {
+    e.stopPropagation(); if (busy) return; setBusy(true);
+    const next = !following; setFollowing(next);
+    try { next ? await followUser(u.handle) : await unfollowUser(u.handle); } catch { setFollowing(!next); } finally { setBusy(false); }
+  };
+  return (
+    <button className="w-full flex items-center gap-3 p-2 rounded-lg text-left" onClick={() => onOpen(u.handle)}>
+      <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{(u.displayName || u.handle).charAt(0).toUpperCase()}</span>
+      <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold t-hi truncate">{u.displayName || ('@' + u.handle)}</p><p className="text-[11px] t-lo">@{u.handle}</p></div>
+      {!u.isMe && <span className={`minibtn ${following ? 'btn-ghost' : 'btn-primary'}`} style={{ width: 'auto', padding: '.4rem .8rem' }} onClick={toggle}>{following ? 'Following' : 'Follow'}</span>}
+    </button>
+  );
+}
+function FeedPostCard({ p, onComment, onAuthor }) {
+  const [liked, setLiked] = useState(!!p.likedByMe);
+  const [likes, setLikes] = useState(p.likes || 0);
+  const [busy, setBusy] = useState(false);
   const initial = (p.displayName || p.handle || 'S').trim().charAt(0).toUpperCase();
+  const toggleLike = async () => {
+    if (busy) return; setBusy(true);
+    const next = !liked; setLiked(next); setLikes((n) => Math.max(0, n + (next ? 1 : -1)));
+    try { const r = next ? await likePost(p.id) : await unlikePost(p.id); if (typeof r?.likes === 'number') setLikes(r.likes); }
+    catch { setLiked(!next); setLikes((n) => Math.max(0, n + (next ? -1 : 1))); }
+    finally { setBusy(false); }
+  };
+  const share = async () => {
+    const txt = `${p.displayName || ('@' + p.handle)} on ClassCost:\n${p.text || ''}`;
+    try { if (navigator.share) await navigator.share({ text: txt }); else { await navigator.clipboard.writeText(txt); window.alert('Copied to clipboard'); } } catch { /* cancelled */ }
+  };
   return (
     <div className="card p-4">
-      <div className="flex items-center gap-2.5 mb-2.5">
+      <button className="flex items-center gap-2.5 mb-2.5 w-full text-left" onClick={() => onAuthor && onAuthor(p.handle)}>
         <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
         <div className="min-w-0 flex-1"><p className="text-[13px] font-semibold t-hi truncate">{p.displayName || ('@' + p.handle)}</p><p className="text-[11px] t-lo">@{p.handle} · {timeAgo(p.createdAt)}</p></div>
-      </div>
+      </button>
       {p.text && <p className="text-[14px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
       {p.imageUrl && <img src={p.imageUrl} alt="" className="rounded-xl w-full mb-2" />}
-      <div className="flex gap-4 mt-1 t-mid text-[12px]">
-        <span className="flex items-center gap-1"><Heart size={15} style={p.likedByMe ? { color: '#ef4444', fill: '#ef4444' } : undefined} />{p.likes || 0}</span>
-        <span className="flex items-center gap-1"><MessageCircle size={15} />{p.comments || 0}</span>
-        <span className="flex items-center gap-1"><Share2 size={15} /></span>
+      <div className="flex gap-5 mt-1 text-[12px]">
+        <button className="flex items-center gap-1.5" onClick={toggleLike} style={{ color: liked ? '#ef4444' : 'var(--text2)' }}><Heart size={16} style={liked ? { fill: '#ef4444' } : undefined} />{likes}</button>
+        <button className="flex items-center gap-1.5 t-mid" onClick={() => onComment && onComment(p)}><MessageCircle size={16} />{p.comments || 0}</button>
+        <button className="flex items-center gap-1.5 t-mid" onClick={share}><Share2 size={16} /></button>
       </div>
     </div>
   );
 }
-function FeedListPane({ reloadKey, onCompose }) {
+function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
   const [st, setSt] = useState({ loading: true, posts: [], error: '' });
   useEffect(() => {
     let on = true;
@@ -814,7 +943,7 @@ function FeedListPane({ reloadKey, onCompose }) {
   if (st.loading) return <div className="py-12 text-center text-[13px] t-mid">Loading the feed…</div>;
   if (st.error) return <div className="card p-6 text-center mt-2"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
   if (!st.posts.length) return <div className="card p-6 text-center mt-2"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">Quiet in here</p><p className="text-[13px] t-mid mb-3">No posts yet — start the conversation.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>;
-  return <div className="py-2 space-y-3">{st.posts.map((p) => <FeedPostCard key={p.id} p={p} />)}</div>;
+  return <div className="py-2 space-y-3">{st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} />)}</div>;
 }
 function FeedComposePane({ handle, onPosted }) {
   const [text, setText] = useState('');

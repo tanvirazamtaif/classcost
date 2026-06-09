@@ -216,6 +216,16 @@ export async function createFeedPost(text, imageUrl) {
   });
 }
 
+export async function likePost(id) { return request(`/api/feed/posts/${id}/like`, { method: 'POST', body: '{}' }); }
+export async function unlikePost(id) { return request(`/api/feed/posts/${id}/like`, { method: 'DELETE' }); }
+export async function getComments(id) { return request(`/api/feed/posts/${id}/comments`); }
+export async function addComment(id, text) { return request(`/api/feed/posts/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }); }
+export async function followUser(handle) { return request(`/api/feed/follow/${encodeURIComponent(handle)}`, { method: 'POST', body: '{}' }); }
+export async function unfollowUser(handle) { return request(`/api/feed/follow/${encodeURIComponent(handle)}`, { method: 'DELETE' }); }
+export async function searchUsers(q) { return request(`/api/feed/users?q=${encodeURIComponent(q)}`); }
+export async function getFeedProfile(handle) { return request(`/api/feed/profile/u/${encodeURIComponent(handle)}`); }
+export async function getUserPosts(handle) { return request(`/api/feed/profile/u/${encodeURIComponent(handle)}/posts`); }
+
 // ── Education Fees ─────────────────────────────────────────────────────────
 
 export async function getEducationFees(userId) {
