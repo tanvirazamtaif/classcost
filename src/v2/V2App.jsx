@@ -8,10 +8,9 @@ import { getThemeColors } from '../lib/themeColors';
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { sendOTP, verifyOTP, googleSignIn, getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent } from '../api';
+import { V2Landing } from './V2Landing';
 import './v2.css';
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 /* ---------------- shared UI ---------------- */
 function Header({ title, crumb, onBack }) {
@@ -1106,99 +1105,6 @@ function PasswordSheet({ onClose }) {
 }
 
 /* ---------------- LOGIN (require-login gate) ---------------- */
-function V2Login({ onGuest }) {
-  const { login } = useV2();
-  const [stage, setStage] = useState('email');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [gBusy, setGBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const googleBtnRef = useRef(null);
-  const submitEmail = async () => {
-    const e = email.trim(); if (!e || busy) return;
-    setBusy(true); setErr('');
-    try { await sendOTP(e); setStage('code'); }
-    catch (x) { setErr(x.message || 'Could not send the code. Is the server running?'); }
-    finally { setBusy(false); }
-  };
-  const submitCode = async () => {
-    if (busy) return;
-    setBusy(true); setErr('');
-    try { const res = await verifyOTP(email.trim(), code.trim()); await login(res); }
-    catch (x) { setErr(x.message || 'Invalid or expired code.'); }
-    finally { setBusy(false); }
-  };
-  const handleGoogleResponse = async (response) => {
-    if (!response?.credential) return;
-    setGBusy(true); setErr('');
-    try {
-      let result;
-      try {
-        result = await googleSignIn(response.credential); // backend verifies + returns our session token
-      } catch {
-        // backend unreachable (dev) — decode Google's signed JWT so sign-in still works locally
-        const p = JSON.parse(atob(response.credential.split('.')[1]));
-        result = { id: p.sub, email: p.email, name: p.name || p.given_name || 'Student' };
-      }
-      await login(result);
-    } catch (e) { setErr(e.message || 'Google sign-in failed.'); }
-    finally { setGBusy(false); }
-  };
-  // Load Google Identity Services and render its button (only when a client id is configured).
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || stage !== 'email') return;
-    let cancelled = false;
-    const renderBtn = () => {
-      if (cancelled || !window.google?.accounts || !googleBtnRef.current) return;
-      googleBtnRef.current.innerHTML = '';
-      window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
-      window.google.accounts.id.renderButton(googleBtnRef.current, { theme: 'filled_black', size: 'large', width: 320, text: 'continue_with', shape: 'pill' });
-    };
-    if (window.google?.accounts) { renderBtn(); return () => { cancelled = true; }; }
-    let script = document.querySelector('script[data-cc-gsi]');
-    if (!script) {
-      script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true; script.defer = true; script.dataset.ccGsi = 'true';
-      document.head.appendChild(script);
-    }
-    script.addEventListener('load', renderBtn);
-    return () => { cancelled = true; if (script) script.removeEventListener('load', renderBtn); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage]);
-  return (
-    <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: '100vh' }}>
-      <Logo size={56} animated />
-      <h1 className="text-xl font-bold t-hi mt-4">ClassCost</h1>
-      <p className="text-[13px] t-mid mb-6 mt-1 text-center max-w-[300px]">{stage === 'email' ? 'Sign in to track and sync your student money across devices.' : `Enter the 6-digit code sent to ${email}.`}</p>
-      <div className="w-full max-w-[320px] space-y-3">
-        {stage === 'email' ? (
-          <>
-            {GOOGLE_CLIENT_ID && (
-              <>
-                <div ref={googleBtnRef} className="flex justify-center" style={{ minHeight: 44 }} />
-                {gBusy && <p className="text-[12px] t-mid text-center">Signing in…</p>}
-                <div className="flex items-center gap-3 py-1"><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /><span className="text-[11px] t-lo">or</span><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /></div>
-              </>
-            )}
-            <input className="field" type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitEmail(); }} autoFocus />
-            <button className="btn btn-primary" disabled={busy || !email.trim()} onClick={submitEmail}>{busy ? 'Sending…' : 'Email me a code'}</button>
-          </>
-        ) : (
-          <>
-            <input className="field text-center text-lg" style={{ letterSpacing: '0.3em' }} inputMode="numeric" placeholder="------" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => { if (e.key === 'Enter') submitCode(); }} autoFocus />
-            <button className="btn btn-primary" disabled={busy || code.length < 4} onClick={submitCode}>{busy ? 'Verifying…' : 'Verify & sign in'}</button>
-            <button className="text-[12px] t-mid w-full text-center py-1" onClick={() => { setStage('email'); setCode(''); setErr(''); }}>← Use a different email</button>
-          </>
-        )}
-        {err && <p className="text-[12px] text-center" style={{ color: '#ef4444' }}>{err}</p>}
-      </div>
-      {onGuest && <button className="text-[12px] t-lo mt-8 underline" onClick={onGuest}>Continue as guest (dev preview)</button>}
-    </div>
-  );
-}
-
 /* ---------------- shell + router ---------------- */
 function Shell() {
   const { user } = useV2();
@@ -1240,7 +1146,7 @@ function Shell() {
   };
   const authed = !!user?.id || guest;
   const guestBtn = import.meta.env.DEV ? () => { try { localStorage.setItem('cc_v2_guest', '1'); } catch { /* ignore */ } setGuest(true); } : null;
-  if (!authed) return (<div className="v2-app" style={vars}><V2Login onGuest={guestBtn} /></div>);
+  if (!authed) return <V2Landing onGuest={guestBtn} />;
   return (
     <div className="v2-app" style={vars}>
       {screen}
