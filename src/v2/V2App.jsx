@@ -1,14 +1,17 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
-import React, { useState, useRef } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute } from './engine';
 import { getThemeColors } from '../lib/themeColors';
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { sendOTP, verifyOTP } from '../api';
+import { sendOTP, verifyOTP, googleSignIn } from '../api';
 import './v2.css';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 /* ---------------- shared UI ---------------- */
 function Header({ title, crumb, onBack }) {
@@ -695,6 +698,98 @@ function NotifSheet({ onClose }) {
   );
 }
 
+/* ---------------- FEED (Phase 4) ---------------- */
+const FEED_KEY = 'cc_v2_feed_id';
+function FeedScreen() {
+  const { user } = useV2();
+  const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
+  const [pane, setPane] = useState(1); // 0 profile · 1 feed · 2 compose
+  const startX = useRef(0);
+  if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
+  const initial = (user?.name || handle.replace('@', '') || 'S').trim().charAt(0).toUpperCase();
+  const go = (p) => setPane(Math.max(0, Math.min(2, p)));
+  return (
+    <div className="v2-scroll" style={{ overflowX: 'hidden' }}>
+      <header className="px-4 pt-5 pb-3 flex items-center gap-2.5">
+        <button onClick={() => go(0)} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e' }} aria-label="Your profile">{initial}</button>
+        <button onClick={() => go(1)} className="flex-1 flex items-center justify-center gap-2"><Logo size={22} /><span className="font-bold t-hi">Feed</span></button>
+        <button onClick={() => go(2)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="New post"><PenSquare size={17} /></button>
+        <button className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
+      </header>
+      <div onPointerDown={(e) => { startX.current = e.clientX; }} onPointerUp={(e) => { const dx = e.clientX - startX.current; if (dx < -55 && pane < 2) go(pane + 1); else if (dx > 55 && pane > 0) go(pane - 1); }} style={{ overflow: 'hidden' }}>
+        <motion.div className="flex" style={{ width: '300%' }} animate={{ x: `-${pane * (100 / 3)}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
+          <div style={{ width: '33.3333%' }} className="px-4"><FeedProfilePane handle={handle} name={user?.name} initial={initial} /></div>
+          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane onCompose={() => go(2)} /></div>
+          <div style={{ width: '33.3333%' }} className="px-4"><FeedComposePane handle={handle} onDone={() => go(1)} /></div>
+        </motion.div>
+      </div>
+      <div className="flex justify-center gap-1.5 mt-4">{['Profile', 'Feed', 'Post'].map((l, i) => (<button key={i} onClick={() => go(i)} className="rounded-full" style={{ width: pane === i ? 18 : 6, height: 6, background: pane === i ? 'var(--accent)' : 'var(--border)', transition: 'all .2s' }} aria-label={l} />))}</div>
+    </div>
+  );
+}
+function FeedOnboard({ onDone }) {
+  const [h, setH] = useState('');
+  const clean = h.trim().replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+  return (
+    <div className="v2-scroll flex flex-col items-center justify-center px-6" style={{ minHeight: '70vh' }}>
+      <Logo size={48} />
+      <h1 className="text-lg font-bold t-hi mt-4">Join the ClassCost feed</h1>
+      <p className="text-[13px] t-mid mb-5 mt-1 text-center max-w-[280px]">Pick a handle other students will find you by. You can change it later.</p>
+      <div className="w-full max-w-[320px] space-y-3">
+        <div className="field flex items-center" style={{ gap: 4 }}><span className="t-mid">@</span><input className="flex-1 bg-transparent outline-none t-hi" placeholder="yourname" value={h} onChange={(e) => setH(e.target.value)} autoFocus /></div>
+        {clean && <p className="text-[12px] t-lo">Your handle: <span className="t-accent font-medium">@{clean}</span></p>}
+        <button className="btn btn-primary" disabled={clean.length < 3} onClick={() => onDone('@' + clean)}>Claim @{clean || 'handle'}</button>
+        <p className="text-[11px] t-lo text-center">Availability check + your public profile go live with the feed backend (next step).</p>
+      </div>
+    </div>
+  );
+}
+function FeedProfilePane({ handle, name, initial }) {
+  return (
+    <div className="py-2">
+      <div className="flex flex-col items-center text-center mb-4">
+        <span className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-3" style={{ background: '#22c55e' }}>{initial}</span>
+        <p className="text-lg font-bold t-hi">{name || 'Student'}</p>
+        <p className="text-[13px] t-accent">{handle}</p>
+        <div className="flex gap-7 mt-3">
+          {[['0', 'posts'], ['0', 'followers'], ['0', 'following']].map(([n, l]) => (<div key={l} className="text-center"><p className="font-bold t-hi">{n}</p><p className="text-[11px] t-mid">{l}</p></div>))}
+        </div>
+      </div>
+      <div className="card p-6 text-center"><div className="text-3xl mb-2">📸</div><p className="text-[13px] t-mid">Your posts show here. Sharing + followers go live when the feed backend ships.</p></div>
+    </div>
+  );
+}
+function FeedListPane({ onCompose }) {
+  return (
+    <div className="py-2 space-y-3">
+      <div className="card p-6 text-center"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">The feed is almost here</p><p className="text-[13px] t-mid mb-3">Posts, likes, comments and follows switch on with the feed backend. This is the live layout.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>
+      {[1, 2].map((i) => (
+        <div key={i} className="card p-4 opacity-50">
+          <div className="flex items-center gap-2.5 mb-3"><span className="w-9 h-9 rounded-full" style={{ background: 'var(--pill-bg)' }} /><div><div className="h-2.5 w-24 rounded-full" style={{ background: 'var(--pill-bg)' }} /><div className="h-2 w-16 rounded-full mt-1.5" style={{ background: 'var(--pill-bg)' }} /></div></div>
+          <div className="h-2.5 w-full rounded-full mb-2" style={{ background: 'var(--pill-bg)' }} /><div className="h-2.5 w-2/3 rounded-full" style={{ background: 'var(--pill-bg)' }} />
+          <div className="flex gap-4 mt-3 t-lo"><Heart size={16} /><MessageCircle size={16} /><Share2 size={16} /></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function FeedComposePane({ handle, onDone }) {
+  const [text, setText] = useState('');
+  return (
+    <div className="py-2">
+      <div className="card p-4">
+        <p className="text-[13px] t-accent font-medium mb-3">{handle}</p>
+        <textarea className="field" rows={5} placeholder="Share something with your campus…" value={text} onChange={(e) => setText(e.target.value)} style={{ resize: 'none' }} />
+        <div className="flex items-center gap-2 mt-3">
+          <button className="minibtn btn-ghost" style={{ width: 'auto', padding: '.5rem .8rem' }} disabled><ImageIcon size={15} className="inline mr-1" />Photo</button>
+          <button className="btn btn-primary" style={{ width: 'auto', marginLeft: 'auto', padding: '.6rem 1.2rem' }} disabled={!text.trim()} onClick={() => { window.alert('Posting goes live with the feed backend (Phase 4B) — your layout is ready!'); onDone(); }}>Post</button>
+        </div>
+      </div>
+      <p className="text-[11px] t-lo text-center mt-3">Photos upload to host storage · all posts are public · a report system keeps it safe.</p>
+    </div>
+  );
+}
+
 /* ---------------- stubs ---------------- */
 function Stub({ title, emoji, msg }) {
   return (<div className="v2-scroll"><Header title={title} /><div className="px-8 py-16 text-center"><div className="text-5xl mb-3">{emoji}</div><p className="text-[14px] t-mid">{msg}</p></div></div>);
@@ -814,7 +909,9 @@ function V2Login({ onGuest }) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [gBusy, setGBusy] = useState(false);
   const [err, setErr] = useState('');
+  const googleBtnRef = useRef(null);
   const submitEmail = async () => {
     const e = email.trim(); if (!e || busy) return;
     setBusy(true); setErr('');
@@ -829,6 +926,44 @@ function V2Login({ onGuest }) {
     catch (x) { setErr(x.message || 'Invalid or expired code.'); }
     finally { setBusy(false); }
   };
+  const handleGoogleResponse = async (response) => {
+    if (!response?.credential) return;
+    setGBusy(true); setErr('');
+    try {
+      let result;
+      try {
+        result = await googleSignIn(response.credential); // backend verifies + returns our session token
+      } catch {
+        // backend unreachable (dev) — decode Google's signed JWT so sign-in still works locally
+        const p = JSON.parse(atob(response.credential.split('.')[1]));
+        result = { id: p.sub, email: p.email, name: p.name || p.given_name || 'Student' };
+      }
+      await login(result);
+    } catch (e) { setErr(e.message || 'Google sign-in failed.'); }
+    finally { setGBusy(false); }
+  };
+  // Load Google Identity Services and render its button (only when a client id is configured).
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || stage !== 'email') return;
+    let cancelled = false;
+    const renderBtn = () => {
+      if (cancelled || !window.google?.accounts || !googleBtnRef.current) return;
+      googleBtnRef.current.innerHTML = '';
+      window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
+      window.google.accounts.id.renderButton(googleBtnRef.current, { theme: 'filled_black', size: 'large', width: 320, text: 'continue_with', shape: 'pill' });
+    };
+    if (window.google?.accounts) { renderBtn(); return () => { cancelled = true; }; }
+    let script = document.querySelector('script[data-cc-gsi]');
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true; script.defer = true; script.dataset.ccGsi = 'true';
+      document.head.appendChild(script);
+    }
+    script.addEventListener('load', renderBtn);
+    return () => { cancelled = true; if (script) script.removeEventListener('load', renderBtn); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
   return (
     <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: '100vh' }}>
       <Logo size={56} animated />
@@ -837,8 +972,15 @@ function V2Login({ onGuest }) {
       <div className="w-full max-w-[320px] space-y-3">
         {stage === 'email' ? (
           <>
+            {GOOGLE_CLIENT_ID && (
+              <>
+                <div ref={googleBtnRef} className="flex justify-center" style={{ minHeight: 44 }} />
+                {gBusy && <p className="text-[12px] t-mid text-center">Signing in…</p>}
+                <div className="flex items-center gap-3 py-1"><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /><span className="text-[11px] t-lo">or</span><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /></div>
+              </>
+            )}
             <input className="field" type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitEmail(); }} autoFocus />
-            <button className="btn btn-primary" disabled={busy || !email.trim()} onClick={submitEmail}>{busy ? 'Sending…' : 'Send code'}</button>
+            <button className="btn btn-primary" disabled={busy || !email.trim()} onClick={submitEmail}>{busy ? 'Sending…' : 'Email me a code'}</button>
           </>
         ) : (
           <>
@@ -880,13 +1022,14 @@ function Shell() {
     case 'create-semester': screen = <CreateSemester {...P} />; break;
     case 'semester': screen = <Semester {...P} />; break;
     case 'calendar': screen = <CalendarScreen {...P} />; break;
+    case 'feed': screen = <FeedScreen {...P} />; break;
     case 'reports': screen = <ReportsScreen {...P} />; break;
     case 'settings': screen = <SettingsScreen {...P} />; break;
     case 'profile': screen = <Profile {...P} />; break;
     case 'residence': case 'club': case 'vehicle': case 'personal': case 'asset': screen = <SpaceDetail {...P} />; break;
     default: screen = <Home {...P} />;
   }
-  const homeActive = !['calendar', 'reports', 'settings'].includes(view);
+  const homeActive = !['calendar', 'feed', 'reports', 'settings'].includes(view);
   const vars = {
     '--bg': c.bg, '--card': c.card, '--border': c.border, '--accent': c.accent, '--accent-light': c.accentLight,
     '--text1': c.text1, '--text2': c.text2, '--text3': c.text3, '--hero-bg': c.heroBg, '--hero-border': c.heroBorder,
@@ -903,9 +1046,7 @@ function Shell() {
         <div className="v2-navrow">
           <button className={`v2-navbtn ${homeActive ? 'active' : ''}`} onClick={() => tab('home')}><HomeIcon size={20} strokeWidth={2} />Home</button>
           <button className={`v2-navbtn ${view === 'calendar' ? 'active' : ''}`} onClick={() => tab('calendar')}><CalendarDays size={20} strokeWidth={2} />Calendar</button>
-          <div className="flex items-center justify-center" style={{ flex: 1 }}>
-            <button className="v2-fab" onClick={() => nav('create')} aria-label="Create"><Plus size={24} color="#fff" /></button>
-          </div>
+          <button className={`v2-navbtn ${view === 'feed' ? 'active' : ''}`} onClick={() => tab('feed')}><Newspaper size={20} strokeWidth={2} />Feed</button>
           <button className={`v2-navbtn ${view === 'reports' ? 'active' : ''}`} onClick={() => tab('reports')}><BarChart3 size={20} strokeWidth={2} />Reports</button>
           <button className={`v2-navbtn ${view === 'settings' ? 'active' : ''}`} onClick={() => tab('settings')}><SettingsIcon size={20} strokeWidth={2} />Settings</button>
         </div>
