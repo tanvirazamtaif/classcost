@@ -10,15 +10,15 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const SERIF = { fontFamily: "'Fraunces', Georgia, 'Times New Roman', serif" };
 
 // palette (the navy side of the logo system)
-const NAVY = '#0F1537', SURFACE = '#161D42', BORDER = '#2A3358';
-const CREAM = '#F4EEE1', MUTED = '#A6ACC9', FAINT = '#6B7299', GOLD = '#E3C078', BTN = '#EAD9B0';
+const NAVY = '#0A143F', SURFACE = '#0F1A48', BORDER = 'rgba(255,255,255,0.16)';
+const CREAM = '#F2EFE6', MUTED = '#A6ABC6', FAINT = '#6E7596', GOLD = '#F2EFE6', BTN = '#FFFFFF';
 
 const CATS = [
   { en: 'Semester fees', bn: 'সেমিস্টার ফি', Icon: GraduationCap, color: '#cdb4ff', bg: 'rgba(150,120,255,.16)' },
   { en: 'Transport', bn: 'যাতায়াত', Icon: Bus, color: '#8fc0ff', bg: 'rgba(96,165,250,.16)' },
   { en: 'Housing', bn: 'বাসা', Icon: Building2, color: '#86e6ad', bg: 'rgba(52,211,153,.16)' },
   { en: 'Food', bn: 'খাবার', Icon: Utensils, color: '#ffc08a', bg: 'rgba(251,146,60,.16)' },
-  { en: 'Study materials', bn: 'বই-পত্র', Icon: BookOpen, color: GOLD, bg: 'rgba(227,192,120,.16)' },
+  { en: 'Study materials', bn: 'বই-পত্র', Icon: BookOpen, color: GOLD, bg: 'rgba(242,239,230,.16)' },
 ];
 
 const T = (lang) => {
@@ -120,15 +120,15 @@ export function V2Landing({ onGuest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, stage]);
 
-  const card = { background: 'rgba(22,29,66,.82)', backdropFilter: 'blur(16px)', border: `1px solid ${BORDER}` };
+  const card = { background: 'rgba(24,31,72,.85)', backdropFilter: 'blur(16px)', border: `1px solid ${BORDER}` };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: NAVY, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+    <div className="min-h-screen relative overflow-hidden" style={{ background: 'radial-gradient(130% 110% at 50% 0%, #0A143F 38%, #05091E 100%)', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
       {/* warm + soft glows (no more indigo/pink) */}
-      <div className="absolute top-[-200px] left-[18%] w-[700px] h-[700px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(227,192,120,.10), transparent 60%)' }} />
+      <div className="absolute top-[-200px] left-[18%] w-[700px] h-[700px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(242,239,230,.10), transparent 60%)' }} />
       <div className="absolute bottom-[-200px] right-[-5%] w-[600px] h-[600px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(122,140,210,.10), transparent 60%)' }} />
       <div className="absolute top-[30%] right-[20%] w-[400px] h-[400px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(234,217,176,.05), transparent 60%)' }} />
-      <div className="hidden lg:block absolute top-[15%] right-[8%] w-2 h-2 rounded-full animate-landing-float-1" style={{ background: 'rgba(227,192,120,.4)' }} />
+      <div className="hidden lg:block absolute top-[15%] right-[8%] w-2 h-2 rounded-full animate-landing-float-1" style={{ background: 'rgba(242,239,230,.4)' }} />
       <div className="hidden lg:block absolute top-[25%] right-[25%] w-1.5 h-1.5 rounded-full animate-landing-float-2" style={{ background: 'rgba(234,217,176,.35)' }} />
       <div className="hidden lg:block absolute bottom-[22%] right-[30%] w-1.5 h-1.5 rounded-full animate-landing-float-2" style={{ background: 'rgba(122,140,210,.35)' }} />
 
@@ -149,12 +149,12 @@ export function V2Landing({ onGuest }) {
           {/* LEFT — hero (desktop) */}
           <div className="hidden lg:flex flex-col justify-center pl-12 xl:pl-20 2xl:pl-28 pr-8">
             <div className="max-w-[520px]">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full w-fit mb-8" style={{ background: 'rgba(227,192,120,.10)', border: '1px solid rgba(227,192,120,.22)' }}>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full w-fit mb-8" style={{ background: 'rgba(242,239,230,.10)', border: '1px solid rgba(242,239,230,.22)' }}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: GOLD }} />
                 <span className="text-xs font-medium tracking-wide uppercase" style={{ color: GOLD }}>{t.badge}</span>
               </div>
               <h1 className="text-[44px] xl:text-[52px] 2xl:text-[60px] font-extrabold leading-[1.05] tracking-tight mb-6" style={{ color: CREAM, ...SERIF }}>
-                {t.titlePre}<span className="bg-gradient-to-r from-[#E3C078] to-[#EAD9B0] bg-clip-text text-transparent">{t.titleHi}</span>{t.titlePost}
+                {t.titlePre}<span style={{ color: '#FFFFFF' }}>{t.titleHi}</span>{t.titlePost}
               </h1>
               <p className="text-lg leading-relaxed mb-10 max-w-[440px]" style={{ color: MUTED }}>{t.subtitle}</p>
               <div className="flex gap-10 mb-12">
@@ -187,7 +187,7 @@ export function V2Landing({ onGuest }) {
                 <div className="absolute -top-14 -right-10 xl:-right-16 animate-landing-float-2 rounded-2xl p-4 z-20" style={{ ...card, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
                   <div className="text-[11px] mb-1 font-medium" style={{ color: FAINT }}>This month</div>
                   <div className="flex items-baseline gap-1.5"><span className="text-xl font-bold" style={{ color: CREAM }}>৳12,400</span><span className="text-[10px] font-medium" style={{ color: '#f0a89a' }}>↑ 8%</span></div>
-                  <div className="flex gap-1 mt-2">{[16, 24, 12, 28, 20].map((h, i) => (<div key={i} className="w-4 rounded-sm" style={{ height: `${h}px`, background: i === 4 ? BTN : 'rgba(227,192,120,.55)' }} />))}</div>
+                  <div className="flex gap-1 mt-2">{[16, 24, 12, 28, 20].map((h, i) => (<div key={i} className="w-4 rounded-sm" style={{ height: `${h}px`, background: i === 4 ? BTN : 'rgba(242,239,230,.55)' }} />))}</div>
                 </div>
                 <div className="absolute -bottom-10 -left-24 xl:-left-32 animate-landing-float-3 rounded-2xl p-4 z-20" style={{ ...card, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
                   <div className="text-[11px] mb-2 font-medium" style={{ color: FAINT }}>Today</div>

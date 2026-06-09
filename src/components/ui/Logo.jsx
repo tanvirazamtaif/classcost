@@ -14,6 +14,7 @@ export const Logo = ({ size = 28, animated = false, className = '' }) => (
       style={{
         width: size, height: size, display: 'block', objectFit: 'cover',
         borderRadius: Math.max(4, Math.round(size * 0.22)),
+        filter: 'brightness(1.06)',
         animation: animated ? 'cclogo-breathe 3.4s ease-in-out infinite' : undefined,
         transformOrigin: 'center',
       }}

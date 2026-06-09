@@ -7,17 +7,17 @@ import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, sta
 // ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
 // neutrals + one accent that inverts per mode (navy-on-cream / cream-on-navy) + muted gold.
 const v2Palette = (d) => d ? {
-  bg: '#0F1537', card: '#171E42', border: '#262E55',
-  accent: '#EAD9B0', accentText: '#0F1537', accentLight: 'rgba(234,217,176,.14)', gold: '#E3C078',
-  text1: '#F4EEE1', text2: '#A6ACC9', text3: '#6B7299',
-  heroBg: '#141B3E', heroBorder: 'rgba(234,217,176,.18)',
-  pillBg: '#141B3E', navBg: 'rgba(15,21,55,.92)', sheetBg: '#171E42', cardShadow: 'none',
+  bg: '#0A143F', card: '#0F1A48', border: 'rgba(255,255,255,0.14)',
+  accent: '#F2EFE6', accentText: '#0A143F', accentLight: 'rgba(242,239,230,.12)', gold: '#F2EFE6',
+  text1: '#F2EFE6', text2: '#A6ABC6', text3: '#6E7596',
+  heroBg: '#0F1A48', heroBorder: 'rgba(255,255,255,.16)',
+  pillBg: '#0F1A48', navBg: 'rgba(5,9,28,.92)', sheetBg: '#0F1A48', cardShadow: 'none',
 } : {
-  bg: '#F4EEE1', card: '#FCF9F2', border: '#E6DFCE',
-  accent: '#16204A', accentText: '#FBF7EF', accentLight: 'rgba(22,32,74,.10)', gold: '#9A6A12',
-  text1: '#1B2138', text2: '#6E6755', text3: '#9C957F',
-  heroBg: '#FCF9F2', heroBorder: '#E6DFCE',
-  pillBg: '#EFE8D7', navBg: 'rgba(244,238,225,.92)', sheetBg: '#FCF9F2', cardShadow: '0 1px 2px rgba(20,25,50,.05)',
+  bg: '#F2EFE6', card: '#FFFFFF', border: 'rgba(10,20,63,0.12)',
+  accent: '#0A143F', accentText: '#FFFFFF', accentLight: 'rgba(10,20,63,.07)', gold: '#0A143F',
+  text1: '#0A143F', text2: '#5C6178', text3: '#9499A6',
+  heroBg: '#FFFFFF', heroBorder: 'rgba(10,20,63,.12)',
+  pillBg: '#ECE7DA', navBg: 'rgba(242,239,230,.92)', sheetBg: '#FFFFFF', cardShadow: '0 1px 2px rgba(10,20,63,.07)',
 };
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
