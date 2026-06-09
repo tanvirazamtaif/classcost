@@ -6,7 +6,7 @@ import React from 'react';
 const NAVY = '#191C4B';
 const CREAM = '#F7F3E8';
 // Single closed outline: top tip → outer-left belly → bottom tip → inner edge w/ top hook → back to tip.
-const MARK = 'M125 46 C92 60 60 92 56 130 C53 168 100 194 150 200 C118 188 104 166 110 140 C118 108 126 96 146 90 C170 84 172 64 156 58 C146 48 134 46 125 46 Z';
+const MARK = 'M123 46 C92 60 60 94 60 132 C57 170 102 198 162 212 C128 196 108 168 112 142 C118 110 128 96 148 90 C166 82 166 62 154 56 C144 48 132 46 123 46 Z';
 
 export const Logo = ({ size = 28, animated = false, className = '', bg = true }) => (
   <svg
