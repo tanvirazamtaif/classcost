@@ -155,7 +155,8 @@ export function V2Provider({ children }) {
     try { localStorage.removeItem('cc_v2_guest'); } catch { /* ignore */ }
     db.user = { name: 'Student', email: '', currency: db.user?.currency || '৳' };
     db.spaces = []; // don't leak one account's data into the next sign-in on a shared device
-    commit();
+    save(db);
+    window.location.reload(); // full reset so the login gate (incl. the in-memory guest flag) re-evaluates
   };
   const resetAll = () => { db.spaces = []; save(db); if (db.user?.id) saveV2Data(db.user.id, { spaces: [], user: pickUser(db.user) }).catch(() => {}); window.location.reload(); };
   const setUser = (patch) => { db.user = { ...(db.user || { name: 'Student', email: '', currency: '৳' }), ...patch }; if (patch.currency) setCurrency(patch.currency); commit(); };
