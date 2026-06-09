@@ -1,7 +1,11 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const router = express.Router();
 const { prisma } = require('../db.cjs');
 const { verifyUserToken } = require('../lib/userAuth.cjs');
+
+const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'feed');
 
 // Every feed action is tied to the signed-in user (token.sub).
 function authUser(req, res) {
@@ -192,6 +196,34 @@ router.get('/profile/u/:handle/posts', async (req, res) => {
     const likedSet = new Set(mine.map((l) => l.postId));
     res.json({ posts: posts.map((p) => ({ id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt, handle: p.author?.handle, displayName: p.author?.displayName, likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId })) });
   } catch (err) { console.error('profile posts:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── image upload (raw bytes; image/* content-type bypasses the global JSON parser) ──
+const IMG_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+router.post('/upload', express.raw({ type: IMG_TYPES, limit: '6mb' }), (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  const buf = req.body;
+  if (!buf || !buf.length) return res.status(400).json({ error: 'No image received' });
+  if (buf.length > 5 * 1024 * 1024) return res.status(413).json({ error: 'Image too large (max 5MB)' });
+  const ct = String(req.headers['content-type'] || '');
+  const ext = /png/.test(ct) ? 'png' : /webp/.test(ct) ? 'webp' : /gif/.test(ct) ? 'gif' : 'jpg';
+  try {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    const name = `${userId.slice(0, 8)}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+    res.json({ url: `/uploads/feed/${name}` });
+  } catch (err) { console.error('upload:', err); res.status(500).json({ error: 'Upload failed' }); }
+});
+
+// ── report (reactive moderation: report -> review -> remove/block) ──
+router.post('/report', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  const { targetType, targetId, reason } = req.body || {};
+  if (!['post', 'comment'].includes(targetType) || !targetId) return res.status(400).json({ error: 'Bad report' });
+  try {
+    await prisma.feedReport.create({ data: { targetType, targetId: String(targetId), reporterId: userId, reason: reason ? String(reason).slice(0, 500) : null } });
+    res.json({ ok: true });
+  } catch (err) { console.error('report:', err); res.status(500).json({ error: 'Failed to report' }); }
 });
 
 module.exports = router;

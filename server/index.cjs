@@ -70,6 +70,9 @@ app.use('/api/assistant', assistantRoutes);
 app.use('/api/v2data', v2dataRoutes);
 app.use('/api/feed', feedRoutes);
 
+// Uploaded feed images (host storage).
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 // In production, serve the Vite build
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist');

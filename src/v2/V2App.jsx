@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute } from './engine';
@@ -8,7 +8,7 @@ import { getThemeColors } from '../lib/themeColors';
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { sendOTP, verifyOTP, googleSignIn, getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts } from '../api';
+import { sendOTP, verifyOTP, googleSignIn, getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent } from '../api';
 import './v2.css';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -915,12 +915,20 @@ function FeedPostCard({ p, onComment, onAuthor }) {
     const txt = `${p.displayName || ('@' + p.handle)} on ClassCost:\n${p.text || ''}`;
     try { if (navigator.share) await navigator.share({ text: txt }); else { await navigator.clipboard.writeText(txt); window.alert('Copied to clipboard'); } } catch { /* cancelled */ }
   };
+  const report = async () => {
+    const reason = window.prompt('Report this post — reason (optional):');
+    if (reason === null) return;
+    try { await reportContent('post', p.id, reason || ''); window.alert("Thanks — we'll review it."); } catch { window.alert('Could not report right now.'); }
+  };
   return (
     <div className="card p-4">
-      <button className="flex items-center gap-2.5 mb-2.5 w-full text-left" onClick={() => onAuthor && onAuthor(p.handle)}>
-        <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
-        <div className="min-w-0 flex-1"><p className="text-[13px] font-semibold t-hi truncate">{p.displayName || ('@' + p.handle)}</p><p className="text-[11px] t-lo">@{p.handle} · {timeAgo(p.createdAt)}</p></div>
-      </button>
+      <div className="flex items-center gap-2 mb-2.5">
+        <button className="flex items-center gap-2.5 flex-1 min-w-0 text-left" onClick={() => onAuthor && onAuthor(p.handle)}>
+          <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
+          <div className="min-w-0 flex-1"><p className="text-[13px] font-semibold t-hi truncate">{p.displayName || ('@' + p.handle)}</p><p className="text-[11px] t-lo">@{p.handle} · {timeAgo(p.createdAt)}</p></div>
+        </button>
+        <button className="t-lo shrink-0 p-1" onClick={report} aria-label="Report post"><Flag size={15} /></button>
+      </div>
       {p.text && <p className="text-[14px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
       {p.imageUrl && <img src={p.imageUrl} alt="" className="rounded-xl w-full mb-2" />}
       <div className="flex gap-5 mt-1 text-[12px]">
@@ -947,12 +955,23 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
 }
 function FeedComposePane({ handle, onPosted }) {
   const [text, setText] = useState('');
+  const [img, setImg] = useState(null); // { url, preview }
   const [busy, setBusy] = useState(false);
+  const [upBusy, setUpBusy] = useState(false);
   const [err, setErr] = useState('');
+  const fileRef = useRef(null);
+  const pickImage = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (!file.type.startsWith('image/')) { setErr('Pick an image file'); return; }
+    setUpBusy(true); setErr('');
+    try { const r = await uploadFeedImage(file); setImg({ url: r.url, preview: URL.createObjectURL(file) }); }
+    catch (x) { setErr(x.message || 'Upload failed. Is the server live?'); }
+    finally { setUpBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
   const post = async () => {
-    if (!text.trim() || busy) return;
+    if ((!text.trim() && !img) || busy) return;
     setBusy(true); setErr('');
-    try { await createFeedPost(text.trim()); setText(''); onPosted(); }
+    try { await createFeedPost(text.trim(), img?.url); setText(''); setImg(null); onPosted(); }
     catch (x) { setErr(x.message || 'Could not post. Is the server live?'); }
     finally { setBusy(false); }
   };
@@ -960,14 +979,16 @@ function FeedComposePane({ handle, onPosted }) {
     <div className="py-2">
       <div className="card p-4">
         <p className="text-[13px] t-accent font-medium mb-3">{handle}</p>
-        <textarea className="field" rows={5} placeholder="Share something with your campus…" value={text} onChange={(e) => setText(e.target.value)} style={{ resize: 'none' }} />
+        <textarea className="field" rows={4} placeholder="Share something with your campus…" value={text} onChange={(e) => setText(e.target.value)} style={{ resize: 'none' }} />
+        {img && <div className="relative mt-3"><img src={img.preview} alt="" className="rounded-xl w-full" /><button className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-white text-[13px]" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setImg(null)} aria-label="Remove image">✕</button></div>}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickImage} />
         <div className="flex items-center gap-2 mt-3">
-          <button className="minibtn btn-ghost" style={{ width: 'auto', padding: '.5rem .8rem' }} disabled title="Photos arrive in 4D"><ImageIcon size={15} className="inline mr-1" />Photo</button>
-          <button className="btn btn-primary" style={{ width: 'auto', marginLeft: 'auto', padding: '.6rem 1.2rem' }} disabled={!text.trim() || busy} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
+          <button className="minibtn btn-ghost" style={{ width: 'auto', padding: '.5rem .8rem' }} disabled={upBusy} onClick={() => fileRef.current?.click()}><ImageIcon size={15} className="inline mr-1" />{upBusy ? 'Uploading…' : (img ? 'Change' : 'Photo')}</button>
+          <button className="btn btn-primary" style={{ width: 'auto', marginLeft: 'auto', padding: '.6rem 1.2rem' }} disabled={(!text.trim() && !img) || busy} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
         </div>
         {err && <p className="text-[12px] mt-2" style={{ color: '#ef4444' }}>{err}</p>}
       </div>
-      <p className="text-[11px] t-lo text-center mt-3">Photos upload in 4D · all posts are public · a report system keeps it safe.</p>
+      <p className="text-[11px] t-lo text-center mt-3">Photos upload to host storage · all posts are public · a report system keeps it safe.</p>
     </div>
   );
 }

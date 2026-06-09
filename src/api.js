@@ -225,6 +225,8 @@ export async function unfollowUser(handle) { return request(`/api/feed/follow/${
 export async function searchUsers(q) { return request(`/api/feed/users?q=${encodeURIComponent(q)}`); }
 export async function getFeedProfile(handle) { return request(`/api/feed/profile/u/${encodeURIComponent(handle)}`); }
 export async function getUserPosts(handle) { return request(`/api/feed/profile/u/${encodeURIComponent(handle)}/posts`); }
+export async function uploadFeedImage(file) { return request('/api/feed/upload', { method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file }); }
+export async function reportContent(targetType, targetId, reason) { return request('/api/feed/report', { method: 'POST', body: JSON.stringify({ targetType, targetId, reason }) }); }
 
 // ── Education Fees ─────────────────────────────────────────────────────────
 

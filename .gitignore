@@ -4,6 +4,9 @@ dist
 *.local
 .DS_Store
 
+# Runtime-uploaded feed images (host storage)
+uploads/
+
 /src/generated/prisma
 
 # AI tool bundles (for sharing code with ChatGPT/Claude/etc.) — never commit.
