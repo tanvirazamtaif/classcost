@@ -8,6 +8,7 @@ import { haptics } from '../../lib/haptics';
 import { makeFmt } from '../../utils/format';
 import { ACTIONS, describeAction, getAuditLog, logAction, clearAuditLog } from '../../lib/assistantActions';
 import { LeeboonMascot } from './LeeboonMascot';
+import { loadBrain, onPet, onHit, onTalk, onIgnore, onHover } from '../../lib/leboonBrain';
 
 /**
  * Leeboon — your playful money buddy. 🐣
@@ -66,6 +67,13 @@ export function AssistantWidget() {
   const angryTimer = useRef(null);
   const moveTimer = useRef(null);
   const waveTimer = useRef(null);
+  // ── Leboon pet brain + transient reactions ──
+  const brain = useRef(loadBrain());
+  const fxTimer = useRef(null);
+  const hoverRef = useRef({ timers: [], lastFullTs: 0 });
+  const ignoreTimers = useRef([]);
+  const tapRef = useRef({ n: 0, ts: 0, recoverT: null });
+  const spinRef = useRef({ vmax: 0 });
   const posRef = useRef({
     top: typeof window !== 'undefined' ? window.innerHeight - 200 : 520,
     left: typeof window !== 'undefined' ? window.innerWidth - SPRITE_W - 14 : 320,
@@ -76,18 +84,88 @@ export function AssistantWidget() {
   const [moving, setMoving] = useState('none');
   const [waving, setWaving] = useState(false);
   const [mood, setMood] = useState('happy');
+  const [fx, setFx] = useState(null); // transient reaction: { mood, effect, fallen, bubble }
+  const [hover, setHover] = useState(null); // hover affection: { mood, blush, count, tilt, bounce, bubble }
 
   const setPos = (p) => { posRef.current = p; setPosState(p); };
   const setMove = (m) => { movingRef.current = m; setMoving(m); };
   const applyMood = (m) => { moodRef.current = m; setMood(m); };
 
-  // USER interaction → happy, then drifts: bored/sad → angry if ignored.
+  // Transient reaction overlay (pet/hit/dizzy) that auto-clears back to baseline.
+  const react = (opts, ms = 1800) => {
+    clearTimeout(fxTimer.current);
+    setFx(opts);
+    fxTimer.current = setTimeout(() => setFx(null), ms);
+  };
+
+  const PET_LINES = ['Hehe!', 'I like that!', "You're nice 💛", 'Boop!'];
+  const HIT_LINES = ['Ouch!', 'Stop!', 'That hurts!'];
+
+  // USER interaction → happy, then drifts through the ignore ladder if left alone:
+  // 1m look around · 3m sad · 5m angry · 10m sit · 15m sleep. (Talking Tom style)
   const interact = () => {
     applyMood('happy');
-    clearTimeout(sadTimer.current); clearTimeout(angryTimer.current);
-    sadTimer.current = setTimeout(() => applyMood('sad'), 16000);
-    angryTimer.current = setTimeout(() => applyMood('angry'), 45000);
+    ignoreTimers.current.forEach(clearTimeout);
+    const ig = (m) => { brain.current = onIgnore(brain.current); applyMood(m); };
+    ignoreTimers.current = [
+      setTimeout(() => applyMood('curious'), 60_000),  // 1m: look around
+      setTimeout(() => ig('sad'), 180_000),            // 3m: sad
+      setTimeout(() => ig('angry'), 300_000),          // 5m: angry
+      setTimeout(() => ig('sleepy'), 600_000),         // 10m: sit
+      setTimeout(() => ig('sleepy'), 900_000),         // 15m: sleep (sleepy + 💤)
+    ];
   };
+
+  // Petting (a tap) → happy/shy + hearts; gets shyer the closer your friendship.
+  const pet = () => {
+    brain.current = onPet(brain.current);
+    interact();
+    react({ mood: brain.current.friendship > 65 ? 'shy' : 'happy', effect: 'hearts',
+      bubble: PET_LINES[brain.current.todayPets % PET_LINES.length] }, 1500);
+  };
+
+  // Rough handling (fast shake / spin) → dizzy, then fall over, then recover.
+  const dizzy = (hard) => {
+    brain.current = onHit(brain.current);
+    react({ mood: 'dizzy', effect: 'sweat', bubble: HIT_LINES[brain.current.todayHits % HIT_LINES.length], fallen: hard }, hard ? 2600 : 1600);
+    if (hard) {
+      clearTimeout(tapRef.current.recoverT);
+      tapRef.current.recoverT = setTimeout(() => { interact(); }, 2600); // auto-recover
+    }
+  };
+  // ── Hover affection — cursor over Leboon, NO click needed. Cute + cooldowned.
+  const HOVER_LINES = ['Hi! 💜', 'Hehe~', 'You noticed me!', "I'm happy you're here!"];
+  const startHover = (clientX) => {
+    if (dragging) return;
+    wanderPaused.current = true;
+    if (typeof clientX === 'number') setFacing(clientX < posRef.current.left + SPRITE_W / 2 ? 'left' : 'right'); // look at cursor
+    if (['sad', 'angry', 'crying', 'sleepy'].includes(moodRef.current)) applyMood('happy'); // hovering lifts a low mood
+    const now = Date.now();
+    const f = brain.current.friendship || 0;
+    const fast = f >= 65; // high friendship → blush faster + more hearts
+    hoverRef.current.timers.forEach(clearTimeout);
+    if (now - hoverRef.current.lastFullTs < 5000) {
+      // cooldown: subtle only — soft smile + look + light blush, no escalation/bubble
+      setHover({ mood: 'happy', blush: 1, count: 1, tilt: 0, bounce: true, bubble: '' });
+      return;
+    }
+    hoverRef.current.lastFullTs = now;
+    brain.current = onHover(brain.current); // friendship +1 (cooldown-gated)
+    // stage 1 — soft smile, slight blush, 1 heart, gentle bounce, greeting
+    setHover({ mood: 'happy', blush: 1, count: 1, tilt: 0, bounce: true, bubble: HOVER_LINES[(f | 0) % HOVER_LINES.length] });
+    hoverRef.current.timers = [
+      // stage 2 (1–2s) — stronger blush, multiple hearts, happy eyes, head tilt
+      setTimeout(() => setHover((hv) => (hv ? { ...hv, mood: 'shy', blush: 2, count: fast ? 4 : 3, tilt: -6, bubble: '' } : hv)), fast ? 900 : 1500),
+      // stage 3 (3s+) — excited, continuous hearts
+      setTimeout(() => setHover((hv) => (hv ? { ...hv, mood: 'excited', blush: 2, count: fast ? 5 : 3, tilt: 0 } : hv)), fast ? 2200 : 3000),
+    ];
+  };
+  const endHover = () => {
+    hoverRef.current.timers.forEach(clearTimeout);
+    setHover(null); // hearts + blush fade out (CSS opacity transition)
+    if (!dragging) wanderPaused.current = false;
+  };
+
   // Wave + say hello — only when standing still AND in a friendly mood.
   const triggerWave = () => {
     if (movingRef.current !== 'none' || moodRef.current !== 'happy') return;
@@ -132,7 +210,7 @@ export function AssistantWidget() {
   }, [open]);
 
   // start the mood clock on mount (he'll drift to sad/angry if left alone)
-  useEffect(() => { interact(); return () => [sadTimer, angryTimer, moveTimer, waveTimer].forEach((t) => clearTimeout(t.current)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { interact(); return () => { [sadTimer, angryTimer, moveTimer, waveTimer, fxTimer].forEach((t) => clearTimeout(t.current)); ignoreTimers.current.forEach(clearTimeout); }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   // Drag — follow the finger (legs run/swim with direction); snap to nearest side on release.
   const onPointerDown = (e) => {
@@ -148,6 +226,7 @@ export function AssistantWidget() {
     const di = dragInfo.current;
     if (Math.hypot(e.clientX - di.sx, e.clientY - di.sy) > 6) di.moved = true;
     const ddx = e.clientX - di.lx, ddy = e.clientY - di.ly;
+    spinRef.current.vmax = Math.max(spinRef.current.vmax, Math.hypot(ddx, ddy)); // track fling speed
     if (Math.abs(ddx) > 2 || Math.abs(ddy) > 2) {
       if (Math.abs(ddx) >= Math.abs(ddy)) { setFacing(ddx < 0 ? 'left' : 'right'); setMove('horizontal'); }
       else setMove('vertical');
@@ -167,12 +246,26 @@ export function AssistantWidget() {
       const p = posRef.current;
       setPos({ left: (p.left + SPRITE_W / 2) < w / 2 ? m : w - SPRITE_W - m, top: clamp(p.top, TOP_MIN, h - SPRITE_H - 80) });
     }
+    // Flung/shaken hard → dizzy (and topple over if very fast), then auto-recover.
+    const v = spinRef.current.vmax; spinRef.current.vmax = 0;
+    if (dragInfo.current.moved && v > 60) dizzy(true);
+    else if (dragInfo.current.moved && v > 32) dizzy(false);
   };
   const onLeeboonClick = () => {
     if (dragInfo.current.moved) { dragInfo.current.moved = false; return; } // was a drag, not a tap
-    haptics.medium?.();
-    interact();
-    setOpen(true);
+    const t = tapRef.current; const now = Date.now();
+    t.n = (now - t.ts < 450) ? t.n + 1 : 1; t.ts = now;
+    clearTimeout(t.openT);
+    haptics.light?.();
+    pet(); // every tap is an affectionate pet (hearts)
+    if (t.n >= 3) { dizzy(false); return; } // lots of fast pokes → "Stop!"
+    // a single, lone tap opens the chat shortly after (if no more taps follow)
+    t.openT = setTimeout(() => {
+      if (tapRef.current.n >= 2) return; // more taps came → was petting, not "open"
+      brain.current = onTalk(brain.current);
+      haptics.medium?.();
+      setOpen(true);
+    }, 320);
   };
 
   // ctx + snapshot are rebuilt each send from the latest context data.
@@ -323,8 +416,9 @@ export function AssistantWidget() {
             transition={{ scale: { type: 'spring', stiffness: 400, damping: 25 }, opacity: { duration: 0.2 } }}
             whileHover={{ scale: 1.12 }} whileTap={{ scale: 0.94 }}
             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
-            onHoverStart={() => { wanderPaused.current = true; interact(); triggerWave(); }}
-            onHoverEnd={() => { if (!dragging) wanderPaused.current = false; }}
+            onHoverStart={(e) => startHover(e?.clientX)}
+            onHoverEnd={endHover}
+            onMouseMove={(e) => { if (hover && !dragging) setFacing(e.clientX < posRef.current.left + SPRITE_W / 2 ? 'left' : 'right'); }}
             onClick={onLeeboonClick}
             aria-label="Play with Leeboon — drag to move"
             className={`fixed z-50 flex items-center justify-center bg-transparent touch-none select-none ${dragging ? 'cursor-grabbing' : 'cursor-grab'} ${dragging ? '' : 'transition-[top,left] duration-[2200ms] ease-in-out'}`}
@@ -332,8 +426,9 @@ export function AssistantWidget() {
           >
             {/* floating "Hi!" speech — anchored to his side so it never clips */}
             <AnimatePresence>
-              {waving && (
+              {(waving || fx?.bubble || hover?.bubble) && (
                 <motion.span
+                  key={hover?.bubble || fx?.bubble || 'hi'}
                   initial={{ opacity: 0, y: 8, scale: 0.7 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -12, scale: 0.7 }}
@@ -343,12 +438,16 @@ export function AssistantWidget() {
                   }`}
                   style={{ bottom: 'calc(100% + 7px)', fontFamily: "'Fraunces', serif" }}
                 >
-                  Hi there! 👋
+                  {hover?.bubble || fx?.bubble || 'Hi there! 👋'}
                   <span className={`absolute -bottom-1 ${helloRight ? 'right-4' : 'left-4'} w-2.5 h-2.5 rotate-45 ${d ? 'bg-surface-800' : 'bg-[#fffaf0]'}`} />
                 </motion.span>
               )}
             </AnimatePresence>
-            <LeeboonMascot size={SPRITE_W} animated expression={mood} facing={facing} moving={moving} waving={waving} />
+            <LeeboonMascot size={SPRITE_W} animated
+              expression={hover?.mood || fx?.mood || mood}
+              effect={hover ? 'hearts' : (fx?.effect || (mood === 'sleepy' ? 'sleep' : 'none'))}
+              count={hover?.count || 3} blush={hover?.blush || 0} tilt={hover?.tilt || 0} bounce={!!hover?.bounce}
+              fallen={!!fx?.fallen} facing={facing} moving={moving} waving={waving && !fx && !hover} />
           </motion.button>
         )}
       </AnimatePresence>
