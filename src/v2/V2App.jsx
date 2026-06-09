@@ -8,7 +8,7 @@ import { getThemeColors } from '../lib/themeColors';
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { sendOTP, verifyOTP, googleSignIn } from '../api';
+import { sendOTP, verifyOTP, googleSignIn, getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost } from '../api';
 import './v2.css';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -700,11 +700,24 @@ function NotifSheet({ onClose }) {
 
 /* ---------------- FEED (Phase 4) ---------------- */
 const FEED_KEY = 'cc_v2_feed_id';
+const timeAgo = (d) => {
+  const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+  if (s < 60) return 'now';
+  if (s < 3600) return Math.floor(s / 60) + 'm';
+  if (s < 86400) return Math.floor(s / 3600) + 'h';
+  return Math.floor(s / 86400) + 'd';
+};
 function FeedScreen() {
   const { user } = useV2();
   const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
   const [pane, setPane] = useState(1); // 0 profile · 1 feed · 2 compose
+  const [reloadKey, setReloadKey] = useState(0);
   const startX = useRef(0);
+  useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
+    let on = true;
+    getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
+    return () => { on = false; };
+  }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
   const initial = (user?.name || handle.replace('@', '') || 'S').trim().charAt(0).toUpperCase();
   const go = (p) => setPane(Math.max(0, Math.min(2, p)));
@@ -719,8 +732,8 @@ function FeedScreen() {
       <div onPointerDown={(e) => { startX.current = e.clientX; }} onPointerUp={(e) => { const dx = e.clientX - startX.current; if (dx < -55 && pane < 2) go(pane + 1); else if (dx > 55 && pane > 0) go(pane - 1); }} style={{ overflow: 'hidden' }}>
         <motion.div className="flex" style={{ width: '300%' }} animate={{ x: `-${pane * (100 / 3)}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
           <div style={{ width: '33.3333%' }} className="px-4"><FeedProfilePane handle={handle} name={user?.name} initial={initial} /></div>
-          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane onCompose={() => go(2)} /></div>
-          <div style={{ width: '33.3333%' }} className="px-4"><FeedComposePane handle={handle} onDone={() => go(1)} /></div>
+          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane reloadKey={reloadKey} onCompose={() => go(2)} /></div>
+          <div style={{ width: '33.3333%' }} className="px-4"><FeedComposePane handle={handle} onPosted={() => { setReloadKey((k) => k + 1); go(1); }} /></div>
         </motion.div>
       </div>
       <div className="flex justify-center gap-1.5 mt-4">{['Profile', 'Feed', 'Post'].map((l, i) => (<button key={i} onClick={() => go(i)} className="rounded-full" style={{ width: pane === i ? 18 : 6, height: 6, background: pane === i ? 'var(--accent)' : 'var(--border)', transition: 'all .2s' }} aria-label={l} />))}</div>
@@ -729,17 +742,29 @@ function FeedScreen() {
 }
 function FeedOnboard({ onDone }) {
   const [h, setH] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
   const clean = h.trim().replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+  const claim = async () => {
+    if (clean.length < 3 || busy) return;
+    setBusy(true); setErr('');
+    try { const r = await claimHandle(clean); onDone('@' + (r?.profile?.handle || clean)); }
+    catch (x) {
+      const msg = x.message || 'Could not claim that handle.';
+      if (import.meta.env.DEV && !/taken|3-20|a-z/i.test(msg)) onDone('@' + clean); // offline dev preview
+      else setErr(msg);
+    } finally { setBusy(false); }
+  };
   return (
     <div className="v2-scroll flex flex-col items-center justify-center px-6" style={{ minHeight: '70vh' }}>
       <Logo size={48} />
       <h1 className="text-lg font-bold t-hi mt-4">Join the ClassCost feed</h1>
       <p className="text-[13px] t-mid mb-5 mt-1 text-center max-w-[280px]">Pick a handle other students will find you by. You can change it later.</p>
       <div className="w-full max-w-[320px] space-y-3">
-        <div className="field flex items-center" style={{ gap: 4 }}><span className="t-mid">@</span><input className="flex-1 bg-transparent outline-none t-hi" placeholder="yourname" value={h} onChange={(e) => setH(e.target.value)} autoFocus /></div>
+        <div className="field flex items-center" style={{ gap: 4 }}><span className="t-mid">@</span><input className="flex-1 bg-transparent outline-none t-hi" placeholder="yourname" value={h} onChange={(e) => setH(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') claim(); }} autoFocus /></div>
         {clean && <p className="text-[12px] t-lo">Your handle: <span className="t-accent font-medium">@{clean}</span></p>}
-        <button className="btn btn-primary" disabled={clean.length < 3} onClick={() => onDone('@' + clean)}>Claim @{clean || 'handle'}</button>
-        <p className="text-[11px] t-lo text-center">Availability check + your public profile go live with the feed backend (next step).</p>
+        <button className="btn btn-primary" disabled={clean.length < 3 || busy} onClick={claim}>{busy ? 'Claiming…' : `Claim @${clean || 'handle'}`}</button>
+        {err && <p className="text-[12px] text-center" style={{ color: '#ef4444' }}>{err}</p>}
       </div>
     </div>
   );
@@ -752,40 +777,68 @@ function FeedProfilePane({ handle, name, initial }) {
         <p className="text-lg font-bold t-hi">{name || 'Student'}</p>
         <p className="text-[13px] t-accent">{handle}</p>
         <div className="flex gap-7 mt-3">
-          {[['0', 'posts'], ['0', 'followers'], ['0', 'following']].map(([n, l]) => (<div key={l} className="text-center"><p className="font-bold t-hi">{n}</p><p className="text-[11px] t-mid">{l}</p></div>))}
+          {[['—', 'posts'], ['—', 'followers'], ['—', 'following']].map(([n, l]) => (<div key={l} className="text-center"><p className="font-bold t-hi">{n}</p><p className="text-[11px] t-mid">{l}</p></div>))}
         </div>
       </div>
-      <div className="card p-6 text-center"><div className="text-3xl mb-2">📸</div><p className="text-[13px] t-mid">Your posts show here. Sharing + followers go live when the feed backend ships.</p></div>
+      <div className="card p-6 text-center"><div className="text-3xl mb-2">📸</div><p className="text-[13px] t-mid">Your posts + followers show here. Full profile stats arrive in 4C.</p></div>
     </div>
   );
 }
-function FeedListPane({ onCompose }) {
+function FeedPostCard({ p }) {
+  const initial = (p.displayName || p.handle || 'S').trim().charAt(0).toUpperCase();
   return (
-    <div className="py-2 space-y-3">
-      <div className="card p-6 text-center"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">The feed is almost here</p><p className="text-[13px] t-mid mb-3">Posts, likes, comments and follows switch on with the feed backend. This is the live layout.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>
-      {[1, 2].map((i) => (
-        <div key={i} className="card p-4 opacity-50">
-          <div className="flex items-center gap-2.5 mb-3"><span className="w-9 h-9 rounded-full" style={{ background: 'var(--pill-bg)' }} /><div><div className="h-2.5 w-24 rounded-full" style={{ background: 'var(--pill-bg)' }} /><div className="h-2 w-16 rounded-full mt-1.5" style={{ background: 'var(--pill-bg)' }} /></div></div>
-          <div className="h-2.5 w-full rounded-full mb-2" style={{ background: 'var(--pill-bg)' }} /><div className="h-2.5 w-2/3 rounded-full" style={{ background: 'var(--pill-bg)' }} />
-          <div className="flex gap-4 mt-3 t-lo"><Heart size={16} /><MessageCircle size={16} /><Share2 size={16} /></div>
-        </div>
-      ))}
+    <div className="card p-4">
+      <div className="flex items-center gap-2.5 mb-2.5">
+        <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
+        <div className="min-w-0 flex-1"><p className="text-[13px] font-semibold t-hi truncate">{p.displayName || ('@' + p.handle)}</p><p className="text-[11px] t-lo">@{p.handle} · {timeAgo(p.createdAt)}</p></div>
+      </div>
+      {p.text && <p className="text-[14px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
+      {p.imageUrl && <img src={p.imageUrl} alt="" className="rounded-xl w-full mb-2" />}
+      <div className="flex gap-4 mt-1 t-mid text-[12px]">
+        <span className="flex items-center gap-1"><Heart size={15} style={p.likedByMe ? { color: '#ef4444', fill: '#ef4444' } : undefined} />{p.likes || 0}</span>
+        <span className="flex items-center gap-1"><MessageCircle size={15} />{p.comments || 0}</span>
+        <span className="flex items-center gap-1"><Share2 size={15} /></span>
+      </div>
     </div>
   );
 }
-function FeedComposePane({ handle, onDone }) {
+function FeedListPane({ reloadKey, onCompose }) {
+  const [st, setSt] = useState({ loading: true, posts: [], error: '' });
+  useEffect(() => {
+    let on = true;
+    setSt((s) => ({ ...s, loading: true, error: '' }));
+    listFeedPosts().then((r) => { if (on) setSt({ loading: false, posts: r?.posts || [], error: '' }); })
+      .catch((x) => { if (on) setSt({ loading: false, posts: [], error: x.message || 'offline' }); });
+    return () => { on = false; };
+  }, [reloadKey]);
+  if (st.loading) return <div className="py-12 text-center text-[13px] t-mid">Loading the feed…</div>;
+  if (st.error) return <div className="card p-6 text-center mt-2"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
+  if (!st.posts.length) return <div className="card p-6 text-center mt-2"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">Quiet in here</p><p className="text-[13px] t-mid mb-3">No posts yet — start the conversation.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>;
+  return <div className="py-2 space-y-3">{st.posts.map((p) => <FeedPostCard key={p.id} p={p} />)}</div>;
+}
+function FeedComposePane({ handle, onPosted }) {
   const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const post = async () => {
+    if (!text.trim() || busy) return;
+    setBusy(true); setErr('');
+    try { await createFeedPost(text.trim()); setText(''); onPosted(); }
+    catch (x) { setErr(x.message || 'Could not post. Is the server live?'); }
+    finally { setBusy(false); }
+  };
   return (
     <div className="py-2">
       <div className="card p-4">
         <p className="text-[13px] t-accent font-medium mb-3">{handle}</p>
         <textarea className="field" rows={5} placeholder="Share something with your campus…" value={text} onChange={(e) => setText(e.target.value)} style={{ resize: 'none' }} />
         <div className="flex items-center gap-2 mt-3">
-          <button className="minibtn btn-ghost" style={{ width: 'auto', padding: '.5rem .8rem' }} disabled><ImageIcon size={15} className="inline mr-1" />Photo</button>
-          <button className="btn btn-primary" style={{ width: 'auto', marginLeft: 'auto', padding: '.6rem 1.2rem' }} disabled={!text.trim()} onClick={() => { window.alert('Posting goes live with the feed backend (Phase 4B) — your layout is ready!'); onDone(); }}>Post</button>
+          <button className="minibtn btn-ghost" style={{ width: 'auto', padding: '.5rem .8rem' }} disabled title="Photos arrive in 4D"><ImageIcon size={15} className="inline mr-1" />Photo</button>
+          <button className="btn btn-primary" style={{ width: 'auto', marginLeft: 'auto', padding: '.6rem 1.2rem' }} disabled={!text.trim() || busy} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
         </div>
+        {err && <p className="text-[12px] mt-2" style={{ color: '#ef4444' }}>{err}</p>}
       </div>
-      <p className="text-[11px] t-lo text-center mt-3">Photos upload to host storage · all posts are public · a report system keeps it safe.</p>
+      <p className="text-[11px] t-lo text-center mt-3">Photos upload in 4D · all posts are public · a report system keeps it safe.</p>
     </div>
   );
 }

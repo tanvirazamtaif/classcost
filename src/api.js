@@ -192,6 +192,30 @@ export async function saveV2Data(userId, data) {
   });
 }
 
+// ── Student feed (Phase 4) ────────────────────────────────────────────────────
+
+export async function getMyFeedProfile() {
+  return request('/api/feed/profile/me');
+}
+
+export async function claimHandle(handle, displayName) {
+  return request('/api/feed/profile', {
+    method: 'POST',
+    body: JSON.stringify({ handle, displayName }),
+  });
+}
+
+export async function listFeedPosts(cursor) {
+  return request(`/api/feed/posts${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);
+}
+
+export async function createFeedPost(text, imageUrl) {
+  return request('/api/feed/posts', {
+    method: 'POST',
+    body: JSON.stringify({ text, imageUrl }),
+  });
+}
+
 // ── Education Fees ─────────────────────────────────────────────────────────
 
 export async function getEducationFees(userId) {

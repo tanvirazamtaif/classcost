@@ -58,6 +58,7 @@ model User {
   trustedCircles      TrustedCircle[]     @relation("CircleOwner")
   identityLayers      IdentityLayer[]
   v2Document          V2Document?
+  feedProfile         FeedProfile?
 }
 
 // ClassCost v2 — the entire spaces→blocks→dues tree stored as ONE JSON document per user.
@@ -69,6 +70,83 @@ model V2Document {
   version   Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── STUDENT FEED (Phase 4) ────────────────────────────────────────────────
+model FeedProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handle      String   @unique
+  displayName String?
+  bio         String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts FeedPost[]
+
+  @@index([handle])
+}
+
+model FeedPost {
+  id        String      @id @default(cuid())
+  authorId  String // FeedProfile.userId
+  author    FeedProfile @relation(fields: [authorId], references: [userId], onDelete: Cascade)
+  text      String
+  imageUrl  String?
+  createdAt DateTime    @default(now())
+
+  likes    FeedLike[]
+  comments FeedComment[]
+
+  @@index([authorId, createdAt])
+  @@index([createdAt])
+}
+
+model FeedLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model FeedComment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+}
+
+model FeedFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
+}
+
+model FeedReport {
+  id         String   @id @default(cuid())
+  targetType String // post | comment
+  targetId   String
+  reporterId String
+  reason     String?
+  status     String   @default("open") // open | reviewed | removed
+  createdAt  DateTime @default(now())
+
+  @@index([status])
 }
 
 model PromoCode {
