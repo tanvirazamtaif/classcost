@@ -123,7 +123,7 @@ export function V2Landing({ onGuest }) {
   const card = { background: 'rgba(24,31,72,.85)', backdropFilter: 'blur(16px)', border: `1px solid ${BORDER}` };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: 'radial-gradient(130% 110% at 50% 0%, #0A143F 38%, #05091E 100%)', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+    <div className="min-h-screen relative overflow-hidden" style={{ background: 'radial-gradient(120% 100% at 50% 8%, #16224C 0%, #0A143F 50%, #05091F 100%)', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
       {/* warm + soft glows (no more indigo/pink) */}
       <div className="absolute top-[-200px] left-[18%] w-[700px] h-[700px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(242,239,230,.10), transparent 60%)' }} />
       <div className="absolute bottom-[-200px] right-[-5%] w-[600px] h-[600px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(122,140,210,.10), transparent 60%)' }} />

@@ -7,7 +7,7 @@ import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, sta
 // ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
 // neutrals + one accent that inverts per mode (navy-on-cream / cream-on-navy) + muted gold.
 const v2Palette = (d) => d ? {
-  bg: '#0A143F', card: '#0F1A48', border: 'rgba(255,255,255,0.14)',
+  bg: 'radial-gradient(120% 100% at 50% 8%, #16224C 0%, #0A143F 50%, #05091F 100%)', card: '#0F1A48', border: 'rgba(255,255,255,0.14)',
   accent: '#F2EFE6', accentText: '#0A143F', accentLight: 'rgba(242,239,230,.12)', gold: '#F2EFE6',
   text1: '#F2EFE6', text2: '#A6ABC6', text3: '#6E7596',
   heroBg: '#0F1A48', heroBorder: 'rgba(255,255,255,.16)',
