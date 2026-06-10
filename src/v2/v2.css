@@ -8,7 +8,7 @@
   --hero-bg: #FFFFFF; --hero-border: #16181F;
   --pill-bg: #EEEDE7; --nav-bg: rgba(245,244,240,.95); --sheet-bg: #FFFFFF; --card-shadow: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; -webkit-font-smoothing: antialiased;
-  background: var(--bg); color: var(--text1); min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative;
+  background: var(--bg); color: var(--text1); min-height: 100vh; position: relative; width: 100%;
   transition: background .2s ease, color .2s ease;
 }
 .v2-app *, .v2-nav * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -77,3 +77,18 @@
 .v2-switch[data-on="1"] { background: var(--accent); }
 .v2-knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .18s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 .v2-switch[data-on="1"] .v2-knob { transform: translateX(18px); }
+
+/* ── the content column (centered); on mobile it's the whole app ── */
+.v2-main { max-width: 480px; margin: 0 auto; position: relative; }
+
+/* ── desktop (≥1024px): left sidebar + centered column + right rail ── */
+.v2-desk { display: none; }
+@media (min-width: 1024px) {
+  .v2-nav { display: none; }
+  .v2-desk { display: flex; flex-direction: column; overflow-y: auto; }
+  .v2-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 240px; padding: 1.4rem 1rem; background: var(--sheet-bg); border-right: 2px solid var(--border); z-index: 35; }
+  .v2-rail { position: fixed; top: 0; right: 0; bottom: 0; width: 240px; padding: 1.4rem 1rem; gap: 1rem; z-index: 30; }
+  .v2-deskitem { display: flex; align-items: center; gap: .7rem; padding: .6rem .75rem; border-radius: .75rem; font-size: .88rem; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--text2); width: 100%; text-align: left; margin-bottom: 2px; transition: background .12s, color .12s; }
+  .v2-deskitem:hover { background: var(--pill-bg); color: var(--text1); }
+  .v2-deskitem.active { background: var(--accent); color: var(--accent-text); }
+}

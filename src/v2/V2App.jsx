@@ -1280,17 +1280,51 @@ function Shell() {
   const authed = !!user?.id || guest;
   const guestBtn = import.meta.env.DEV ? () => { try { localStorage.setItem('cc_v2_guest', '1'); } catch { /* ignore */ } setGuest(true); } : null;
   if (!authed) return <V2Landing onGuest={guestBtn} />;
+  const navItems = [['home', HomeIcon, 'Home'], ['calendar', CalendarDays, 'Calendar'], ['feed', Newspaper, 'Feed'], ['reports', BarChart3, 'Reports'], ['settings', SettingsIcon, 'Settings']];
+  const firstName = (user?.name || 'there').trim().split(' ')[0];
+  const initial = (user?.name || 'S').trim().charAt(0).toUpperCase();
   return (
     <div className="v2-app" style={vars}>
-      {screen}
+      {/* desktop left sidebar */}
+      <aside className="v2-desk v2-sidebar">
+        <div className="flex items-center gap-2.5 px-1 mb-6"><Logo size={30} /><span className="text-[18px] font-bold t-hi t-serif">ClassCost</span></div>
+        {navItems.map(([v, Icon, label]) => (
+          <button key={v} className={`v2-deskitem ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><Icon size={18} />{label}</button>
+        ))}
+        <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => nav('create')}>+ New cost</button>
+        <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+          <button className="v2-deskitem" style={{ border: '1.5px solid var(--border)' }} onClick={() => nav('profile')}>
+            <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
+            <span className="truncate">{user?.name || 'Student'}</span>
+          </button>
+          <button className="v2-deskitem" onClick={toggleTheme}>{d ? <Sun size={18} /> : <Moon size={18} />}{d ? 'Light mode' : 'Dark mode'}</button>
+        </div>
+      </aside>
+
+      {/* centered content column */}
+      <div className="v2-main">{screen}</div>
       <Leeboon nav={nav} d={d} />
+
+      {/* desktop right rail */}
+      <aside className="v2-desk v2-rail">
+        <div className="card p-4">
+          <p className="font-bold t-hi t-serif text-[15px]">Hi, {firstName} 👋</p>
+          <p className="text-[12px] t-mid mt-1">Your education money, sorted.</p>
+        </div>
+        <div className="card p-3">
+          <p className="text-[10px] uppercase tracking-wide t-lo mb-1 px-1">Quick actions</p>
+          <button className="v2-deskitem" onClick={() => nav('create')}><Plus size={16} />New cost block</button>
+          <button className="v2-deskitem" onClick={() => tab('feed')}><Newspaper size={16} />Open feed</button>
+          <button className="v2-deskitem" onClick={() => tab('reports')}><BarChart3 size={16} />Reports</button>
+        </div>
+      </aside>
+
+      {/* mobile bottom nav */}
       <nav className="v2-nav">
         <div className="v2-navrow">
-          <button className={`v2-navbtn ${homeActive ? 'active' : ''}`} onClick={() => tab('home')}><HomeIcon size={20} strokeWidth={2} />Home</button>
-          <button className={`v2-navbtn ${view === 'calendar' ? 'active' : ''}`} onClick={() => tab('calendar')}><CalendarDays size={20} strokeWidth={2} />Calendar</button>
-          <button className={`v2-navbtn ${view === 'feed' ? 'active' : ''}`} onClick={() => tab('feed')}><Newspaper size={20} strokeWidth={2} />Feed</button>
-          <button className={`v2-navbtn ${view === 'reports' ? 'active' : ''}`} onClick={() => tab('reports')}><BarChart3 size={20} strokeWidth={2} />Reports</button>
-          <button className={`v2-navbtn ${view === 'settings' ? 'active' : ''}`} onClick={() => tab('settings')}><SettingsIcon size={20} strokeWidth={2} />Settings</button>
+          {navItems.map(([v, Icon, label]) => (
+            <button key={v} className={`v2-navbtn ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><Icon size={20} strokeWidth={2} />{label}</button>
+          ))}
         </div>
       </nav>
     </div>
