@@ -228,6 +228,11 @@ export async function getUserPosts(handle) { return request(`/api/feed/profile/u
 export async function uploadFeedImage(file) { return request('/api/feed/upload', { method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file }); }
 export async function reportContent(targetType, targetId, reason) { return request('/api/feed/report', { method: 'POST', body: JSON.stringify({ targetType, targetId, reason }) }); }
 
+// Direct messages
+export async function listConversations() { return request('/api/feed/dm'); }
+export async function getThread(handle) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`); }
+export async function sendDm(handle, text) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`, { method: 'POST', body: JSON.stringify({ text }) }); }
+
 // ── Education Fees ─────────────────────────────────────────────────────────
 
 export async function getEducationFees(userId) {

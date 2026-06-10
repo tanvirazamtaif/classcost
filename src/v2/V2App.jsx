@@ -1,35 +1,35 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute } from './engine';
 // ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
 // neutrals + one accent that inverts per mode (navy-on-cream / cream-on-navy) + muted gold.
 const v2Palette = (d) => d ? {
-  bg: 'radial-gradient(120% 100% at 50% 8%, #16224C 0%, #0A143F 50%, #05091F 100%)', card: '#0F1A48', border: 'rgba(255,255,255,0.14)',
+  bg: '#101228', card: '#15193C', border: 'rgba(255,255,255,0.14)',
   accent: '#F2EFE6', accentText: '#0A143F', accentLight: 'rgba(242,239,230,.12)', gold: '#F2EFE6',
   text1: '#F2EFE6', text2: '#A6ABC6', text3: '#6E7596',
   heroBg: '#0F1A48', heroBorder: 'rgba(255,255,255,.16)',
   pillBg: '#0F1A48', navBg: 'rgba(5,9,28,.92)', sheetBg: '#0F1A48', cardShadow: 'none',
 } : {
-  bg: '#F2EFE6', card: '#FFFFFF', border: 'rgba(10,20,63,0.12)',
+  bg: '#F5F4F0', card: '#FFFFFF', border: '#16181F',
   accent: '#0A143F', accentText: '#FFFFFF', accentLight: 'rgba(10,20,63,.07)', gold: '#0A143F',
   text1: '#0A143F', text2: '#5C6178', text3: '#9499A6',
-  heroBg: '#FFFFFF', heroBorder: 'rgba(10,20,63,.12)',
-  pillBg: '#ECE7DA', navBg: 'rgba(242,239,230,.92)', sheetBg: '#FFFFFF', cardShadow: '0 1px 2px rgba(10,20,63,.07)',
+  heroBg: '#FFFFFF', heroBorder: '#16181F',
+  pillBg: '#EEEDE7', navBg: 'rgba(245,244,240,.95)', sheetBg: '#FFFFFF', cardShadow: 'none',
 };
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
 /* ---------------- shared UI ---------------- */
 function Header({ title, crumb, onBack }) {
   return (
-    <header className="sticky top-0 z-20 px-4 py-3" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
+    <header className="sticky top-0 z-20 px-4 py-3" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', borderBottom: '1.5px solid var(--border)' }}>
       <div className="flex items-center gap-2.5">
         {onBack && <button onClick={onBack} className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center t-mid" aria-label="Back"><ChevronLeft size={20} /></button>}
         <div className="min-w-0">{crumb && <p className="text-[11px] t-lo truncate">{crumb}</p>}<h1 className="text-lg font-semibold t-hi truncate">{title}</h1></div>
@@ -114,7 +114,7 @@ function Home({ nav, tab, d }) {
       </header>
       <div className="px-4">
         {/* hero (matches v1 DashboardV3) */}
-        <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
+        <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '2px solid var(--hero-border)' }}>
           <div className="grid grid-cols-2 gap-4">
             <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
             <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
@@ -140,7 +140,7 @@ function Home({ nav, tab, d }) {
 
         {/* spaces — one big box */}
         <h2 className="text-sm font-semibold t-hi mb-2">Your spaces</h2>
-        <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
+        <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '2px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
           {tops.map((s, i) => {
             const mo = monthTotal(spaceDues(s));
             return (
@@ -211,30 +211,38 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
   return (
     <div className="v2-drawer-backdrop" onClick={onClose}>
       <aside className="v2-drawer" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2.5 mb-5 px-1.5"><Logo size={30} /><span className="text-[17px] font-bold t-hi t-serif">ClassCost</span></div>
-        <button className="w-full text-left flex items-center gap-3 mb-5 rounded-lg" onClick={() => go(() => nav('profile'))}>
-          <span className="w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
-          <div className="min-w-0"><p className="font-semibold t-hi truncate">{user?.name || 'Student'}</p><p className="text-[11px] t-mid truncate">{user?.email || 'View profile'}</p></div>
+        {/* masthead */}
+        <div className="flex items-center gap-2.5 pb-3 mb-4 px-0.5" style={{ borderBottom: '2px solid var(--border)' }}><Logo size={30} /><span className="text-[17px] font-bold t-hi t-serif">ClassCost</span></div>
+
+        {/* profile — framed */}
+        <button className="w-full text-left flex items-center gap-3 p-2.5 mb-5" onClick={() => go(() => nav('profile'))} style={{ border: '2px solid var(--border)', borderRadius: 12, background: 'var(--card)' }}>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-base font-semibold shrink-0" style={{ background: '#22c55e', border: '2px solid var(--border)' }}>{initial}</span>
+          <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{user?.name || 'Student'}</p><p className="text-[11px] t-mid truncate">{user?.email || 'View profile'}</p></div>
+          <ChevronRight size={16} className="t-lo shrink-0" />
         </button>
-        <p className="text-[10px] uppercase tracking-wide t-lo mb-2 px-1.5">Spaces</p>
-        <div className="space-y-0.5 mb-4">
-          {spaces.length === 0 && <p className="text-[12px] t-mid px-1.5 py-2">No spaces yet.</p>}
+
+        {/* spaces — framed group */}
+        <p className="text-[10px] uppercase tracking-[0.14em] font-bold t-mid mb-2 px-0.5">Spaces</p>
+        <div className="mb-5" style={{ border: '2px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          {spaces.length === 0 && <p className="text-[12px] t-mid px-3 py-3">No spaces yet.</p>}
           {SPACE_GROUPS.flatMap((g) => spaces.filter((s) => g.types.includes(s.type)).map((s) => (
-            <button key={s.id} className="w-full text-left flex items-center gap-3 px-1.5 py-2 rounded-lg" onClick={() => go(() => nav(s.type, { spaceId: s.id }))}>
-              <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: 'var(--accent-light)' }}>{s.icon}</span>
-              <div className="flex-1 min-w-0"><p className="text-[13px] font-medium t-hi truncate">{s.name}</p><p className="text-[10px] t-lo">{g.label}</p></div>
+            <button key={s.id} className="w-full text-left flex items-center gap-3 px-3 py-2.5" style={{ borderBottom: '1.5px solid var(--border)' }} onClick={() => go(() => nav(s.type, { spaceId: s.id }))}>
+              <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px solid var(--border)' }}>{s.icon}</span>
+              <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold t-hi truncate">{s.name}</p><p className="text-[10px] t-lo">{g.label}</p></div>
             </button>
           )))}
-          <button className="w-full text-left flex items-center gap-3 px-1.5 py-2 rounded-lg" onClick={() => go(() => nav('create'))}>
-            <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)' }}><Plus size={16} className="t-accent" /></span>
-            <span className="text-[13px] font-medium t-accent">Create space</span>
+          <button className="w-full text-left flex items-center gap-3 px-3 py-2.5" onClick={() => go(() => nav('create'))}>
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px dashed var(--border)' }}><Plus size={16} className="t-accent" /></span>
+            <span className="text-[13px] font-semibold t-accent">Create space</span>
           </button>
         </div>
-        <p className="text-[10px] uppercase tracking-wide t-lo mb-2 px-1.5">Go to</p>
-        <div className="space-y-0.5">
-          {sections.map(({ v, label, Icon }) => (
-            <button key={v} className="w-full text-left flex items-center gap-3 px-1.5 py-2 rounded-lg t-hi" onClick={() => go(() => tab(v))}>
-              <Icon size={18} className="t-mid" /><span className="text-[13px] font-medium">{label}</span>
+
+        {/* go to — framed group */}
+        <p className="text-[10px] uppercase tracking-[0.14em] font-bold t-mid mb-2 px-0.5">Go to</p>
+        <div style={{ border: '2px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          {sections.map(({ v, label, Icon }, i) => (
+            <button key={v} className="w-full text-left flex items-center gap-3 px-3 py-2.5 t-hi" style={i < sections.length - 1 ? { borderBottom: '1.5px solid var(--border)' } : undefined} onClick={() => go(() => tab(v))}>
+              <Icon size={18} className="t-mid" /><span className="text-[13px] font-semibold">{label}</span>
             </button>
           ))}
         </div>
@@ -723,11 +731,14 @@ const timeAgo = (d) => {
 function FeedScreen() {
   const { user } = useV2();
   const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
-  const [pane, setPane] = useState(1); // 0 profile · 1 feed · 2 compose
+  const [pane, setPane] = useState(1); // 0 profile · 1 feed · 2 messages
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
   const [viewHandle, setViewHandle] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState('browse'); // browse | dm
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [dmHandle, setDmHandle] = useState(null);
   const startX = useRef(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
@@ -740,25 +751,40 @@ function FeedScreen() {
   const go = (p) => setPane(Math.max(0, Math.min(2, p)));
   const onComment = (p) => setCommentsFor(p);
   const onAuthor = (h) => setViewHandle(h);
+  const openSearch = (mode) => { setSearchMode(mode); setSearchOpen(true); };
+  const TABS = [{ i: 0, label: 'Profile', Icon: User }, { i: 1, label: 'Feed', Icon: Newspaper }, { i: 2, label: 'Messages', Icon: MessageCircle }];
   return (
-    <div className="v2-scroll" style={{ overflowX: 'hidden' }}>
+    <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: 124 }}>
       <header className="px-4 pt-5 pb-3 flex items-center gap-2.5">
-        <button onClick={() => go(0)} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e' }} aria-label="Your profile">{initial}</button>
+        <button onClick={() => go(0)} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e', border: '1.5px solid var(--border)' }} aria-label="Your profile">{initial}</button>
         <button onClick={() => go(1)} className="flex-1 flex items-center justify-center gap-2"><Logo size={22} /><span className="font-bold t-hi">Feed</span></button>
-        <button onClick={() => go(2)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="New post"><PenSquare size={17} /></button>
-        <button onClick={() => setSearchOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
+        <button onClick={() => setComposeOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '1.5px solid var(--border)' }} aria-label="New post"><PenSquare size={17} /></button>
+        <button onClick={() => openSearch('browse')} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '1.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
       </header>
       <div onPointerDown={(e) => { startX.current = e.clientX; }} onPointerUp={(e) => { const dx = e.clientX - startX.current; if (dx < -55 && pane < 2) go(pane + 1); else if (dx > 55 && pane > 0) go(pane - 1); }} style={{ overflow: 'hidden' }}>
-        <motion.div className="flex" style={{ width: '300%' }} animate={{ x: `-${pane * (100 / 3)}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
-          <div style={{ width: '33.3333%' }} className="px-2"><FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} /></div>
-          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane reloadKey={reloadKey} onCompose={() => go(2)} onComment={onComment} onAuthor={onAuthor} /></div>
-          <div style={{ width: '33.3333%' }} className="px-4"><FeedComposePane handle={handle} onPosted={() => { setReloadKey((k) => k + 1); go(1); }} /></div>
+        <motion.div className="flex items-start" style={{ width: '300%' }} animate={{ x: `-${pane * (100 / 3)}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
+          <div style={{ width: '33.3333%' }} className="px-2"><FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={(h) => setDmHandle(h)} /></div>
+          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane reloadKey={reloadKey} onCompose={() => setComposeOpen(true)} onComment={onComment} onAuthor={onAuthor} /></div>
+          <div style={{ width: '33.3333%' }} className="px-4"><DMPane active={pane === 2} reloadKey={reloadKey} onOpenThread={(h) => setDmHandle(h)} onFind={() => openSearch('dm')} /></div>
         </motion.div>
       </div>
-      <div className="flex justify-center gap-1.5 mt-4">{['Profile', 'Feed', 'Post'].map((l, i) => (<button key={i} onClick={() => go(i)} className="rounded-full" style={{ width: pane === i ? 18 : 6, height: 6, background: pane === i ? 'var(--accent)' : 'var(--border)', transition: 'all .2s' }} aria-label={l} />))}</div>
-      {searchOpen && <FeedSearch onClose={() => setSearchOpen(false)} onOpen={(h) => { setSearchOpen(false); setViewHandle(h); }} />}
+
+      {/* secondary footer — feed page switcher (replaces the dots) */}
+      <div className="fixed left-0 right-0 z-[41]" style={{ bottom: 52, maxWidth: 480, margin: '0 auto' }}>
+        <div className="flex" style={{ background: 'var(--sheet-bg)', borderTop: '2px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+          {TABS.map(({ i, label, Icon }) => (
+            <button key={i} onClick={() => go(i)} className="flex-1 flex flex-col items-center gap-0.5 py-2" style={{ background: pane === i ? 'var(--accent)' : 'transparent', color: pane === i ? 'var(--accent-text)' : 'var(--text2)', borderLeft: i ? '1.5px solid var(--border)' : undefined, transition: 'background .15s' }}>
+              <Icon size={17} /><span className="text-[10px] font-semibold tracking-wide">{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {searchOpen && <FeedSearch title={searchMode === 'dm' ? 'New message' : 'Search people'} onClose={() => setSearchOpen(false)} onOpen={(h) => { setSearchOpen(false); if (searchMode === 'dm') setDmHandle(h); else setViewHandle(h); }} />}
+      {composeOpen && <ComposeSheet handle={handle} onClose={() => setComposeOpen(false)} onPosted={() => { setComposeOpen(false); setReloadKey((k) => k + 1); go(1); }} />}
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={(h) => { setCommentsFor(null); setViewHandle(h); }} />}
-      {viewHandle && <FeedProfileView handle={viewHandle} onClose={() => setViewHandle(null)} onComment={onComment} onAuthor={(h) => setViewHandle(h)} />}
+      {viewHandle && <FeedProfileView handle={viewHandle} onClose={() => setViewHandle(null)} onComment={onComment} onAuthor={(h) => setViewHandle(h)} onMessage={(h) => { setViewHandle(null); setDmHandle(h); }} />}
+      {dmHandle && <DMThread handle={dmHandle} onClose={() => setDmHandle(null)} onSent={() => setReloadKey((k) => k + 1)} />}
     </div>
   );
 }
@@ -791,7 +817,7 @@ function FeedOnboard({ onDone }) {
     </div>
   );
 }
-function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor }) {
+function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage }) {
   const h = (handle || '').replace('@', '');
   const [prof, setProf] = useState(null);
   const [posts, setPosts] = useState(null);
@@ -812,17 +838,27 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor }) {
   const body = (
     <div className="py-3">
       <div className="flex flex-col items-center text-center mb-4 px-2">
-        <span className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-3" style={{ background: '#22c55e' }}>{initial}</span>
+        <span className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-3" style={{ background: '#22c55e', border: '2px solid var(--border)' }}>{initial}</span>
         <p className="text-lg font-bold t-hi">{prof?.displayName || ('@' + h)}</p>
         <p className="text-[13px] t-accent">@{h}</p>
         {prof?.bio && <p className="text-[12px] t-mid mt-1 max-w-[260px]">{prof.bio}</p>}
-        <div className="flex gap-7 mt-3">
-          {[[prof?.counts?.posts, 'posts'], [prof?.counts?.followers, 'followers'], [prof?.counts?.following, 'following']].map(([n, l]) => (<div key={l} className="text-center"><p className="font-bold t-hi">{n ?? '—'}</p><p className="text-[11px] t-mid">{l}</p></div>))}
+        <div className="flex mt-4 w-full max-w-[280px]" style={{ border: '2px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          {[[prof?.counts?.posts ?? 0, 'posts'], [prof?.counts?.followers ?? 0, 'followers'], [prof?.counts?.following ?? 0, 'following']].map(([n, l], i) => (
+            <div key={l} className="flex-1 py-2.5" style={i < 2 ? { borderRight: '1.5px solid var(--border)' } : undefined}>
+              <p className="font-bold t-hi text-[16px]">{n}</p>
+              <p className="text-[10px] uppercase tracking-wide t-mid mt-0.5">{l}</p>
+            </div>
+          ))}
         </div>
-        {prof && !prof.isMe && <button className={`btn ${following ? 'btn-ghost' : 'btn-primary'} mt-4`} style={{ maxWidth: 200 }} onClick={toggleFollow}>{following ? 'Following' : 'Follow'}</button>}
+        {prof && !prof.isMe && (
+          <div className="flex gap-2 mt-4 w-full max-w-[280px]">
+            <button className={`btn ${following ? 'btn-ghost' : 'btn-primary'}`} onClick={toggleFollow}>{following ? 'Following' : 'Follow'}</button>
+            {onMessage && <button className="btn btn-ghost flex items-center justify-center gap-1.5" onClick={() => onMessage('@' + h)}><MessageCircle size={15} /> Message</button>}
+          </div>
+        )}
       </div>
       <div className="px-2 space-y-3">
-        {err && <div className="card p-6 text-center text-[13px] t-mid">Couldn't load this profile{import.meta.env.DEV ? ' — no backend in local dev.' : '.'}</div>}
+        {err && <div className="card p-6 text-center"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>}
         {!err && posts && posts.length === 0 && <div className="card p-6 text-center text-[13px] t-mid">No posts yet.</div>}
         {posts && posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} />)}
       </div>
@@ -872,7 +908,7 @@ function FeedComments({ post, onClose, onAuthor }) {
     </div>
   );
 }
-function FeedSearch({ onClose, onOpen }) {
+function FeedSearch({ onClose, onOpen, title }) {
   const [q, setQ] = useState('');
   const [st, setSt] = useState({ loading: false, users: [] });
   useEffect(() => {
@@ -885,6 +921,7 @@ function FeedSearch({ onClose, onOpen }) {
   return (
     <div className="v2-backdrop" onClick={onClose}>
       <div className="v2-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+        {title && <p className="font-bold t-hi mb-2">{title}</p>}
         <div className="flex items-center gap-2 mb-3"><Search size={18} className="t-mid shrink-0" /><input className="field" placeholder="Search @handles…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus /><button className="text-[13px] t-mid shrink-0" onClick={onClose}>Close</button></div>
         <div className="flex-1 overflow-y-auto" style={{ minHeight: 120 }}>
           {st.loading ? <p className="text-[13px] t-mid text-center py-6">Searching…</p>
@@ -966,7 +1003,7 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
   if (!st.posts.length) return <div className="card p-6 text-center mt-2"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">Quiet in here</p><p className="text-[13px] t-mid mb-3">No posts yet — start the conversation.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>;
   return <div className="py-2 space-y-3">{st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} />)}</div>;
 }
-function FeedComposePane({ handle, onPosted }) {
+function ComposeSheet({ handle, onClose, onPosted }) {
   const [text, setText] = useState('');
   const [img, setImg] = useState(null); // { url, preview }
   const [busy, setBusy] = useState(false);
@@ -989,10 +1026,11 @@ function FeedComposePane({ handle, onPosted }) {
     finally { setBusy(false); }
   };
   return (
-    <div className="py-2">
-      <div className="card p-4">
-        <p className="text-[13px] t-accent font-medium mb-3">{handle}</p>
-        <textarea className="field" rows={4} placeholder="Share something with your campus…" value={text} onChange={(e) => setText(e.target.value)} style={{ resize: 'none' }} />
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-3"><PenSquare size={17} className="t-mid shrink-0" /><p className="font-bold t-hi flex-1">New post</p><button className="text-[13px] t-mid shrink-0" onClick={onClose}>Close</button></div>
+        <p className="text-[12px] t-accent font-medium mb-2">{handle}</p>
+        <textarea className="field" rows={4} placeholder="Share something with your campus…" value={text} onChange={(e) => setText(e.target.value)} style={{ resize: 'none' }} autoFocus />
         {img && <div className="relative mt-3"><img src={img.preview} alt="" className="rounded-xl w-full" /><button className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-white text-[13px]" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setImg(null)} aria-label="Remove image">✕</button></div>}
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickImage} />
         <div className="flex items-center gap-2 mt-3">
@@ -1000,8 +1038,89 @@ function FeedComposePane({ handle, onPosted }) {
           <button className="btn btn-primary" style={{ width: 'auto', marginLeft: 'auto', padding: '.6rem 1.2rem' }} disabled={(!text.trim() && !img) || busy} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
         </div>
         {err && <p className="text-[12px] mt-2" style={{ color: '#ef4444' }}>{err}</p>}
+        <p className="text-[11px] t-lo text-center mt-3">Photos upload to host storage · all posts are public · a report system keeps it safe.</p>
       </div>
-      <p className="text-[11px] t-lo text-center mt-3">Photos upload to host storage · all posts are public · a report system keeps it safe.</p>
+    </div>
+  );
+}
+
+/* ---------------- direct messages ---------------- */
+function DMPane({ active, reloadKey, onOpenThread, onFind }) {
+  const [st, setSt] = useState({ loading: true, convos: [], err: false });
+  useEffect(() => {
+    let on = true; setSt((s) => ({ ...s, loading: true }));
+    listConversations().then((r) => { if (on) setSt({ loading: false, convos: r?.conversations || [], err: false }); }).catch(() => { if (on) setSt({ loading: false, convos: [], err: true }); });
+    return () => { on = false; };
+  }, [reloadKey, active]);
+  return (
+    <div className="py-2">
+      <button className="btn btn-primary mb-3 flex items-center justify-center gap-2" onClick={onFind}><PenSquare size={15} />New message</button>
+      {st.loading ? <div className="card p-6 text-center text-[13px] t-mid">Loading…</div>
+        : st.err ? <div className="card p-6 text-center"><div className="text-3xl mb-2">✉️</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Messages work once the server is live.' : "Couldn't load messages — try again in a moment."}</p></div>
+          : st.convos.length === 0 ? <div className="card p-8 text-center"><div className="text-4xl mb-2">💬</div><p className="font-semibold t-hi mb-1">No messages yet</p><p className="text-[13px] t-mid mb-3">Reach anyone on ClassCost by their @handle.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onFind}>Find someone</button></div>
+            : <div style={{ border: '2px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+                {st.convos.map((c, i) => (
+                  <button key={c.threadId} className="w-full text-left flex items-center gap-3 px-3 py-3" style={i < st.convos.length - 1 ? { borderBottom: '1.5px solid var(--border)' } : undefined} onClick={() => onOpenThread('@' + c.handle)}>
+                    <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e', border: '1.5px solid var(--border)' }}>{(c.displayName || c.handle).charAt(0).toUpperCase()}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold t-hi truncate">{c.displayName || ('@' + c.handle)}</p>
+                      <p className="text-[12px] t-mid truncate">{c.mine ? 'You: ' : ''}{c.lastText || 'Say hi 👋'}</p>
+                    </div>
+                    <ChevronRight size={16} className="t-lo shrink-0" />
+                  </button>
+                ))}
+              </div>}
+    </div>
+  );
+}
+function DMThread({ handle, onClose, onSent }) {
+  const h = (handle || '').replace('@', '');
+  const [st, setSt] = useState({ loading: true, msgs: [], other: { handle: h }, err: false });
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    let on = true;
+    const load = (silent) => {
+      if (!silent) setSt((s) => ({ ...s, loading: true }));
+      getThread(h).then((r) => { if (on) setSt({ loading: false, msgs: r?.messages || [], other: r?.other || { handle: h }, err: false }); })
+        .catch(() => { if (on) setSt((s) => ({ ...s, loading: false, err: true })); });
+    };
+    load(false);
+    const id = setInterval(() => load(true), 5000);
+    return () => { on = false; clearInterval(id); };
+  }, [h]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [st.msgs.length]);
+  const send = async () => {
+    const t = text.trim(); if (!t || busy) return; setBusy(true);
+    const tmp = { id: 'tmp-' + Date.now(), text: t, mine: true, createdAt: new Date().toISOString(), pending: true };
+    setSt((s) => ({ ...s, msgs: [...s.msgs, tmp] })); setText('');
+    try { const r = await sendDm(h, t); setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? r.message : m)), err: false })); onSent && onSent(); }
+    catch (x) {
+      if (import.meta.env.DEV) { /* keep the bubble locally so DMs are demoable offline */ }
+      else { setSt((s) => ({ ...s, msgs: s.msgs.filter((m) => m.id !== tmp.id) })); window.alert(x.message || 'Could not send'); }
+    } finally { setBusy(false); }
+  };
+  const other = st.other || { handle: h };
+  const title = '@' + (other.handle || h);
+  return (
+    <div className="fixed z-[46] flex flex-col" style={{ inset: 0, background: 'var(--bg)' }}>
+      <div className="flex flex-col" style={{ maxWidth: 480, margin: '0 auto', width: '100%', height: '100%' }}>
+        <Header title={title} onBack={onClose} />
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          {st.loading ? <p className="text-[13px] t-mid text-center py-8">Loading…</p>
+            : st.msgs.length === 0 ? <div className="text-center py-12"><div className="text-4xl mb-2">👋</div><p className="text-[13px] t-mid">Say hi to {other.displayName || title}.</p>{import.meta.env.DEV && <p className="text-[11px] t-lo mt-2">Messages persist once the server is live.</p>}</div>
+              : st.msgs.map((m) => (
+                <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
+                  <div className="max-w-[78%] px-3 py-2 text-[13px]" style={{ background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)', border: '1.5px solid var(--border)', borderRadius: 14, borderBottomRightRadius: m.mine ? 4 : 14, borderBottomLeftRadius: m.mine ? 14 : 4, opacity: m.pending ? 0.6 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.text}</div>
+                </div>
+              ))}
+        </div>
+        <div className="px-3 py-2.5 flex items-center gap-2" style={{ borderTop: '2px solid var(--border)', background: 'var(--sheet-bg)' }}>
+          <input className="field flex-1" placeholder="Message…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
+          <button className="w-11 h-11 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '1.5px solid var(--border)', opacity: (!text.trim() || busy) ? 0.5 : 1 }} disabled={!text.trim() || busy} onClick={send} aria-label="Send"><Send size={17} /></button>
+        </div>
+      </div>
     </div>
   );
 }

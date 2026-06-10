@@ -226,4 +226,84 @@ router.post('/report', async (req, res) => {
   } catch (err) { console.error('report:', err); res.status(500).json({ error: 'Failed to report' }); }
 });
 
+// ── Direct messages ──────────────────────────────────────────────
+const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
+
+// GET /api/feed/dm — my conversations, most recent first
+router.get('/dm', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const threads = await prisma.dmThread.findMany({
+      where: { OR: [{ userAId: userId }, { userBId: userId }] },
+      orderBy: { lastAt: 'desc' },
+      take: 50,
+    });
+    const otherIds = [...new Set(threads.map((t) => (t.userAId === userId ? t.userBId : t.userAId)))];
+    const profs = otherIds.length ? await prisma.feedProfile.findMany({ where: { userId: { in: otherIds } } }) : [];
+    const byId = Object.fromEntries(profs.map((p) => [p.userId, p]));
+    const conversations = [];
+    for (const t of threads) {
+      const otherId = t.userAId === userId ? t.userBId : t.userAId;
+      const p = byId[otherId];
+      if (!p) continue;
+      const last = await prisma.dmMessage.findFirst({ where: { threadId: t.id }, orderBy: { createdAt: 'desc' } });
+      conversations.push({
+        threadId: t.id,
+        handle: p.handle,
+        displayName: p.displayName,
+        lastText: last ? last.text : '',
+        lastAt: last ? last.createdAt : t.lastAt,
+        mine: last ? last.senderId === userId : false,
+      });
+    }
+    res.json({ conversations });
+  } catch (err) { console.error('dm list:', err); res.status(500).json({ error: 'Failed to load conversations' }); }
+});
+
+// GET /api/feed/dm/:handle — open (or create) a thread with @handle + its messages
+router.get('/dm/:handle', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  const handle = normHandle(req.params.handle);
+  try {
+    const other = await prisma.feedProfile.findUnique({ where: { handle } });
+    if (!other) return res.status(404).json({ error: 'No such handle' });
+    if (other.userId === userId) return res.status(400).json({ error: "You can't message yourself" });
+    const [a, b] = orderPair(userId, other.userId);
+    const thread = await prisma.dmThread.upsert({
+      where: { userAId_userBId: { userAId: a, userBId: b } },
+      update: {},
+      create: { userAId: a, userBId: b },
+    });
+    const messages = await prisma.dmMessage.findMany({ where: { threadId: thread.id }, orderBy: { createdAt: 'asc' }, take: 300 });
+    res.json({
+      threadId: thread.id,
+      other: { handle: other.handle, displayName: other.displayName },
+      messages: messages.map((m) => ({ id: m.id, text: m.text, mine: m.senderId === userId, createdAt: m.createdAt })),
+    });
+  } catch (err) { console.error('dm open:', err); res.status(500).json({ error: 'Failed to open conversation' }); }
+});
+
+// POST /api/feed/dm/:handle  { text } — send a message to @handle
+router.post('/dm/:handle', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  const handle = normHandle(req.params.handle);
+  const text = String(req.body.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Message is empty' });
+  if (text.length > 2000) return res.status(400).json({ error: 'Message too long' });
+  try {
+    const other = await prisma.feedProfile.findUnique({ where: { handle } });
+    if (!other) return res.status(404).json({ error: 'No such handle' });
+    if (other.userId === userId) return res.status(400).json({ error: "You can't message yourself" });
+    const [a, b] = orderPair(userId, other.userId);
+    const thread = await prisma.dmThread.upsert({
+      where: { userAId_userBId: { userAId: a, userBId: b } },
+      update: {},
+      create: { userAId: a, userBId: b },
+    });
+    const msg = await prisma.dmMessage.create({ data: { threadId: thread.id, senderId: userId, text } });
+    await prisma.dmThread.update({ where: { id: thread.id }, data: { lastAt: msg.createdAt } });
+    res.json({ message: { id: msg.id, text: msg.text, mine: true, createdAt: msg.createdAt } });
+  } catch (err) { console.error('dm send:', err); res.status(500).json({ error: 'Failed to send' }); }
+});
+
 module.exports = router;

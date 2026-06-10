@@ -149,6 +149,30 @@ model FeedReport {
   @@index([status])
 }
 
+model DmThread {
+  id        String      @id @default(cuid())
+  userAId   String // lexicographically smaller userId of the pair
+  userBId   String
+  lastAt    DateTime    @default(now())
+  createdAt DateTime    @default(now())
+  messages  DmMessage[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId, lastAt])
+  @@index([userBId, lastAt])
+}
+
+model DmMessage {
+  id        String   @id @default(cuid())
+  threadId  String
+  thread    DmThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId  String // userId of the sender
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([threadId, createdAt])
+}
+
 model PromoCode {
   id           String    @id @default(uuid())
   code         String    @unique
