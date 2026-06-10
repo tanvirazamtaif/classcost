@@ -385,11 +385,15 @@ function CostsBox({ costs, onOpen, onAdd }) {
         </div>
       )}
       <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
-        {shown.length === 0 && <p className="text-[13px] t-mid text-center py-10">{costs.length ? 'No costs match.' : 'No costs yet.'}</p>}
-        {shown.map((b, i) => {
+        <button className="w-full text-left px-4 py-3.5 flex items-center gap-3" onClick={onAdd}>
+          <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)' }}><Plus size={18} className="t-accent" /></span>
+          <span className="text-sm font-medium t-accent">Add cost</span>
+        </button>
+        {shown.length === 0 && <p className="text-[13px] t-mid text-center py-10" style={{ borderTop: '.5px solid var(--border)' }}>{costs.length ? 'No costs match.' : 'No costs yet.'}</p>}
+        {shown.map((b) => {
           const tot = b.dues.reduce((a, dd) => a + (dd.amount || 0), 0), paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0);
           return (
-            <button key={b.id} className="w-full text-left px-4 py-3.5 flex items-center gap-3" style={i > 0 ? { borderTop: '.5px solid var(--border)' } : undefined} onClick={() => onOpen(b)}>
+            <button key={b.id} className="w-full text-left px-4 py-3.5 flex items-center gap-3" style={{ borderTop: '.5px solid var(--border)' }} onClick={() => onOpen(b)}>
               <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: 'var(--accent-light)' }}>{b.icon}</span>
               <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{b.name}</p><p className="text-[11px] t-mid">{b.category}</p></div>
               <div className="text-right mr-1"><p className="text-[10px] t-lo">paid / total</p><p className="text-sm font-semibold t-hi">{fmt(paid)} / {fmt(tot)}</p></div>
@@ -397,10 +401,6 @@ function CostsBox({ costs, onOpen, onAdd }) {
             </button>
           );
         })}
-        <button className="w-full text-left px-4 py-3.5 flex items-center gap-3" style={shown.length ? { borderTop: '.5px solid var(--border)' } : undefined} onClick={onAdd}>
-          <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)' }}><Plus size={18} className="t-accent" /></span>
-          <span className="text-sm font-medium t-accent">Add cost</span>
-        </button>
       </div>
     </div>
   );
