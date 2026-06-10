@@ -166,21 +166,25 @@ function Home({ nav, tab, d }) {
     </div>
   );
 }
-function QuickAddDaily({ info, onClose }) {
+function QuickAddDaily({ info, onClose, fixedSectorId, onHistory }) {
   const { topSpaces, personalSpace, logDaily } = useV2();
   const [amt, setAmt] = useState('');
   const [sectorId, setSectorId] = useState(null);
   const sectors = topSpaces();
   const onlyPersonal = sectors.length === 1;
-  const eff = onlyPersonal ? personalSpace()?.id : sectorId;
+  const fixed = !!fixedSectorId;
+  const eff = fixed ? fixedSectorId : (onlyPersonal ? personalSpace()?.id : sectorId);
   const canSave = +amt > 0 && eff;
   return (
     <div className="v2-backdrop" onClick={onClose}>
       <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'var(--border)' }} />
-        <p className="font-semibold t-hi mb-3">{info.icon} Add {info.category}</p>
+        <div className="flex items-center gap-2 mb-3">
+          <p className="font-semibold t-hi flex-1">{info.icon} Add {info.category}</p>
+          {onHistory && <button className="text-[12px] font-bold t-accent" onClick={() => { onClose(); onHistory(); }}>History →</button>}
+        </div>
         <input className="field mb-3" type="number" placeholder="amount (৳)" value={amt} onChange={(e) => setAmt(e.target.value)} autoFocus />
-        {!onlyPersonal && (
+        {!fixed && !onlyPersonal && (
           <>
             <p className="text-[12px] t-mid mb-2">Where does it belong?</p>
             <div className="grid grid-cols-2 gap-2 mb-4">{sectors.map((s) => (<button key={s.id} className={`chipbtn ${sectorId === s.id ? 'active' : ''}`} onClick={() => setSectorId(s.id)}>{s.icon} {s.name}</button>))}</div>
@@ -226,12 +230,15 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
         <p className="text-[10px] uppercase tracking-[0.14em] font-bold t-mid mb-2 px-0.5">Spaces</p>
         <div className="mb-5" style={{ border: '2px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           {spaces.length === 0 && <p className="text-[12px] t-mid px-3 py-3">No spaces yet.</p>}
-          {SPACE_GROUPS.flatMap((g) => spaces.filter((s) => g.types.includes(s.type)).map((s) => (
+          {SPACE_GROUPS.flatMap((g) => spaces.filter((s) => g.types.includes(s.type)).map((s) => {
+            const linkedInst = s.linkedInstituteId ? spaces.find((x) => x.id === s.linkedInstituteId) : null;
+            return (
             <button key={s.id} className="w-full text-left flex items-center gap-3 px-3 py-2.5" style={{ borderBottom: '1.5px solid var(--border)' }} onClick={() => go(() => nav(s.type, { spaceId: s.id }))}>
               <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px solid var(--border)' }}>{s.icon}</span>
-              <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold t-hi truncate">{s.name}</p><p className="text-[10px] t-lo">{g.label}</p></div>
+              <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold t-hi truncate">{s.name}</p><p className="text-[10px] t-lo">{g.label}{linkedInst ? ' · ' + linkedInst.name : ''}</p></div>
             </button>
-          )))}
+            );
+          }))}
           <button className="w-full text-left flex items-center gap-3 px-3 py-2.5" onClick={() => go(() => nav('create'))}>
             <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px dashed var(--border)' }}><Plus size={16} className="t-accent" /></span>
             <span className="text-[13px] font-semibold t-accent">Create space</span>
@@ -291,8 +298,8 @@ function NewInstitute({ nav, back }) {
     </div>
   );
 }
-function NewResidence({ nav, back }) {
-  const { createResidence } = useV2();
+function NewResidence({ nav, back, params }) {
+  const { createResidence, linkSpaceToInstitute } = useV2();
   const [f, setF] = useState({ name: '', rent: '', dep: '', day: '1' });
   const up = (k, v) => setF((p) => ({ ...p, [k]: v }));
   return (
@@ -303,13 +310,13 @@ function NewResidence({ nav, back }) {
         <Field label="Monthly rent (৳)" type="number" v={f.rent} onC={(v) => up('rent', v)} ph="8000" />
         <Field label="Security deposit (৳)" type="number" v={f.dep} onC={(v) => up('dep', v)} ph="16000" />
         <Field label="Rent due day" type="number" v={f.day} onC={(v) => up('day', v)} ph="1" />
-        <button className="btn btn-primary" onClick={() => { const s = createResidence({ name: f.name.trim() || 'Residence', rent: +f.rent || 0, deposit: +f.dep || 0, day: Math.min(28, Math.max(1, +f.day || 1)) }); nav('residence', { spaceId: s.id }); }}>Create residence</button>
+        <button className="btn btn-primary" onClick={() => { const s = createResidence({ name: f.name.trim() || 'Residence', rent: +f.rent || 0, deposit: +f.dep || 0, day: Math.min(28, Math.max(1, +f.day || 1)) }); if (params?.linkTo) linkSpaceToInstitute(s.id, params.linkTo); nav('residence', { spaceId: s.id }); }}>Create residence</button>
       </div>
     </div>
   );
 }
 function NewSimple({ nav, back, params }) {
-  const { createSimple } = useV2();
+  const { createSimple, linkSpaceToInstitute } = useV2();
   const stype = params.stype || 'club';
   const [name, setName] = useState('');
   return (
@@ -317,7 +324,7 @@ function NewSimple({ nav, back, params }) {
       <Header title={`New ${stype}`} crumb={`Create › ${stype}`} onBack={back} />
       <div className="px-4 py-5 space-y-5">
         <Field label="Name" v={name} onC={setName} ph={stype === 'club' ? 'e.g. BUBEF' : stype === 'vehicle' ? 'e.g. My bikes' : 'Name'} />
-        <button className="btn btn-primary" onClick={() => { const s = createSimple(stype, name.trim() || stype); nav(stype, { spaceId: s.id }); }}>Create {stype}</button>
+        <button className="btn btn-primary" onClick={() => { const s = createSimple(stype, name.trim() || stype); if (params?.linkTo) linkSpaceToInstitute(s.id, params.linkTo); nav(stype, { spaceId: s.id }); }}>Create {stype}</button>
       </div>
     </div>
   );
@@ -325,16 +332,18 @@ function NewSimple({ nav, back, params }) {
 
 /* ---------------- INSTITUTE + SEMESTER ---------------- */
 function Institute({ nav, back, params }) {
-  const { spaceById, scopedSummary, scopedCategoryTotals } = useV2();
+  const { spaceById, scopedSummary, scopedCategoryTotals, monthTotal, spaceDues } = useV2();
   const [costSheet, setCostSheet] = useState(null); // null | 'normal' | 'previous'
   const [linkOpen, setLinkOpen] = useState(false);
+  const [quick, setQuick] = useState(null);
+  const [spaceSheet, setSpaceSheet] = useState(false);
   const s = spaceById(params.spaceId);
   if (!s) return <Stub title="Not found" emoji="🤔" msg="That space is gone." />;
   const sems = s.blocks.filter((b) => b.kind === 'semester');
   const costs = s.blocks.filter((b) => b.kind === 'cost');
   const sm = scopedSummary(s.id), cats = scopedCategoryTotals(s.id);
   const maxDaily = Math.max(1, ...DAILY.map((x) => cats[x.cat]?.total || 0));
-  const linkedCount = (s.linkedSpaceIds || []).length;
+  const linked = (s.linkedSpaceIds || []).map(spaceById).filter(Boolean);
   return (
     <div className="v2-scroll">
       <header className="sticky top-0 z-20 px-4 py-3" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', borderBottom: '1.5px solid var(--border)' }}>
@@ -354,15 +363,15 @@ function Institute({ nav, back, params }) {
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2.5 mb-5">
-          {DAILY.map(({ cat, Icon, color }) => {
+          {DAILY.map(({ cat, emoji, Icon, color }) => {
             const total = cats[cat]?.total || 0, pct = Math.min(100, total / maxDaily * 100);
             return (
-              <div key={cat} className="ctile" style={{ cursor: 'default' }}>
+              <button key={cat} className="ctile" onClick={() => setQuick({ category: cat, icon: emoji })}>
                 <Icon size={18} color={color} />
                 <p className="text-[12px] t-mid mt-2">{cat}</p>
                 <p className="t-hi font-semibold text-[15px] mt-0.5">{fmt(total)}</p>
                 <div className="bar mt-2"><div style={{ height: '100%', width: pct + '%', background: color, borderRadius: 999 }} /></div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -392,14 +401,23 @@ function Institute({ nav, back, params }) {
                 </button>
               );
             })}</div>}
-        <button className="card w-full text-left p-4 flex items-center gap-3" onClick={() => setLinkOpen(true)}>
-          <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-base" style={{ background: 'var(--accent-light)' }}>🔗</span>
-          <div className="flex-1 min-w-0"><p className="font-semibold t-hi text-[14px]">Link residence / club</p><p className="text-[11px] t-mid">{linkedCount ? linkedCount + ' linked · counts in totals' : 'Tag a hostel or club to this institute'}</p></div>
-          <ChevronRight size={16} className="t-lo" />
-        </button>
+        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">Residence &amp; clubs</h2><button className="text-[12px] font-medium t-accent" onClick={() => setSpaceSheet(true)}>+ Add</button></div>
+        {linked.length === 0
+          ? <div className="card p-5 text-center text-[13px] t-mid">No residence or club yet. <button className="font-medium t-accent" onClick={() => setSpaceSheet(true)}>+ Add one</button></div>
+          : <div className="space-y-2.5">{linked.map((sp) => (
+              <div key={sp.id} className="card p-3.5 flex items-center gap-3">
+                <button className="flex items-center gap-3 flex-1 min-w-0 text-left" onClick={() => nav(sp.type, { spaceId: sp.id })}>
+                  <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: 'var(--accent-light)' }}>{sp.icon}</span>
+                  <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{sp.name}</p><p className="text-[11px] t-mid">{sp.type} · {fmt(monthTotal(spaceDues(sp)))}/mo</p></div>
+                </button>
+                <button className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px solid var(--border)' }} onClick={() => nav(sp.type, { spaceId: sp.id, openSheet: 'cost' })} aria-label="Add cost"><Plus size={16} className="t-accent" /></button>
+              </div>
+            ))}</div>}
         <div className="h-4" />
       </div>
+      {quick && <QuickAddDaily info={quick} fixedSectorId={s.id} onHistory={() => nav('category-history', { spaceId: s.id, cat: quick.category })} onClose={() => setQuick(null)} />}
       {costSheet && <InstituteCostSheet spaceId={s.id} preset={costSheet === 'previous' ? 'previous' : null} onClose={() => setCostSheet(null)} />}
+      {spaceSheet && <AddLinkedSpaceSheet nav={nav} instituteId={s.id} onClose={() => setSpaceSheet(false)} onLinkExisting={() => { setSpaceSheet(false); setLinkOpen(true); }} />}
       {linkOpen && <LinkSpaceSheet instituteId={s.id} onClose={() => setLinkOpen(false)} />}
     </div>
   );
@@ -544,6 +562,52 @@ function InstituteCostSheet({ spaceId, preset, onClose }) {
     </div>
   );
 }
+function CategoryHistory({ back, params }) {
+  const { spaceById, childrenOf } = useV2();
+  const s = spaceById(params.spaceId);
+  if (!s) return <Stub title="Not found" emoji="🤔" msg="That space is gone." />;
+  const cat = params.cat;
+  const rows = [];
+  const eat = (sp) => sp.blocks.forEach((b) => {
+    if ((b.kind === 'category' || b.kind === 'cost') && (b.category || b.name) === cat) b.dues.forEach((dd) => rows.push({ ...dd, spaceName: sp.name }));
+  });
+  eat(s); childrenOf(s).forEach(eat);
+  (s.linkedSpaceIds || []).map(spaceById).filter(Boolean).forEach(eat);
+  rows.sort((a, b) => parse(b.date) - parse(a.date));
+  const total = rows.reduce((a, dd) => a + (dd.amount || 0), 0);
+  return (
+    <div className="v2-scroll">
+      <Header title={cat} crumb={(s.name || '') + ' › History'} onBack={back} />
+      <div className="px-4 py-4 space-y-3">
+        <div className="card px-4 py-3"><p className="text-[10px] uppercase tracking-wide t-lo">Total · {cat}</p><p className="text-2xl font-bold t-accent">{fmt(total)}</p></div>
+        {rows.length === 0
+          ? <div className="card p-6 text-center text-[13px] t-mid">No {cat} entries yet.</div>
+          : <div style={{ border: '2px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>{rows.map((dd, i) => { const dt = parse(dd.date); return (
+              <div key={dd.id || i} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '1.5px solid var(--border)' } : undefined}>
+                <div className="flex-1 min-w-0"><p className="text-[13px] t-hi truncate">{dd.label}</p><p className="text-[11px] t-lo">{dt.getDate()} {MNS[dt.getMonth()]} {dt.getFullYear()}{dd.spaceName !== s.name ? ' · ' + dd.spaceName : ''}</p></div>
+                <p className="text-[13px] font-semibold t-hi">{fmt(dd.amount)}</p>
+              </div>
+            ); })}</div>}
+        <div className="h-4" />
+      </div>
+    </div>
+  );
+}
+function AddLinkedSpaceSheet({ nav, instituteId, onClose, onLinkExisting }) {
+  return (
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-1"><p className="font-bold t-hi flex-1">Add residence or club</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <p className="text-[12px] t-mid mb-3">Create a new one (tagged to this institute) or link one you already have.</p>
+        <div className="space-y-2.5">
+          <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={() => { onClose(); nav('new-residence', { linkTo: instituteId }); }}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#22c55e22' }}><Building2 size={20} color="#22c55e" /></span><div><p className="font-semibold t-hi text-[14px]">New residence</p><p className="text-[11px] t-mid">Hostel, mess, flat — rent + deposit</p></div></button>
+          <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={() => { onClose(); nav('new-simple', { stype: 'club', linkTo: instituteId }); }}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#ec489922' }}><Users size={20} color="#ec4899" /></span><div><p className="font-semibold t-hi text-[14px]">New club</p><p className="text-[11px] t-mid">Membership + event costs</p></div></button>
+          <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={onLinkExisting}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-lg" style={{ background: 'var(--accent-light)' }}>🔗</span><div><p className="font-semibold t-hi text-[14px]">Link existing</p><p className="text-[11px] t-mid">Tag a residence/club you already made</p></div></button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function LinkSpaceSheet({ instituteId, onClose }) {
   const { topSpaces, linkSpaceToInstitute, unlinkSpaceFromInstitute } = useV2();
   const cands = topSpaces().filter((sp) => (sp.type === 'residence' || sp.type === 'club') && sp.id !== instituteId);
@@ -605,7 +669,7 @@ function BlockCard({ b }) {
 }
 function SpaceDetail({ nav, back, params }) {
   const { spaceById, spaceDues, monthTotal, childrenOf } = useV2();
-  const [sheet, setSheet] = useState(null);
+  const [sheet, setSheet] = useState(params.openSheet || null);
   const s = spaceById(params.spaceId);
   if (!s) return <Stub title="Not found" emoji="🤔" msg="That space is gone." />;
   const kids = childrenOf(s);
@@ -1545,6 +1609,7 @@ function Shell() {
   switch (view) {
     case 'home': screen = <Home {...P} />; break;
     case 'create': screen = <Create {...P} />; break;
+    case 'category-history': screen = <CategoryHistory {...P} />; break;
     case 'new-institute': screen = <NewInstitute {...P} />; break;
     case 'new-residence': screen = <NewResidence {...P} />; break;
     case 'new-simple': screen = <NewSimple {...P} />; break;
