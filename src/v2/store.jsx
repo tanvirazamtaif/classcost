@@ -8,6 +8,11 @@ const KEY = 'cc_v2_data';
 function load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && Array.isArray(d.spaces)) return d; } catch { /* ignore */ } return { spaces: [] }; }
 function save(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* ignore */ } }
 
+// Cost tags: the chip a cost is filed under. 'Others' matches the DAILY tile key (not 'Other').
+const OTHER_CAT = 'Others';
+const TAG_ICONS = { Registration: '🧾', Admission: '🎓', Transport: '🚌', Hostel: '🏠', Books: '📚', Exam: '📝', Club: '🎟️', Food: '🍔' };
+const iconForTag = (t) => TAG_ICONS[t] || '📦';
+
 const Ctx = createContext(null);
 
 export function V2Provider({ children }) {
@@ -67,11 +72,45 @@ export function V2Provider({ children }) {
   const categoryTotals = () => {
     const map = {};
     db.spaces.forEach((s) => s.blocks.forEach((b) => {
-      if (b.kind !== 'category') return;
+      if (b.kind !== 'category' && b.kind !== 'cost') return;
       const cat = b.category || b.name;
       const e = map[cat] = map[cat] || { icon: b.icon, total: 0, bySector: {} };
-      b.dues.forEach((d) => { if (inMonth(parse(d.date))) { e.total += d.amount; e.bySector[s.name] = (e.bySector[s.name] || 0) + d.amount; } });
+      b.dues.forEach((d) => { if (!b.parked && !d.parked && inMonth(parse(d.date))) { e.total += (d.amount || 0); e.bySector[s.name] = (e.bySector[s.name] || 0) + (d.amount || 0); } });
     }));
+    return map;
+  };
+  // ---- institute scoped views (read-only; linked spaces are a VIEW, counted once globally) ----
+  const instituteScoped = (instituteId) => {
+    const inst = spaceById(instituteId);
+    if (!inst) return { instituteDues: [], linkedSpacesDues: [], combined: [] };
+    const instituteDues = spaceDues(inst);
+    const linkedSpacesDues = (inst.linkedSpaceIds || []).map(spaceById).filter(Boolean)
+      .flatMap((sp) => spaceDues(sp).map((d) => ({ ...d, linkedSpace: sp })));
+    return { instituteDues, linkedSpacesDues, combined: instituteDues.concat(linkedSpacesDues) };
+  };
+  const scopedSummary = (instituteId) => {
+    const ds = instituteScoped(instituteId).combined.filter((d) => !d.parked);
+    const t = today(), y = t.getFullYear(), m = t.getMonth();
+    const sum = (pred) => ds.filter((d) => pred(parse(d.date))).reduce((a, d) => a + (d.amount || 0), 0);
+    return {
+      month: sum((d) => d.getFullYear() === y && d.getMonth() === m),
+      year: sum((d) => d.getFullYear() === y),
+      last: sum((d) => { const pm = m === 0 ? 11 : m - 1, py = m === 0 ? y - 1 : y; return d.getFullYear() === py && d.getMonth() === pm; }),
+      life: sum(() => true),
+    };
+  };
+  const scopedCategoryTotals = (instituteId) => {
+    const inst = spaceById(instituteId);
+    if (!inst) return {};
+    const map = {};
+    const eat = (sp) => sp.blocks.forEach((b) => {
+      if (b.kind !== 'category' && b.kind !== 'cost') return;
+      const cat = b.category || b.name;
+      const e = map[cat] = map[cat] || { icon: b.icon, total: 0 };
+      b.dues.forEach((d) => { if (!b.parked && !d.parked && inMonth(parse(d.date))) e.total += (d.amount || 0); });
+    });
+    eat(inst); childrenOf(inst).forEach(eat);
+    (inst.linkedSpaceIds || []).map(spaceById).filter(Boolean).forEach(eat);
     return map;
   };
 
@@ -119,6 +158,48 @@ export function V2Provider({ children }) {
   };
   const removeBlock = (blockId) => { for (const sp of db.spaces) { const i = sp.blocks.findIndex((b) => b.id === blockId); if (i >= 0) { sp.blocks.splice(i, 1); commit(); return; } } };
   const payDue = (dueId, amount) => { const d = findDue(dueId); if (d) { d.payments.push(amount == null ? remOf(d) : Math.min(amount, remOf(d))); commit(); } };
+  const unpayDue = (dueId) => { const d = findDue(dueId); if (d) { d.payments = []; commit(); } };
+  const addDue = (blockId, o) => { const b = blockById(blockId); if (!b) return null; const amt = +o.amount || 0; const d = { id: uid('due'), amount: amt, date: o.date || iso(today()), label: o.label || b.name, payments: o.paid ? [amt] : [] }; b.dues.push(d); commit(); return d; };
+  const updateDue = (dueId, patch) => { const d = findDue(dueId); if (!d) return; if (patch.amount != null) d.amount = +patch.amount || 0; if (patch.date != null) d.date = patch.date; if (patch.label != null) d.label = patch.label; commit(); };
+  const deleteDue = (dueId) => { for (const s of db.spaces) for (const b of s.blocks) { const i = b.dues.findIndex((x) => x.id === dueId); if (i >= 0) { b.dues.splice(i, 1); commit(); return; } } };
+  // Simple semester: just a name + editable dated dues (no tuition/lab/waiver). Backward-compatible with legacy semester blocks.
+  const addSimpleSemester = (spaceId, o) => {
+    const plan = o.plan || (o.dues ? o.dues.length : 1);
+    let dues;
+    if (o.dues && o.dues.length) {
+      dues = o.dues.map((d, i) => ({ id: uid('due'), amount: +d.amount || 0, date: d.date, label: o.name + ' · installment ' + (i + 1), payments: d.paid ? [+d.amount || 0] : (d.payments || []) }));
+    } else {
+      dues = monthlyDates(plan, 1, 0).map((dt, i) => ({ id: uid('due'), amount: 0, date: dt, label: o.name + ' · installment ' + (i + 1), payments: [] }));
+    }
+    const blk = { id: uid('blk'), kind: 'semester', name: o.name, icon: '🎓', plan, dues };
+    spaceById(spaceId).blocks.push(blk); commit(); return blk;
+  };
+  // Generic tagged cost (registration, transport, hostel, …) — one-time or split into installments.
+  const addCost = (spaceId, o) => {
+    const cat = o.tag || OTHER_CAT, amt = +o.amount || 0, plan = o.plan && o.plan > 1 ? o.plan : 1;
+    let dues;
+    if (plan === 1) {
+      dues = [{ id: uid('due'), amount: amt, date: o.date || iso(today()), label: o.name, payments: o.paid ? [amt] : [] }];
+    } else {
+      const parts = split(amt, plan), dates = monthlyDates(plan, parse(o.date || iso(today())).getDate(), 0);
+      dues = parts.map((a, i) => ({ id: uid('due'), amount: a, date: dates[i], label: o.name + ' · ' + (i + 1) + '/' + plan, payments: o.paid ? [a] : [] }));
+    }
+    const blk = { id: uid('blk'), kind: 'cost', name: o.name, icon: iconForTag(o.tag), category: cat, dues };
+    spaceById(spaceId).blocks.push(blk); commit(); return blk;
+  };
+  const linkSpaceToInstitute = (spaceId, instituteId) => {
+    const sp = spaceById(spaceId), inst = spaceById(instituteId);
+    if (!sp || !inst) return;
+    sp.linkedInstituteId = instituteId;
+    inst.linkedSpaceIds = [...new Set([...(inst.linkedSpaceIds || []), spaceId])];
+    commit();
+  };
+  const unlinkSpaceFromInstitute = (spaceId) => {
+    const sp = spaceById(spaceId); if (!sp) return;
+    const old = sp.linkedInstituteId; delete sp.linkedInstituteId;
+    if (old) { const inst = spaceById(old); if (inst) inst.linkedSpaceIds = (inst.linkedSpaceIds || []).filter((x) => x !== spaceId); }
+    commit();
+  };
   const deleteSpace = (id) => { db.spaces = db.spaces.filter((s) => s.id !== id && s.parentId !== id); ref.current = db; commit(); };
   // ---- auth + cloud sync ----
   const ensurePersonal = () => { if (!db.spaces.some((s) => s.type === 'personal')) db.spaces.push({ id: uid('sp'), type: 'personal', name: 'Personal', icon: '👤', blocks: [] }); };
@@ -165,10 +246,11 @@ export function V2Provider({ children }) {
     db, spaces: db.spaces, user: db.user || { name: 'Student', email: '', currency: '৳' },
     // selectors
     spaceById, blockById, findDue, childrenOf, topSpaces, personalSpace,
-    allDues, spaceDues, monthTotal, summary, categoryTotals,
+    allDues, spaceDues, monthTotal, summary, categoryTotals, instituteScoped, scopedSummary, scopedCategoryTotals,
     // actions
     createInstitute, createResidence, createSimple, createAsset, addSemester,
     addCategory, addRecurring, addOneTime, logExpense, logDaily, addScheduledCategory, removeBlock, payDue, deleteSpace, resetAll, setUser,
+    addSimpleSemester, addDue, updateDue, deleteDue, unpayDue, addCost, linkSpaceToInstitute, unlinkSpaceFromInstitute,
     // auth + sync
     login, logout, pullFromServer, isLoggedIn: !!db.user?.id,
   };

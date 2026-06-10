@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { V2Provider, useV2 } from './store';
-import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute } from './engine';
+import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute, monthlyDates } from './engine';
 // ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
 // neutrals + one accent that inverts per mode (navy-on-cream / cream-on-navy) + muted gold.
 const v2Palette = (d) => d ? {
@@ -98,7 +98,8 @@ function Home({ nav, tab, d }) {
   const greeting = (() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; })();
   const initial = (user?.name || 'S').trim().charAt(0).toUpperCase() || 'S';
   const remind = (() => { try { return localStorage.getItem('cc_v2_notify') !== '0'; } catch { return true; } })();
-  const notif = notifItems(allDues());
+  const remindDays = (() => { try { return Math.max(0, Math.min(30, parseInt(localStorage.getItem('cc_v2_remind_days'), 10) || 7)); } catch { return 7; } })();
+  const notif = notifItems(allDues(), remindDays);
   const notifCount = remind ? notif.overdue.length + notif.soon.length : 0;
   return (
     <div className="v2-scroll">
@@ -161,7 +162,7 @@ function Home({ nav, tab, d }) {
       </div>
       {quick && <QuickAddDaily info={quick} onClose={() => setQuick(null)} />}
       {drawer && <Drawer onClose={() => setDrawer(false)} nav={nav} tab={tab} spaces={tops} user={user} />}
-      {notifOpen && <NotifSheet onClose={() => setNotifOpen(false)} />}
+      {notifOpen && <NotifSheet onClose={() => setNotifOpen(false)} leadDays={remindDays} />}
     </div>
   );
 }
@@ -324,95 +325,245 @@ function NewSimple({ nav, back, params }) {
 
 /* ---------------- INSTITUTE + SEMESTER ---------------- */
 function Institute({ nav, back, params }) {
-  const { spaceById } = useV2();
+  const { spaceById, scopedSummary, scopedCategoryTotals } = useV2();
+  const [costSheet, setCostSheet] = useState(null); // null | 'normal' | 'previous'
+  const [linkOpen, setLinkOpen] = useState(false);
   const s = spaceById(params.spaceId);
   if (!s) return <Stub title="Not found" emoji="🤔" msg="That space is gone." />;
   const sems = s.blocks.filter((b) => b.kind === 'semester');
+  const costs = s.blocks.filter((b) => b.kind === 'cost');
+  const sm = scopedSummary(s.id), cats = scopedCategoryTotals(s.id);
+  const maxDaily = Math.max(1, ...DAILY.map((x) => cats[x.cat]?.total || 0));
+  const linkedCount = (s.linkedSpaceIds || []).length;
   return (
     <div className="v2-scroll">
-      <Header title={s.name} crumb="Home › Institutes" onBack={back} />
-      <div className="px-4 py-4">
-        <div className="card p-4 mb-4">
-          <div className="flex items-center justify-between"><span className="text-[10px] uppercase tracking-wide t-lo">System (auto)</span><span className="pill st-partial">{s.system?.type}</span></div>
-          <p className="font-semibold t-hi mt-1">{s.system?.note}</p>
-          {s.system?.presets && <p className="text-[11px] t-mid mt-1">Fee blocks: {s.system.presets.join(' · ')}</p>}
+      <header className="sticky top-0 z-20 px-4 py-3" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', borderBottom: '1.5px solid var(--border)' }}>
+        <div className="flex items-center gap-2.5">
+          <button onClick={back} className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center t-mid" aria-label="Back"><ChevronLeft size={20} /></button>
+          <div className="min-w-0 flex-1"><p className="text-[11px] t-lo truncate">Home › Institutes</p><h1 className="text-lg font-semibold t-hi truncate">{s.name}</h1></div>
+          <button className="text-[12px] font-medium t-accent shrink-0" onClick={() => setCostSheet('previous')}>+ Add previous</button>
         </div>
-        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">Semesters</h2><button className="text-[12px] font-medium t-accent" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Add semester</button></div>
-        {sems.length === 0 ? (
-          <div className="card p-5 text-center text-[13px] t-mid">No semesters yet. <button className="font-medium t-accent" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Create one</button></div>
-        ) : sems.map((b) => {
-          const paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0), cnt = b.dues.filter((dd) => statusOf(dd) === 'paid').length;
-          return (
-            <button key={b.id} className="card w-full text-left p-4 mb-2.5" onClick={() => nav('semester', { spaceId: s.id, semId: b.id })}>
-              <div className="flex items-center justify-between"><p className="font-semibold t-hi">🎓 {b.name}</p><span className="pill st-partial">{b.plan}× installments</span></div>
-              <div className="flex items-center justify-between mt-2 text-[12px]"><span className="t-mid">Net {fmt(b.net)}</span><span className="t-mid">{cnt}/{b.dues.length} Dues paid</span></div>
-              <div className="bar mt-2" style={{ height: 4 }}><div style={{ height: '100%', width: (b.net > 0 ? Math.min(100, paid / b.net * 100) : 0) + '%', background: '#22c55e', borderRadius: 999 }} /></div>
-            </button>
-          );
-        })}
+      </header>
+      <div className="px-4 py-4">
+        <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '2px solid var(--hero-border)' }}>
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
+            <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
+            <div><p className="text-[10px] t-lo">This year</p><p className="text-sm font-medium t-mid">{fmt(sm.year)}</p></div>
+            <div className="text-right"><p className="text-[10px] t-lo">Last month</p><p className="text-sm font-medium t-mid">{fmt(sm.last)}</p></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2.5 mb-5">
+          {DAILY.map(({ cat, Icon, color }) => {
+            const total = cats[cat]?.total || 0, pct = Math.min(100, total / maxDaily * 100);
+            return (
+              <div key={cat} className="ctile" style={{ cursor: 'default' }}>
+                <Icon size={18} color={color} />
+                <p className="text-[12px] t-mid mt-2">{cat}</p>
+                <p className="t-hi font-semibold text-[15px] mt-0.5">{fmt(total)}</p>
+                <div className="bar mt-2"><div style={{ height: '100%', width: pct + '%', background: color, borderRadius: 999 }} /></div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">This term</h2><button className="text-[12px] font-medium t-accent" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Add semester</button></div>
+        {sems.length === 0
+          ? <div className="card p-5 text-center text-[13px] t-mid mb-5">No semesters yet. <button className="font-medium t-accent" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Create one</button></div>
+          : <div className="space-y-2.5 mb-5">{sems.map((b) => {
+              const paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0), cnt = b.dues.filter((dd) => statusOf(dd) === 'paid').length;
+              const net = b.items ? b.net : b.dues.reduce((a, dd) => a + (dd.amount || 0), 0);
+              return (
+                <button key={b.id} className="card w-full text-left p-4" onClick={() => nav('semester', { spaceId: s.id, semId: b.id })}>
+                  <div className="flex items-center justify-between"><p className="font-semibold t-hi">🎓 {b.name}</p><span className="pill st-partial">{b.plan > 1 ? b.plan + '× installments' : 'one-time'}</span></div>
+                  <div className="flex items-center justify-between mt-2 text-[12px]"><span className="t-mid">{fmt(paid)} / {fmt(net)}</span><span className="t-mid">{cnt}/{b.dues.length} paid</span></div>
+                  <div className="bar mt-2" style={{ height: 4 }}><div style={{ height: '100%', width: (net > 0 ? Math.min(100, paid / net * 100) : 0) + '%', background: '#22c55e', borderRadius: 999 }} /></div>
+                </button>
+              );
+            })}</div>}
+        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">Costs</h2><button className="text-[12px] font-medium t-accent" onClick={() => setCostSheet('normal')}>+ Add cost</button></div>
+        {costs.length === 0
+          ? <div className="card p-5 text-center text-[13px] t-mid mb-4">No other costs yet. <button className="font-medium t-accent" onClick={() => setCostSheet('normal')}>+ Add one</button></div>
+          : <div className="space-y-2.5 mb-4">{costs.map((b) => {
+              const tot = b.dues.reduce((a, dd) => a + (dd.amount || 0), 0), paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0);
+              return (
+                <button key={b.id} className="card w-full text-left p-4" onClick={() => nav('semester', { spaceId: s.id, semId: b.id })}>
+                  <div className="flex items-center justify-between"><p className="font-semibold t-hi">{b.icon} {b.name}</p><span className="pill st-partial">{b.category}</span></div>
+                  <div className="flex items-center justify-between mt-1.5 text-[12px]"><span className="t-mid">{fmt(paid)} / {fmt(tot)}</span><span className="t-mid">{tot > 0 && paid >= tot ? 'paid' : 'due'}</span></div>
+                </button>
+              );
+            })}</div>}
+        <button className="card w-full text-left p-4 flex items-center gap-3" onClick={() => setLinkOpen(true)}>
+          <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-base" style={{ background: 'var(--accent-light)' }}>🔗</span>
+          <div className="flex-1 min-w-0"><p className="font-semibold t-hi text-[14px]">Link residence / club</p><p className="text-[11px] t-mid">{linkedCount ? linkedCount + ' linked · counts in totals' : 'Tag a hostel or club to this institute'}</p></div>
+          <ChevronRight size={16} className="t-lo" />
+        </button>
+        <div className="h-4" />
       </div>
+      {costSheet && <InstituteCostSheet spaceId={s.id} preset={costSheet === 'previous' ? 'previous' : null} onClose={() => setCostSheet(null)} />}
+      {linkOpen && <LinkSpaceSheet instituteId={s.id} onClose={() => setLinkOpen(false)} />}
     </div>
   );
 }
 function CreateSemester({ nav, back, params }) {
-  const { addSemester } = useV2();
-  const [name, setName] = useState('Summer 2026');
-  const [tuition, setTuition] = useState('18000');
-  const [labOn, setLabOn] = useState(true);
-  const lab = 3500, fixed = 2500;
-  const [waiver, setWaiver] = useState(10);
+  const { addSimpleSemester } = useV2();
+  const seedRows = (n) => monthlyDates(n, 1, 0).map((dt) => ({ amount: '', date: dt }));
+  const [name, setName] = useState('');
+  const [mode, setMode] = useState('installments'); // installments | onetime
   const [plan, setPlan] = useState(3);
-  const sub = (+tuition || 0) + (labOn ? lab : 0) + fixed;
-  const net = Math.max(0, sub - sub * waiver / 100);
-  const parts = split(net, plan);
+  const [rows, setRows] = useState(() => seedRows(3));
+  const setPlanN = (n) => { setPlan(n); setRows(seedRows(n)); };
+  const setModeV = (m) => { setMode(m); setRows(m === 'onetime' ? [{ amount: '', date: iso(today()) }] : seedRows(plan)); };
+  const upd = (i, k, v) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const addRow = () => setRows((rs) => [...rs, { amount: '', date: iso(today()) }]);
+  const delRow = (i) => setRows((rs) => rs.filter((_, j) => j !== i));
+  const total = rows.reduce((a, r) => a + (+r.amount || 0), 0);
+  const save = () => {
+    const dues = rows.filter((r) => r.date).map((r) => ({ amount: +r.amount || 0, date: r.date }));
+    const b = addSimpleSemester(params.spaceId, { name: name.trim() || 'Semester', plan: mode === 'onetime' ? 1 : dues.length, dues });
+    nav('semester', { spaceId: params.spaceId, semId: b.id });
+  };
   return (
     <div className="v2-scroll">
-      <Header title="New semester" crumb="Semester fee" onBack={back} />
+      <Header title="New semester" crumb="Add semester" onBack={back} />
       <div className="px-4 py-4 space-y-5">
-        <Field label="Semester name" v={name} onC={setName} ph="Summer 2026" />
-        <div className="card p-4 space-y-4">
-          <p className="text-[10px] uppercase tracking-wide font-semibold t-lo">Fee dials — set for this term</p>
-          <Field label="Tuition (৳)" type="number" v={tuition} onC={setTuition} ph="18000" />
-          <div className="flex items-center justify-between"><label className="text-[13px] t-mid">Lab fee — ৳{lab.toLocaleString('en-IN')} <span className="text-[11px] t-lo">(if lab courses)</span></label><input type="checkbox" checked={labOn} onChange={(e) => setLabOn(e.target.checked)} className="w-4 h-4" style={{ accentColor: '#6366f1' }} /></div>
-          <div className="flex items-center justify-between text-[13px] t-mid"><span>Library · Dev · Exam · Registration</span><span>৳2,500</span></div>
+        <Field label="Semester name" v={name} onC={setName} ph="e.g. Summer 2026" />
+        <div>
+          <p className="text-[12px] t-mid mb-2">Type</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button className={`chipbtn ${mode === 'installments' ? 'active' : ''}`} onClick={() => setModeV('installments')}>Installments</button>
+            <button className={`chipbtn ${mode === 'onetime' ? 'active' : ''}`} onClick={() => setModeV('onetime')}>One-time</button>
+          </div>
         </div>
-        <div><p className="text-[12px] t-mid mb-2">Waiver / scholarship</p><div className="grid grid-cols-4 gap-2">{[0, 10, 25, 50].map((w) => (<button key={w} className={`chipbtn ${w === waiver ? 'active' : ''}`} onClick={() => setWaiver(w)}>{w}%</button>))}</div></div>
-        <div className="card p-4">
-          <div className="flex justify-between text-[13px] mb-1"><span className="t-mid">Subtotal</span><span className="t-hi">{fmt(sub)}</span></div>
-          <div className="flex justify-between text-[13px] mb-1"><span className="t-mid">Waiver ({waiver}%)</span><span style={{ color: '#ef4444' }}>−{fmt(sub * waiver / 100)}</span></div>
-          <div className="flex justify-between pt-2" style={{ borderTop: '.5px solid var(--border)' }}><span className="font-semibold t-accent">Net payable</span><span className="text-lg font-bold t-hi">{fmt(net)}</span></div>
+        {mode === 'installments' && (
+          <div><p className="text-[12px] t-mid mb-2">How many installments</p><div className="grid grid-cols-3 gap-2">{[2, 3, 4].map((n) => (<button key={n} className={`chipbtn ${plan === n ? 'active' : ''}`} onClick={() => setPlanN(n)}>{n}×</button>))}</div></div>
+        )}
+        <div className="card p-4 space-y-2.5">
+          <div className="flex items-center justify-between"><p className="text-[10px] uppercase tracking-wide font-semibold t-lo">Payments</p><span className="text-[12px] t-mid">Total {fmt(total)}</span></div>
+          {rows.map((r, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input className="field" type="number" placeholder="amount" value={r.amount} onChange={(e) => upd(i, 'amount', e.target.value)} style={{ flex: 1 }} />
+              <input className="field" type="date" value={r.date} onChange={(e) => upd(i, 'date', e.target.value)} style={{ flex: 1 }} />
+              {rows.length > 1 && <button className="t-lo shrink-0 p-1" onClick={() => delRow(i)} aria-label="Remove"><Trash2 size={15} /></button>}
+            </div>
+          ))}
+          {mode === 'installments' && <button className="text-[12px] font-medium t-accent" onClick={addRow}>+ Add installment</button>}
+          <p className="text-[11px] t-lo">No need to know the total — fill amounts as you learn them, mark Paid as you pay.</p>
         </div>
-        <div><p className="text-[12px] t-mid mb-2">Installments — how many Dues</p><div className="grid grid-cols-4 gap-2">{[1, 2, 3, 4].map((n) => (<button key={n} className={`chipbtn ${n === plan ? 'active' : ''}`} onClick={() => setPlan(n)}>{n === 1 ? 'Full' : n + '×'}</button>))}</div>
-          <p className="text-[11px] t-lo mt-2">{plan === 1 ? `1 Due of ${fmt(net)}` : `${plan} Dues of ~${fmt(parts[0])}, starting next 1st`}</p></div>
-        <button className="btn btn-primary" onClick={() => { const b = addSemester(params.spaceId, { name: name.trim() || 'Semester', tuition: +tuition || 0, labOn, lab, fixed, waiver, plan }); nav('semester', { spaceId: params.spaceId, semId: b.id }); }}>Create semester &amp; print Dues</button>
+        <button className="btn btn-primary" disabled={!name.trim()} onClick={save}>Create semester</button>
         <div className="h-2" />
       </div>
     </div>
   );
 }
+function EditableDue({ d, onUpdate, onDelete, onPay, onUnpay }) {
+  const isPaid = statusOf(d) === 'paid';
+  return (
+    <div className="card p-3">
+      <div className="flex items-center gap-2">
+        <input className="field" type="number" placeholder="amount" defaultValue={d.amount || ''} onBlur={(e) => onUpdate({ amount: e.target.value })} style={{ flex: 1 }} />
+        <input className="field" type="date" defaultValue={d.date} onChange={(e) => onUpdate({ date: e.target.value })} style={{ flex: 1 }} />
+        <button className="t-lo shrink-0 p-1" onClick={onDelete} aria-label="Delete"><Trash2 size={15} /></button>
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        {statusPill(d)}
+        {isPaid
+          ? <button className="minibtn btn-ghost" style={{ width: 'auto' }} onClick={onUnpay}>Mark unpaid</button>
+          : <button className="minibtn st-paid" style={{ width: 'auto' }} onClick={onPay}>Mark paid</button>}
+      </div>
+    </div>
+  );
+}
 function Semester({ back, params }) {
-  const { spaceById, blockById } = useV2();
+  const { spaceById, blockById, updateDue, deleteDue, addDue, payDue, unpayDue } = useV2();
   const s = spaceById(params.spaceId), b = blockById(params.semId);
-  if (!b) return <Stub title="Not found" emoji="🤔" msg="That semester is gone." />;
+  if (!b) return <Stub title="Not found" emoji="🤔" msg="That item is gone." />;
   const paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0);
+  const net = b.items ? b.net : b.dues.reduce((a, dd) => a + (dd.amount || 0), 0);
+  const addRow = () => addDue(b.id, { amount: 0, date: iso(today()), label: b.name });
   return (
     <div className="v2-scroll">
-      <Header title={b.name} crumb={(s?.name || '') + ' › Semester'} onBack={back} />
+      <Header title={b.name} crumb={(s?.name || '') + ' › ' + (b.kind === 'semester' ? 'Semester' : 'Cost')} onBack={back} />
       <div className="px-4 py-4 space-y-4">
-        <div className="card p-4">
-          <p className="text-[10px] uppercase tracking-wide t-lo mb-2">Breakdown</p>
-          <div className="space-y-1 text-[13px]">
-            <Row l="Tuition" v={fmt(b.items.tuition)} />
-            {b.items.lab > 0 && <Row l="Lab fee" v={fmt(b.items.lab)} />}
-            <Row l="Library · Dev · Exam · Reg" v={fmt(b.items.fixed)} />
-            <Row l={`Waiver (${b.waiver}%)`} v={'−' + fmt(b.sub * b.waiver / 100)} danger />
-            <div className="flex justify-between pt-1.5 mt-1" style={{ borderTop: '.5px solid var(--border)' }}><span className="font-semibold t-accent">Net</span><span className="font-bold t-hi">{fmt(b.net)}</span></div>
+        {b.items && (
+          <div className="card p-4">
+            <p className="text-[10px] uppercase tracking-wide t-lo mb-2">Breakdown</p>
+            <div className="space-y-1 text-[13px]">
+              <Row l="Tuition" v={fmt(b.items.tuition)} />
+              {b.items.lab > 0 && <Row l="Lab fee" v={fmt(b.items.lab)} />}
+              <Row l="Library · Dev · Exam · Reg" v={fmt(b.items.fixed)} />
+              <Row l={`Waiver (${b.waiver}%)`} v={'−' + fmt(b.sub * b.waiver / 100)} danger />
+              <div className="flex justify-between pt-1.5 mt-1" style={{ borderTop: '.5px solid var(--border)' }}><span className="font-semibold t-accent">Net</span><span className="font-bold t-hi">{fmt(b.net)}</span></div>
+            </div>
           </div>
+        )}
+        <div className="card p-4 flex items-center justify-between">
+          <div><p className="text-[10px] uppercase tracking-wide t-lo">Planned</p><p className="text-xl font-bold t-hi t-serif">{fmt(net)}</p></div>
+          <div className="text-right"><p className="text-[10px] uppercase tracking-wide t-lo">Paid</p><p className="text-xl font-bold t-serif" style={{ color: '#22c55e' }}>{fmt(paid)}</p></div>
         </div>
         <div>
-          <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">Dues (installments)</h2><span className="text-[11px] t-mid">Paid {fmt(paid)} / {fmt(b.net)}</span></div>
-          <div className="space-y-2">{b.dues.map((dd, i) => (<DueRow key={dd.id} d={dd} label={'Installment ' + (i + 1)} />))}</div>
+          <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">Payments</h2><button className="text-[12px] font-medium t-accent" onClick={addRow}>+ Add</button></div>
+          <div className="space-y-2">{b.dues.map((dd) => <EditableDue key={dd.id} d={dd} onUpdate={(p) => updateDue(dd.id, p)} onDelete={() => deleteDue(dd.id)} onPay={() => payDue(dd.id)} onUnpay={() => unpayDue(dd.id)} />)}</div>
+          {b.dues.length === 0 && <div className="card p-5 text-center text-[13px] t-mid">No payments yet. <button className="font-medium t-accent" onClick={addRow}>+ Add one</button></div>}
         </div>
+      </div>
+    </div>
+  );
+}
+const COST_CHIPS = [['Registration', '🧾'], ['Admission', '🎓'], ['Transport', '🚌'], ['Hostel', '🏠'], ['Books', '📚'], ['Exam', '📝'], ['Club', '🎟️']];
+function InstituteCostSheet({ spaceId, preset, onClose }) {
+  const { addCost } = useV2();
+  const isPrev = preset === 'previous';
+  const [tag, setTag] = useState('');
+  const [custom, setCustom] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(() => (isPrev ? iso(new Date(today().getFullYear(), today().getMonth() - 1, 1)) : iso(today())));
+  const [paid, setPaid] = useState(isPrev);
+  const [plan, setPlan] = useState(1);
+  const name = tag && tag !== 'Other' ? tag : custom.trim();
+  const valid = !!name && +amount > 0;
+  const save = () => { if (!valid) return; addCost(spaceId, { name, tag: tag && tag !== 'Other' ? tag : undefined, amount: +amount, date, paid, plan }); onClose(); };
+  return (
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-3"><p className="font-bold t-hi flex-1">{isPrev ? 'Add a previous cost' : 'Add cost'}</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <p className="text-[11px] uppercase tracking-wide t-lo mb-1.5">Suggested</p>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {COST_CHIPS.map(([t, ic]) => (<button key={t} className={`chipbtn ${tag === t ? 'active' : ''}`} style={{ width: 'auto', padding: '.4rem .7rem' }} onClick={() => { setTag(t); setCustom(''); }}>{ic} {t}</button>))}
+          <button className={`chipbtn ${tag === 'Other' ? 'active' : ''}`} style={{ width: 'auto', padding: '.4rem .7rem' }} onClick={() => setTag('Other')}>＋ Other</button>
+        </div>
+        {(tag === 'Other' || !tag) && <input className="field mb-3" placeholder="Cost name (e.g. Bus pass)" value={custom} onChange={(e) => setCustom(e.target.value)} />}
+        <div className="flex gap-2 mb-3">
+          <input className="field" type="number" placeholder="amount ৳" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ flex: 1 }} />
+          <input className="field" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ flex: 1 }} />
+        </div>
+        <p className="text-[11px] uppercase tracking-wide t-lo mb-1.5">Split</p>
+        <div className="grid grid-cols-4 gap-2 mb-3">{[1, 2, 3, 4].map((n) => (<button key={n} className={`chipbtn ${plan === n ? 'active' : ''}`} onClick={() => setPlan(n)}>{n === 1 ? 'Full' : n + '×'}</button>))}</div>
+        <label className="flex items-center gap-2 mb-4 text-[13px] t-hi"><input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} className="w-4 h-4" style={{ accentColor: 'var(--accent)' }} />Already paid</label>
+        <button className="btn btn-primary" disabled={!valid} onClick={save}>{isPrev ? 'Add previous cost' : 'Add cost'}</button>
+      </div>
+    </div>
+  );
+}
+function LinkSpaceSheet({ instituteId, onClose }) {
+  const { topSpaces, linkSpaceToInstitute, unlinkSpaceFromInstitute } = useV2();
+  const cands = topSpaces().filter((sp) => (sp.type === 'residence' || sp.type === 'club') && sp.id !== instituteId);
+  return (
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-2"><p className="font-bold t-hi flex-1">Link a residence or club</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <p className="text-[12px] t-mid mb-3">Tagged spaces roll their costs into this institute's totals — they stay independent.</p>
+        {cands.length === 0
+          ? <p className="text-[13px] t-mid text-center py-6">No residence or club spaces yet. Create one from Home first.</p>
+          : <div style={{ border: '2px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>{cands.map((sp, i) => {
+              const linked = sp.linkedInstituteId === instituteId;
+              return (
+                <div key={sp.id} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '1.5px solid var(--border)' } : undefined}>
+                  <span className="text-lg shrink-0">{sp.icon}</span>
+                  <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold t-hi truncate">{sp.name}</p><p className="text-[10px] t-lo">{sp.type}{sp.linkedInstituteId && !linked ? ' · linked elsewhere' : ''}</p></div>
+                  <button className={`minibtn ${linked ? 'btn-ghost' : 'btn-primary'}`} style={{ width: 'auto' }} onClick={() => (linked ? unlinkSpaceFromInstitute(sp.id) : linkSpaceToInstitute(sp.id, instituteId))}>{linked ? 'Linked' : 'Link'}</button>
+                </div>
+              );
+            })}</div>}
       </div>
     </div>
   );
@@ -679,16 +830,16 @@ function ReportsScreen() {
 }
 
 /* ---------------- NOTIFICATIONS ---------------- */
-function notifItems(dues) {
-  const t = today(), horizon = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 7);
+function notifItems(dues, leadDays = 7) {
+  const t = today(), horizon = new Date(t.getFullYear(), t.getMonth(), t.getDate() + (leadDays || 0));
   const overdue = [], soon = [];
   dues.filter((d) => !d.parked).forEach((d) => { const st = statusOf(d); if (st === 'paid') return; const dd = parse(d.date); if (st === 'overdue') overdue.push(d); else if (dd <= horizon) soon.push(d); });
   const byDate = (a, b) => parse(a.date) - parse(b.date);
   return { overdue: overdue.sort(byDate), soon: soon.sort(byDate) };
 }
-function NotifSheet({ onClose }) {
+function NotifSheet({ onClose, leadDays = 7 }) {
   const { allDues, payDue } = useV2();
-  const { overdue, soon } = notifItems(allDues());
+  const { overdue, soon } = notifItems(allDues(), leadDays);
   const none = !overdue.length && !soon.length;
   const Item = ({ d, tone }) => {
     const dd = parse(d.date);
@@ -1262,6 +1413,8 @@ function SettingsScreen({ d, toggleTheme }) {
   const { user, setUser, resetAll, allDues } = useV2();
   const [notify, setNotify] = useState(() => { try { return localStorage.getItem('cc_v2_notify') !== '0'; } catch { return true; } });
   const toggleNotify = () => setNotify((n) => { const v = !n; try { localStorage.setItem('cc_v2_notify', v ? '1' : '0'); } catch { /* noop */ } return v; });
+  const [remindDays, setRemindDays] = useState(() => { try { return Math.max(0, Math.min(30, parseInt(localStorage.getItem('cc_v2_remind_days'), 10) || 7)); } catch { return 7; } });
+  const setRemindDaysVal = (v) => { const n = Math.max(0, Math.min(30, +v || 0)); setRemindDays(n); try { localStorage.setItem('cc_v2_remind_days', String(n)); } catch { /* noop */ } };
   const cur = user?.currency || '৳';
   const exportCSV = () => {
     const rows = [['date', 'space', 'label', 'amount', 'status']].concat(allDues().map((dd) => [dd.date, dd.space?.name || '', String(dd.label || '').replace(/,/g, ' '), dd.amount, statusOf(dd)]));
@@ -1292,6 +1445,13 @@ function SettingsScreen({ d, toggleTheme }) {
             <div className="flex items-center gap-3"><Bell size={18} className="t-mid" /><div className="text-left"><p className="font-semibold t-hi">Due reminders</p><p className="text-[12px] t-mid">Nudge me before a Due date</p></div></div>
             <span className="v2-switch" data-on={notify ? '1' : '0'}><span className="v2-knob" /></span>
           </button>
+          {notify && (
+            <div className="card p-4 mt-2">
+              <div className="flex items-center justify-between mb-2"><p className="text-[13px] font-medium t-hi">Remind me before</p><span className="text-[13px] font-semibold t-accent">{remindDays === 0 ? 'On the day' : remindDays + (remindDays === 1 ? ' day' : ' days')}</span></div>
+              <input type="range" min="0" max="30" value={remindDays} onChange={(e) => setRemindDaysVal(e.target.value)} className="w-full" style={{ accentColor: 'var(--accent)' }} />
+              <p className="text-[11px] t-lo mt-1">Upcoming dues within this window show in your notifications.</p>
+            </div>
+          )}
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wide t-lo mb-2 px-1">Data</p>
