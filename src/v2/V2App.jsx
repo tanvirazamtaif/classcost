@@ -42,12 +42,15 @@ const Field = ({ label, v, onC, ph, type = 'text' }) => (
   <div><label className="text-[12px] block mb-1.5 t-mid">{label}</label><input className="field" type={type} value={v} placeholder={ph} onChange={(e) => onC(e.target.value)} /></div>
 );
 function statusPill(d) {
-  const st = statusOf(d), rem = remOf(d);
+  const st = engStatus(d), rem = engRem(d);
   if (st === 'paid') return <span className="pill st-paid">Paid</span>;
   if (st === 'partial') return <span className="pill st-partial">{fmt(rem)} left</span>;
   if (st === 'overdue') return <span className="pill st-overdue">Overdue</span>;
   return <span className="pill st-pending">Upcoming</span>;
 }
+// Recurring-engine remaining: counts cash payments + amount drawn from the deposit/advance balance.
+const engRem = (d) => Math.max(0, (d.amount || 0) - paidOf(d) - (d.fromBalance || 0));
+const engStatus = (d) => (engRem(d) <= 0 ? 'paid' : statusOf(d));
 function DueRow({ d, label }) {
   const { payDue } = useV2();
   const [partial, setPartial] = useState(false);
@@ -331,21 +334,114 @@ function NewSimple({ nav, back, params }) {
 }
 
 /* ---------------- INSTITUTE + SEMESTER ---------------- */
+function InstituteHero({ sm }) {
+  return (
+    <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '2px solid var(--hero-border)' }}>
+      <div className="grid grid-cols-2 gap-4">
+        <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
+        <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
+        <div><p className="text-[10px] t-lo">This year</p><p className="text-sm font-medium t-mid">{fmt(sm.year)}</p></div>
+        <div className="text-right"><p className="text-[10px] t-lo">Last month</p><p className="text-sm font-medium t-mid">{fmt(sm.last)}</p></div>
+      </div>
+    </div>
+  );
+}
+function InstituteTiles({ cats, onPick }) {
+  const tiles = DAILY.filter((x) => x.cat !== 'Others');
+  const maxDaily = Math.max(1, ...tiles.map((x) => cats[x.cat]?.total || 0));
+  return (
+    <div className="grid grid-cols-2 gap-2.5 mb-5">
+      {tiles.map(({ cat, emoji, Icon, color }) => {
+        const total = cats[cat]?.total || 0, pct = Math.min(100, total / maxDaily * 100);
+        return (
+          <button key={cat} className="ctile" onClick={() => onPick(cat, emoji)}>
+            <Icon size={18} color={color} />
+            <p className="text-[12px] t-mid mt-2">{cat}</p>
+            <p className="t-hi font-semibold text-[15px] mt-0.5">{fmt(total)}</p>
+            <div className="bar mt-2"><div style={{ height: '100%', width: pct + '%', background: color, borderRadius: 999 }} /></div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+function CostsBox({ costs, onOpen, onAdd }) {
+  const [q, setQ] = useState('');
+  const [tag, setTag] = useState('All');
+  const tags = ['All', ...COST_CHIPS.map((c) => c[0]), 'Others'];
+  const shown = costs.filter((b) => (tag === 'All' || (b.category || b.name) === tag) && (!q.trim() || (b.name || '').toLowerCase().includes(q.trim().toLowerCase())));
+  return (
+    <div className="mb-5" style={{ border: '2px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="p-2.5" style={{ borderBottom: '1.5px solid var(--border)' }}>
+        <div className="flex items-center gap-2 mb-2"><Search size={15} className="t-mid shrink-0" /><input className="field" style={{ padding: '.5rem .7rem' }} placeholder="Search costs…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        <div className="flex flex-wrap gap-1.5">{tags.map((t) => (<button key={t} className={`chipbtn ${tag === t ? 'active' : ''}`} style={{ width: 'auto', padding: '.3rem .6rem', fontSize: '.72rem' }} onClick={() => setTag(t)}>{t}</button>))}</div>
+      </div>
+      {shown.length === 0
+        ? <p className="text-[13px] t-mid text-center py-5">{costs.length ? 'No costs match.' : 'No costs yet.'}</p>
+        : shown.map((b, i) => {
+            const tot = b.dues.reduce((a, dd) => a + (dd.amount || 0), 0), paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0);
+            return (
+              <button key={b.id} className="w-full text-left flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '1.5px solid var(--border)' } : undefined} onClick={() => onOpen(b)}>
+                <span className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: 'var(--accent-light)' }}>{b.icon}</span>
+                <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold t-hi truncate">{b.name}</p><p className="text-[11px] t-mid">{fmt(paid)} / {fmt(tot)}</p></div>
+                <span className="pill st-partial shrink-0">{b.category}</span>
+              </button>
+            );
+          })}
+      <button className="w-full text-left flex items-center gap-3 px-3 py-3" style={{ borderTop: '1.5px solid var(--border)' }} onClick={onAdd}>
+        <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px dashed var(--border)' }}><Plus size={16} className="t-accent" /></span>
+        <span className="text-[13px] font-semibold t-accent">Add cost</span>
+      </button>
+    </div>
+  );
+}
+function SemesterCard({ b, onClick }) {
+  const paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0), cnt = b.dues.filter((dd) => statusOf(dd) === 'paid').length;
+  const net = b.items ? b.net : b.dues.reduce((a, dd) => a + (dd.amount || 0), 0);
+  return (
+    <button className="card w-full text-left p-4" onClick={onClick}>
+      <div className="flex items-center justify-between"><p className="font-semibold t-hi">🎓 {b.name}</p><span className="pill st-partial">{b.plan > 1 ? b.plan + '× installments' : 'one-time'}</span></div>
+      <div className="flex items-center justify-between mt-2 text-[12px]"><span className="t-mid">{fmt(paid)} / {fmt(net)}</span><span className="t-mid">{cnt}/{b.dues.length} paid</span></div>
+      <div className="bar mt-2" style={{ height: 4 }}><div style={{ height: '100%', width: (net > 0 ? Math.min(100, paid / net * 100) : 0) + '%', background: '#22c55e', borderRadius: 999 }} /></div>
+    </button>
+  );
+}
 function Institute({ nav, back, params }) {
   const { spaceById, scopedSummary, scopedCategoryTotals, monthTotal, spaceDues } = useV2();
+  const [pane, setPane] = useState(params.pane || 0);
   const [costSheet, setCostSheet] = useState(null); // null | 'normal' | 'previous'
   const [linkOpen, setLinkOpen] = useState(false);
   const [quick, setQuick] = useState(null);
-  const [spaceSheet, setSpaceSheet] = useState(false);
+  const [spaceSheet, setSpaceSheet] = useState(null); // null | 'residence' | 'club'
+  const startX = useRef(0);
   const s = spaceById(params.spaceId);
   if (!s) return <Stub title="Not found" emoji="🤔" msg="That space is gone." />;
+  const go = (p) => setPane(Math.max(0, Math.min(3, p)));
   const sems = s.blocks.filter((b) => b.kind === 'semester');
   const costs = s.blocks.filter((b) => b.kind === 'cost');
-  const sm = scopedSummary(s.id), cats = scopedCategoryTotals(s.id);
-  const maxDaily = Math.max(1, ...DAILY.map((x) => cats[x.cat]?.total || 0));
   const linked = (s.linkedSpaceIds || []).map(spaceById).filter(Boolean);
+  const clubs = linked.filter((sp) => sp.type === 'club');
+  const residences = linked.filter((sp) => sp.type === 'residence');
+  const TABS = [{ i: 0, label: 'Main', Icon: HomeIcon }, { i: 1, label: 'Semesters', Icon: GraduationCap }, { i: 2, label: 'Club', Icon: Users }, { i: 3, label: 'Residence', Icon: Building2 }];
+  const spaceList = (items, type) => (
+    <div style={{ border: '2px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+      {items.map((sp, i) => (
+        <div key={sp.id} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '1.5px solid var(--border)' } : undefined}>
+          <button className="flex items-center gap-3 flex-1 min-w-0 text-left" onClick={() => nav(sp.type, { spaceId: sp.id })}>
+            <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: 'var(--accent-light)' }}>{sp.icon}</span>
+            <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{sp.name}</p><p className="text-[11px] t-mid">{fmt(monthTotal(spaceDues(sp)))}/mo</p></div>
+          </button>
+          <button className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px solid var(--border)' }} onClick={() => nav(sp.type, { spaceId: sp.id, openSheet: 'cost' })} aria-label="Add cost"><Plus size={16} className="t-accent" /></button>
+        </div>
+      ))}
+      <button className="w-full text-left flex items-center gap-3 px-3 py-3" style={items.length ? { borderTop: '1.5px solid var(--border)' } : undefined} onClick={() => setSpaceSheet(type)}>
+        <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px dashed var(--border)' }}><Plus size={16} className="t-accent" /></span>
+        <span className="text-[13px] font-semibold t-accent">Add {type}</span>
+      </button>
+    </div>
+  );
   return (
-    <div className="v2-scroll">
+    <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: 124 }}>
       <header className="sticky top-0 z-20 px-4 py-3" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', borderBottom: '1.5px solid var(--border)' }}>
         <div className="flex items-center gap-2.5">
           <button onClick={back} className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center t-mid" aria-label="Back"><ChevronLeft size={20} /></button>
@@ -353,71 +449,48 @@ function Institute({ nav, back, params }) {
           <button className="text-[12px] font-medium t-accent shrink-0" onClick={() => setCostSheet('previous')}>+ Add previous</button>
         </div>
       </header>
-      <div className="px-4 py-4">
-        <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '2px solid var(--hero-border)' }}>
-          <div className="grid grid-cols-2 gap-4">
-            <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
-            <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
-            <div><p className="text-[10px] t-lo">This year</p><p className="text-sm font-medium t-mid">{fmt(sm.year)}</p></div>
-            <div className="text-right"><p className="text-[10px] t-lo">Last month</p><p className="text-sm font-medium t-mid">{fmt(sm.last)}</p></div>
+      <div onPointerDown={(e) => { startX.current = e.clientX; }} onPointerUp={(e) => { const dx = e.clientX - startX.current; if (dx < -55 && pane < 3) go(pane + 1); else if (dx > 55 && pane > 0) go(pane - 1); }} style={{ overflow: 'hidden' }}>
+        <motion.div className="flex items-start" style={{ width: '400%' }} animate={{ x: `-${pane * 25}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
+          <div style={{ width: '25%' }} className="px-4 pt-4">
+            <InstituteHero sm={scopedSummary(s.id)} />
+            <InstituteTiles cats={scopedCategoryTotals(s.id)} onPick={(category, icon) => setQuick({ category, icon })} />
+            <h2 className="text-sm font-semibold t-hi mb-2">Costs</h2>
+            <CostsBox costs={costs} onOpen={(b) => nav('semester', { spaceId: s.id, semId: b.id })} onAdd={() => setCostSheet('normal')} />
+            {residences.length > 0 && (<><h2 className="text-sm font-semibold t-hi mb-2">Residence</h2><div className="mb-5">{spaceList(residences, 'residence')}</div></>)}
+            {clubs.length > 0 && (<><h2 className="text-sm font-semibold t-hi mb-2">Club</h2><div className="mb-5">{spaceList(clubs, 'club')}</div></>)}
+            <div className="h-4" />
           </div>
+          <div style={{ width: '25%' }} className="px-4 pt-4">
+            <h2 className="text-sm font-semibold t-hi mb-2">Semesters</h2>
+            {sems.length === 0
+              ? <div className="card p-6 text-center text-[13px] t-mid">No semesters yet.<br /><button className="font-medium t-accent mt-1" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Add semester</button></div>
+              : <div className="space-y-2.5">{sems.map((b) => <SemesterCard key={b.id} b={b} onClick={() => nav('semester', { spaceId: s.id, semId: b.id })} />)}<button className="btn btn-ghost" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Add semester</button></div>}
+            <div className="h-4" />
+          </div>
+          <div style={{ width: '25%' }} className="px-4 pt-4">
+            <h2 className="text-sm font-semibold t-hi mb-2">Clubs</h2>
+            {clubs.length === 0 ? <div className="card p-6 text-center text-[13px] t-mid">No club yet.<br /><button className="font-medium t-accent mt-1" onClick={() => setSpaceSheet('club')}>+ Add club</button></div> : spaceList(clubs, 'club')}
+            <div className="h-4" />
+          </div>
+          <div style={{ width: '25%' }} className="px-4 pt-4">
+            <h2 className="text-sm font-semibold t-hi mb-2">Residences</h2>
+            {residences.length === 0 ? <div className="card p-6 text-center text-[13px] t-mid">No residence yet.<br /><button className="font-medium t-accent mt-1" onClick={() => setSpaceSheet('residence')}>+ Add residence</button></div> : spaceList(residences, 'residence')}
+            <div className="h-4" />
+          </div>
+        </motion.div>
+      </div>
+      <div className="fixed left-0 right-0 z-[41]" style={{ bottom: 52, maxWidth: 480, margin: '0 auto' }}>
+        <div className="flex" style={{ background: 'var(--sheet-bg)', borderTop: '2px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+          {TABS.map(({ i, label, Icon }) => (
+            <button key={i} onClick={() => go(i)} className="flex-1 flex flex-col items-center gap-0.5 py-2" style={{ background: pane === i ? 'var(--accent)' : 'transparent', color: pane === i ? 'var(--accent-text)' : 'var(--text2)', borderLeft: i ? '1.5px solid var(--border)' : undefined, transition: 'background .15s' }}>
+              <Icon size={17} /><span className="text-[10px] font-semibold tracking-wide">{label}</span>
+            </button>
+          ))}
         </div>
-        <div className="grid grid-cols-3 gap-2.5 mb-5">
-          {DAILY.map(({ cat, emoji, Icon, color }) => {
-            const total = cats[cat]?.total || 0, pct = Math.min(100, total / maxDaily * 100);
-            return (
-              <button key={cat} className="ctile" onClick={() => setQuick({ category: cat, icon: emoji })}>
-                <Icon size={18} color={color} />
-                <p className="text-[12px] t-mid mt-2">{cat}</p>
-                <p className="t-hi font-semibold text-[15px] mt-0.5">{fmt(total)}</p>
-                <div className="bar mt-2"><div style={{ height: '100%', width: pct + '%', background: color, borderRadius: 999 }} /></div>
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">This term</h2><button className="text-[12px] font-medium t-accent" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Add semester</button></div>
-        {sems.length === 0
-          ? <div className="card p-5 text-center text-[13px] t-mid mb-5">No semesters yet. <button className="font-medium t-accent" onClick={() => nav('create-semester', { spaceId: s.id })}>+ Create one</button></div>
-          : <div className="space-y-2.5 mb-5">{sems.map((b) => {
-              const paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0), cnt = b.dues.filter((dd) => statusOf(dd) === 'paid').length;
-              const net = b.items ? b.net : b.dues.reduce((a, dd) => a + (dd.amount || 0), 0);
-              return (
-                <button key={b.id} className="card w-full text-left p-4" onClick={() => nav('semester', { spaceId: s.id, semId: b.id })}>
-                  <div className="flex items-center justify-between"><p className="font-semibold t-hi">🎓 {b.name}</p><span className="pill st-partial">{b.plan > 1 ? b.plan + '× installments' : 'one-time'}</span></div>
-                  <div className="flex items-center justify-between mt-2 text-[12px]"><span className="t-mid">{fmt(paid)} / {fmt(net)}</span><span className="t-mid">{cnt}/{b.dues.length} paid</span></div>
-                  <div className="bar mt-2" style={{ height: 4 }}><div style={{ height: '100%', width: (net > 0 ? Math.min(100, paid / net * 100) : 0) + '%', background: '#22c55e', borderRadius: 999 }} /></div>
-                </button>
-              );
-            })}</div>}
-        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">Costs</h2><button className="text-[12px] font-medium t-accent" onClick={() => setCostSheet('normal')}>+ Add cost</button></div>
-        {costs.length === 0
-          ? <div className="card p-5 text-center text-[13px] t-mid mb-4">No other costs yet. <button className="font-medium t-accent" onClick={() => setCostSheet('normal')}>+ Add one</button></div>
-          : <div className="space-y-2.5 mb-4">{costs.map((b) => {
-              const tot = b.dues.reduce((a, dd) => a + (dd.amount || 0), 0), paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0);
-              return (
-                <button key={b.id} className="card w-full text-left p-4" onClick={() => nav('semester', { spaceId: s.id, semId: b.id })}>
-                  <div className="flex items-center justify-between"><p className="font-semibold t-hi">{b.icon} {b.name}</p><span className="pill st-partial">{b.category}</span></div>
-                  <div className="flex items-center justify-between mt-1.5 text-[12px]"><span className="t-mid">{fmt(paid)} / {fmt(tot)}</span><span className="t-mid">{tot > 0 && paid >= tot ? 'paid' : 'due'}</span></div>
-                </button>
-              );
-            })}</div>}
-        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold t-hi">Residence &amp; clubs</h2><button className="text-[12px] font-medium t-accent" onClick={() => setSpaceSheet(true)}>+ Add</button></div>
-        {linked.length === 0
-          ? <div className="card p-5 text-center text-[13px] t-mid">No residence or club yet. <button className="font-medium t-accent" onClick={() => setSpaceSheet(true)}>+ Add one</button></div>
-          : <div className="space-y-2.5">{linked.map((sp) => (
-              <div key={sp.id} className="card p-3.5 flex items-center gap-3">
-                <button className="flex items-center gap-3 flex-1 min-w-0 text-left" onClick={() => nav(sp.type, { spaceId: sp.id })}>
-                  <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: 'var(--accent-light)' }}>{sp.icon}</span>
-                  <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{sp.name}</p><p className="text-[11px] t-mid">{sp.type} · {fmt(monthTotal(spaceDues(sp)))}/mo</p></div>
-                </button>
-                <button className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)', border: '1.5px solid var(--border)' }} onClick={() => nav(sp.type, { spaceId: sp.id, openSheet: 'cost' })} aria-label="Add cost"><Plus size={16} className="t-accent" /></button>
-              </div>
-            ))}</div>}
-        <div className="h-4" />
       </div>
       {quick && <QuickAddDaily info={quick} fixedSectorId={s.id} onHistory={() => nav('category-history', { spaceId: s.id, cat: quick.category })} onClose={() => setQuick(null)} />}
-      {costSheet && <InstituteCostSheet spaceId={s.id} preset={costSheet === 'previous' ? 'previous' : null} onClose={() => setCostSheet(null)} />}
-      {spaceSheet && <AddLinkedSpaceSheet nav={nav} instituteId={s.id} onClose={() => setSpaceSheet(false)} onLinkExisting={() => { setSpaceSheet(false); setLinkOpen(true); }} />}
+      {costSheet && <InstituteCostSheet spaceId={s.id} preset={costSheet === 'previous' ? 'previous' : null} goPane={go} onClose={() => setCostSheet(null)} />}
+      {spaceSheet && <AddLinkedSpaceSheet nav={nav} instituteId={s.id} only={spaceSheet} onClose={() => setSpaceSheet(null)} onLinkExisting={() => { setSpaceSheet(null); setLinkOpen(true); }} />}
       {linkOpen && <LinkSpaceSheet instituteId={s.id} onClose={() => setLinkOpen(false)} />}
     </div>
   );
@@ -527,8 +600,8 @@ function Semester({ back, params }) {
     </div>
   );
 }
-const COST_CHIPS = [['Registration', '🧾'], ['Admission', '🎓'], ['Transport', '🚌'], ['Hostel', '🏠'], ['Books', '📚'], ['Exam', '📝'], ['Club', '🎟️']];
-function InstituteCostSheet({ spaceId, preset, onClose }) {
+const COST_CHIPS = [['Registration', '🧾'], ['Admission', '🎓'], ['Transport', '🚌'], ['Books', '📚'], ['Exam', '📝']];
+function InstituteCostSheet({ spaceId, preset, onClose, goPane }) {
   const { addCost } = useV2();
   const isPrev = preset === 'previous';
   const [tag, setTag] = useState('');
@@ -544,7 +617,18 @@ function InstituteCostSheet({ spaceId, preset, onClose }) {
     <div className="v2-backdrop" onClick={onClose}>
       <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 mb-3"><p className="font-bold t-hi flex-1">{isPrev ? 'Add a previous cost' : 'Add cost'}</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
-        <p className="text-[11px] uppercase tracking-wide t-lo mb-1.5">Suggested</p>
+        {!isPrev && goPane && (
+          <>
+            <p className="text-[11px] uppercase tracking-wide t-lo mb-1.5">Add to a section</p>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {[['Semester', 1, GraduationCap], ['Club', 2, Users], ['Residence', 3, Building2]].map(([lbl, p, Icon]) => (
+                <button key={lbl} className="chipbtn flex flex-col items-center gap-1 py-2.5" onClick={() => { onClose(); goPane(p); }}><Icon size={16} />{lbl} →</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 my-3"><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /><span className="text-[11px] t-lo">or a quick cost</span><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /></div>
+          </>
+        )}
+        <p className="text-[11px] uppercase tracking-wide t-lo mb-1.5">{isPrev ? 'Suggested' : 'Quick cost'}</p>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {COST_CHIPS.map(([t, ic]) => (<button key={t} className={`chipbtn ${tag === t ? 'active' : ''}`} style={{ width: 'auto', padding: '.4rem .7rem' }} onClick={() => { setTag(t); setCustom(''); }}>{ic} {t}</button>))}
           <button className={`chipbtn ${tag === 'Other' ? 'active' : ''}`} style={{ width: 'auto', padding: '.4rem .7rem' }} onClick={() => setTag('Other')}>＋ Other</button>
@@ -593,15 +677,17 @@ function CategoryHistory({ back, params }) {
     </div>
   );
 }
-function AddLinkedSpaceSheet({ nav, instituteId, onClose, onLinkExisting }) {
+function AddLinkedSpaceSheet({ nav, instituteId, onClose, onLinkExisting, only }) {
+  const showRes = !only || only === 'residence', showClub = !only || only === 'club';
+  const title = only === 'residence' ? 'Add a residence' : only === 'club' ? 'Add a club' : 'Add residence or club';
   return (
     <div className="v2-backdrop" onClick={onClose}>
       <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 mb-1"><p className="font-bold t-hi flex-1">Add residence or club</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <div className="flex items-center gap-2 mb-1"><p className="font-bold t-hi flex-1">{title}</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
         <p className="text-[12px] t-mid mb-3">Create a new one (tagged to this institute) or link one you already have.</p>
         <div className="space-y-2.5">
-          <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={() => { onClose(); nav('new-residence', { linkTo: instituteId }); }}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#22c55e22' }}><Building2 size={20} color="#22c55e" /></span><div><p className="font-semibold t-hi text-[14px]">New residence</p><p className="text-[11px] t-mid">Hostel, mess, flat — rent + deposit</p></div></button>
-          <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={() => { onClose(); nav('new-simple', { stype: 'club', linkTo: instituteId }); }}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#ec489922' }}><Users size={20} color="#ec4899" /></span><div><p className="font-semibold t-hi text-[14px]">New club</p><p className="text-[11px] t-mid">Membership + event costs</p></div></button>
+          {showRes && <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={() => { onClose(); nav('new-residence', { linkTo: instituteId }); }}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#22c55e22' }}><Building2 size={20} color="#22c55e" /></span><div><p className="font-semibold t-hi text-[14px]">New residence</p><p className="text-[11px] t-mid">Hostel, mess, flat — rent + deposit</p></div></button>}
+          {showClub && <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={() => { onClose(); nav('new-simple', { stype: 'club', linkTo: instituteId }); }}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#ec489922' }}><Users size={20} color="#ec4899" /></span><div><p className="font-semibold t-hi text-[14px]">New club</p><p className="text-[11px] t-mid">Membership + event costs</p></div></button>}
           <button className="card w-full text-left p-3.5 flex items-center gap-3" onClick={onLinkExisting}><span className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-lg" style={{ background: 'var(--accent-light)' }}>🔗</span><div><p className="font-semibold t-hi text-[14px]">Link existing</p><p className="text-[11px] t-mid">Tag a residence/club you already made</p></div></button>
         </div>
       </div>
@@ -764,6 +850,151 @@ function AddAssetSheet({ parentId, vtype, onClose, onCreated }) {
   );
 }
 
+/* ---------------- RESIDENCE / CLUB SYSTEM ---------------- */
+function RentEngineBlock({ eng, onOpen, onPay, onPayBalance }) {
+  const avail = Math.max(0, (eng.balance?.total || 0) - (eng.balance?.used || 0));
+  const cur = eng.dues.find((d) => inMonth(parse(d.date)));
+  const unpaid = cur && engRem(cur) > 0;
+  const bword = (eng.balanceLabel || 'balance').split(' ')[0].toLowerCase();
+  return (
+    <div className="card p-3.5 flex flex-col">
+      <button className="flex items-center gap-2 mb-2 text-left" onClick={onOpen}>
+        <span className="text-lg">{eng.icon}</span>
+        <div className="flex-1 min-w-0"><p className="font-semibold t-hi text-[14px] truncate">{eng.label}</p><p className="text-[11px] t-mid">{fmt(eng.amount)}/mo · due {eng.dueDay}</p></div>
+        <ChevronRight size={15} className="t-lo" />
+      </button>
+      <div className="text-[11px] t-mid mb-1.5">{eng.balanceLabel}: <span className="t-hi font-medium">{fmt(avail)}</span> left</div>
+      <div className="bar mb-2.5"><div style={{ height: '100%', width: ((eng.balance?.total || 0) > 0 ? (avail / eng.balance.total) * 100 : 0) + '%', background: 'var(--accent)', borderRadius: 999 }} /></div>
+      {unpaid
+        ? <div className="flex gap-1.5 mt-auto">
+            <button className="minibtn st-paid" style={{ flex: 1 }} onClick={() => onPay(cur)}>Pay</button>
+            <button className="minibtn btn-ghost" style={{ flex: 1, opacity: avail > 0 ? 1 : 0.5 }} disabled={avail <= 0} onClick={() => onPayBalance(cur)}>From {bword}</button>
+          </div>
+        : <p className="text-[11px] mt-auto" style={{ color: '#22c55e' }}>This month paid ✓</p>}
+    </div>
+  );
+}
+function OtherCostBlock({ spaceId, onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [tag, setTag] = useState('');
+  const [amt, setAmt] = useState('');
+  const save = () => { const v = +amt; if (!tag.trim() || !(v > 0)) return; onAdd(spaceId, { name: tag.trim(), tag: tag.trim(), amount: v, date: iso(today()), paid: true, plan: 1 }); setTag(''); setAmt(''); setOpen(false); };
+  return (
+    <div className="card p-3.5 flex flex-col">
+      <div className="flex items-center gap-2 mb-2"><span className="text-lg">🧾</span><p className="font-semibold t-hi text-[14px]">Other</p></div>
+      <p className="text-[11px] t-mid mb-2">A tagged one-off cost.</p>
+      {open ? (
+        <div className="mt-auto space-y-1.5">
+          <input className="field" style={{ padding: '.45rem .6rem' }} placeholder="tag (e.g. Annual fest)" value={tag} onChange={(e) => setTag(e.target.value)} autoFocus />
+          <div className="flex gap-1.5">
+            <input className="field" style={{ padding: '.45rem .6rem' }} type="number" placeholder="amount" value={amt} onChange={(e) => setAmt(e.target.value)} />
+            <button className="minibtn btn-primary" style={{ width: 'auto' }} onClick={save}>Add</button>
+          </div>
+        </div>
+      ) : <button className="minibtn btn-ghost mt-auto" onClick={() => setOpen(true)}>+ Add other</button>}
+    </div>
+  );
+}
+function SpaceDetailV2({ nav, back, params }) {
+  const { spaceById, spaceDues, monthTotal, ensureRentEngine, addCost, payDue, payFromBalance } = useV2();
+  const s = spaceById(params.spaceId);
+  const isClub = s?.type === 'club';
+  useEffect(() => { if (s) ensureRentEngine(s.id, isClub ? { label: 'Monthly fee', balanceLabel: 'Advance', icon: '🎟️' } : { label: 'Rent', balanceLabel: 'Security deposit', icon: '🏠' }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [s?.id]);
+  if (!s) return <Stub title="Not found" emoji="🤔" msg="That space is gone." />;
+  const eng = s.blocks.find((b) => b.kind === 'rentengine');
+  const costBlocks = s.blocks.filter((b) => b.kind === 'cost');
+  const crumb = s.linkedInstituteId ? (spaceById(s.linkedInstituteId)?.name || 'Home') : 'Home';
+  const trackRows = [];
+  if (eng) eng.dues.forEach((d) => trackRows.push({ d, from: eng }));
+  costBlocks.forEach((b) => b.dues.forEach((d) => trackRows.push({ d, from: b })));
+  trackRows.sort((a, b) => parse(b.d.date) - parse(a.d.date));
+  return (
+    <div className="v2-scroll">
+      <Header title={`${s.icon || ''} ${s.name}`} crumb={crumb} onBack={back} />
+      <div className="px-4 py-4 space-y-4">
+        <div className="card px-4 py-3"><p className="text-[10px] uppercase tracking-wide t-lo">This month</p><p className="text-2xl font-bold t-accent">{fmt(monthTotal(spaceDues(s)))}</p></div>
+        <div className="grid grid-cols-2 gap-3 items-stretch">
+          {eng ? <RentEngineBlock eng={eng} onOpen={() => nav('rent-engine', { spaceId: s.id, blockId: eng.id })} onPay={(d) => payDue(d.id, engRem(d))} onPayBalance={(d) => payFromBalance(eng.id, d.id)} /> : <div className="card p-3 text-[12px] t-mid">Setting up…</div>}
+          <OtherCostBlock spaceId={s.id} onAdd={addCost} />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold t-hi mb-2">Costs</h2>
+          {trackRows.length === 0
+            ? <div className="card p-5 text-center text-[13px] t-mid">No costs tracked yet.</div>
+            : <div style={{ border: '2px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>{trackRows.slice(0, 80).map(({ d, from }, i) => { const dt = parse(d.date); const fromBal = (d.fromBalance || 0) > 0; const isEng = from.kind === 'rentengine'; return (
+                <div key={d.id} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '1.5px solid var(--border)' } : undefined}>
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: 'var(--accent-light)' }}>{from.icon}</span>
+                  <div className="flex-1 min-w-0"><p className="text-[13px] t-hi truncate">{d.label}</p><p className="text-[11px] t-lo">{dt.getDate()} {MNS[dt.getMonth()]} {dt.getFullYear()}{fromBal ? ' · from ' + (from.balanceLabel || 'balance').split(' ')[0].toLowerCase() : ''}</p></div>
+                  <div className="text-right shrink-0"><p className="text-[13px] font-semibold t-hi">{fmt(d.amount)}</p>{isEng && engRem(d) <= 0 ? <span className="pill st-paid">Paid</span> : statusPill(d)}</div>
+                </div>
+              ); })}</div>}
+        </div>
+        <div className="h-4" />
+      </div>
+    </div>
+  );
+}
+function RentMonthRow({ d, balanceLabel, avail, onPay, onUnpay, onAdjust, onPayBalance }) {
+  const [edit, setEdit] = useState(false);
+  const [v, setV] = useState(d.amount);
+  const dt = parse(d.date);
+  const paid = engRem(d) <= 0;
+  const fromBal = (d.fromBalance || 0) > 0;
+  const bword = (balanceLabel || 'balance').split(' ')[0].toLowerCase();
+  return (
+    <div className="card p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[13px] t-hi">{MNS[dt.getMonth()]} {dt.getFullYear()}</p>
+          <p className="text-[11px] t-mid">{fmt(d.amount)}{fromBal ? ' · ' + fmt(d.fromBalance) + ' from ' + bword : ''}</p>
+        </div>
+        {paid ? <span className="pill st-paid shrink-0">Paid</span> : <span className="shrink-0">{statusPill(d)}</span>}
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {!paid && <button className="minibtn st-paid" onClick={onPay}>Mark paid</button>}
+        {!paid && avail > 0 && <button className="minibtn btn-ghost" onClick={onPayBalance}>Pay from {bword}</button>}
+        {paid && !fromBal && <button className="minibtn btn-ghost" onClick={onUnpay}>Unpay</button>}
+        <button className="minibtn btn-ghost" onClick={() => { setV(d.amount); setEdit((x) => !x); }}>Adjust</button>
+      </div>
+      {edit && (
+        <div className="flex gap-1.5 mt-2">
+          <input className="field" type="number" value={v} onChange={(e) => setV(e.target.value)} autoFocus />
+          <button className="minibtn btn-primary" style={{ width: 'auto' }} onClick={() => { onAdjust(v); setEdit(false); }}>Save</button>
+        </div>
+      )}
+    </div>
+  );
+}
+function RentEngine({ back, params }) {
+  const { spaceById, blockById, setRentAmount, setRentBalance, setRentDueDay, payDue, unpayDue, updateDue, payFromBalance, extendRentMonths } = useV2();
+  const s = spaceById(params.spaceId), b = blockById(params.blockId);
+  if (!b) return <Stub title="Not found" emoji="🤔" msg="That engine is gone." />;
+  const avail = Math.max(0, (b.balance?.total || 0) - (b.balance?.used || 0));
+  return (
+    <div className="v2-scroll">
+      <Header title={b.label} crumb={(s?.name || '') + ' › ' + b.label} onBack={back} />
+      <div className="px-4 py-4 space-y-4">
+        <div className="card p-4 space-y-3">
+          <p className="text-[10px] uppercase tracking-wide t-lo">Settings</p>
+          <div className="flex items-center justify-between gap-3"><span className="text-[13px] t-mid">Monthly {b.label.toLowerCase()}</span><input className="field" style={{ maxWidth: 130, textAlign: 'right' }} type="number" defaultValue={b.amount || ''} onBlur={(e) => setRentAmount(b.id, e.target.value)} /></div>
+          <div className="flex items-center justify-between gap-3"><span className="text-[13px] t-mid">{b.balanceLabel} total</span><input className="field" style={{ maxWidth: 130, textAlign: 'right' }} type="number" defaultValue={b.balance?.total || ''} onBlur={(e) => setRentBalance(b.id, e.target.value)} /></div>
+          <div className="flex items-center justify-between gap-3"><span className="text-[13px] t-mid">Due day (1–28)</span><input className="field" style={{ maxWidth: 130, textAlign: 'right' }} type="number" defaultValue={b.dueDay || 1} onBlur={(e) => setRentDueDay(b.id, e.target.value)} /></div>
+        </div>
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-1"><p className="text-[10px] uppercase tracking-wide t-lo">{b.balanceLabel}</p><p className="text-[12px] t-mid">{fmt(avail)} of {fmt(b.balance?.total || 0)} left</p></div>
+          <div className="bar"><div style={{ height: '100%', width: ((b.balance?.total || 0) > 0 ? (avail / b.balance.total) * 100 : 0) + '%', background: 'var(--accent)', borderRadius: 999 }} /></div>
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold t-hi mb-2">Months</h2>
+          <div className="space-y-2">{b.dues.map((d) => <RentMonthRow key={d.id} d={d} balanceLabel={b.balanceLabel} avail={avail} onPay={() => payDue(d.id, engRem(d))} onUnpay={() => unpayDue(d.id)} onAdjust={(val) => updateDue(d.id, { amount: val })} onPayBalance={() => payFromBalance(b.id, d.id)} />)}</div>
+          <button className="btn btn-ghost mt-2" onClick={() => extendRentMonths(b.id, 6)}>+ Add 6 more months</button>
+        </div>
+        <div className="h-4" />
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- CALENDAR ---------------- */
 function CalendarScreen() {
   const { allDues } = useV2();
@@ -780,7 +1011,7 @@ function CalendarScreen() {
   for (let day = 1; day <= days; day++) {
     const list = byDay[day] || [], isT = (y === t.getFullYear() && m === t.getMonth() && day === t.getDate()), selA = sel === iso(new Date(y, m, day));
     const spend = list.filter((dd) => !dd.parked);
-    let dc = '#6366f1'; if (spend.some((dd) => statusOf(dd) === 'overdue')) dc = '#ef4444'; else if (spend.length && spend.every((dd) => statusOf(dd) === 'paid')) dc = '#22c55e';
+    let dc = '#6366f1'; if (spend.some((dd) => engStatus(dd) === 'overdue')) dc = '#ef4444'; else if (spend.length && spend.every((dd) => engStatus(dd) === 'paid')) dc = '#22c55e';
     cells.push(<div key={day} className={`v2-cell ${list.length ? 'has' : ''} ${isT ? 'today' : ''} ${selA ? 'sel' : ''}`} onClick={() => setSel(iso(new Date(y, m, day)))}><span className={list.length ? 't-hi font-medium' : 't-lo'}>{day}</span>{list.length > 0 && <span className="v2-dot" style={{ background: dc }} />}</div>);
   }
   const selD = sel ? parse(sel) : null;
@@ -897,7 +1128,7 @@ function ReportsScreen() {
 function notifItems(dues, leadDays = 7) {
   const t = today(), horizon = new Date(t.getFullYear(), t.getMonth(), t.getDate() + (leadDays || 0));
   const overdue = [], soon = [];
-  dues.filter((d) => !d.parked).forEach((d) => { const st = statusOf(d); if (st === 'paid') return; const dd = parse(d.date); if (st === 'overdue') overdue.push(d); else if (dd <= horizon) soon.push(d); });
+  dues.filter((d) => !d.parked).forEach((d) => { if (engRem(d) <= 0) return; const st = statusOf(d); const dd = parse(d.date); if (st === 'overdue') overdue.push(d); else if (dd <= horizon) soon.push(d); });
   const byDate = (a, b) => parse(a.date) - parse(b.date);
   return { overdue: overdue.sort(byDate), soon: soon.sort(byDate) };
 }
@@ -1481,7 +1712,7 @@ function SettingsScreen({ d, toggleTheme }) {
   const setRemindDaysVal = (v) => { const n = Math.max(0, Math.min(30, +v || 0)); setRemindDays(n); try { localStorage.setItem('cc_v2_remind_days', String(n)); } catch { /* noop */ } };
   const cur = user?.currency || '৳';
   const exportCSV = () => {
-    const rows = [['date', 'space', 'label', 'amount', 'status']].concat(allDues().map((dd) => [dd.date, dd.space?.name || '', String(dd.label || '').replace(/,/g, ' '), dd.amount, statusOf(dd)]));
+    const rows = [['date', 'space', 'label', 'amount', 'status']].concat(allDues().map((dd) => [dd.date, dd.space?.name || '', String(dd.label || '').replace(/,/g, ' '), dd.amount, engStatus(dd)]));
     const csv = rows.map((r) => r.join(',')).join('\n');
     try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'classcost-v2.csv'; a.click(); } catch { /* noop */ }
   };
@@ -1621,7 +1852,9 @@ function Shell() {
     case 'reports': screen = <ReportsScreen {...P} />; break;
     case 'settings': screen = <SettingsScreen {...P} />; break;
     case 'profile': screen = <Profile {...P} />; break;
-    case 'residence': case 'club': case 'vehicle': case 'personal': case 'asset': screen = <SpaceDetail {...P} />; break;
+    case 'residence': case 'club': screen = <SpaceDetailV2 {...P} />; break;
+    case 'vehicle': case 'personal': case 'asset': screen = <SpaceDetail {...P} />; break;
+    case 'rent-engine': screen = <RentEngine {...P} />; break;
     default: screen = <Home {...P} />;
   }
   const homeActive = !['calendar', 'feed', 'reports', 'settings'].includes(view);

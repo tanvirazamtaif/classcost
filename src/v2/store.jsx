@@ -1,7 +1,10 @@
 // ClassCost v2 — data store. One mutable tree (spaces → blocks → dues → payments),
 // persisted to localStorage. React reads via useV2(); actions mutate then commit().
 import React, { createContext, useContext, useRef, useReducer, useEffect } from 'react';
-import { uid, split, monthlyDates, genWeekdayDues, iso, parse, today, inMonth, remOf, detectInstitute, setCurrency, MNS } from './engine';
+import { uid, split, monthlyDates, genWeekdayDues, iso, parse, today, inMonth, remOf, paidOf, detectInstitute, setCurrency, MNS } from './engine';
+
+// Recurring-engine remaining: balance-aware (counts cash payments + amount drawn from the deposit/advance).
+const engRem = (d) => Math.max(0, (d.amount || 0) - paidOf(d) - (d.fromBalance || 0));
 import { setAuthToken, getV2Data, saveV2Data } from '../api';
 
 const KEY = 'cc_v2_data';
@@ -200,6 +203,46 @@ export function V2Provider({ children }) {
     if (old) { const inst = spaceById(old); if (inst) inst.linkedSpaceIds = (inst.linkedSpaceIds || []).filter((x) => x !== spaceId); }
     commit();
   };
+  // ── recurring engine (rent / monthly fee) — one engine, two labels ──────────
+  // find-or-migrate-or-create the engine block on a residence/club space (idempotent).
+  const ensureRentEngine = (spaceId, opts = {}) => {
+    const sp = spaceById(spaceId); if (!sp) return null;
+    const { label = 'Rent', balanceLabel = 'Security deposit', icon = '🏠' } = opts;
+    let blk = sp.blocks.find((b) => b.kind === 'rentengine');
+    if (blk) return blk;
+    const dueDay = Math.min(28, Math.max(1, sp.system?.day || 1));
+    const legacy = sp.blocks.find((b) => b.kind === 'recurring' && b.name === label) || sp.blocks.find((b) => b.kind === 'recurring');
+    const deposit = sp.blocks.find((b) => b.parked && b.kind === 'onetime');
+    if (legacy) {
+      // migrate IN PLACE: keep the block id + dues (preserves calendar/payments), fold deposit into balance
+      legacy.kind = 'rentengine'; legacy.label = label; legacy.balanceLabel = balanceLabel; legacy.icon = icon;
+      legacy.amount = legacy.amount || 0; legacy.dueDay = dueDay;
+      legacy.start = (legacy.dues && legacy.dues[0]) ? legacy.dues[0].date.slice(0, 7) : iso(today()).slice(0, 7);
+      legacy.balance = { total: deposit?.amount || 0, used: 0 };
+      legacy.dues.forEach((d) => { if (d.fromBalance == null) d.fromBalance = 0; });
+      blk = legacy;
+      if (deposit) sp.blocks = sp.blocks.filter((b) => b.id !== deposit.id); // parked → already excluded globally, safe
+    } else {
+      const amount = sp.system?.rent || 0, dates = monthlyDates(12, dueDay, 0);
+      blk = { id: uid('blk'), kind: 'rentengine', name: label, label, balanceLabel, icon, amount, dueDay, start: dates[0].slice(0, 7), balance: { total: sp.system?.deposit || 0, used: 0 }, dues: dates.map((dt) => ({ id: uid('due'), amount, date: dt, label: label + ' · ' + MNS[parse(dt).getMonth()], payments: [], fromBalance: 0 })) };
+      sp.blocks.push(blk);
+    }
+    commit(); return blk;
+  };
+  const setRentAmount = (blockId, amount) => { const b = blockById(blockId); if (!b) return; b.amount = +amount || 0; b.dues.forEach((d) => { if (paidOf(d) + (d.fromBalance || 0) < d.amount) d.amount = b.amount; }); commit(); };
+  const setRentBalance = (blockId, total) => { const b = blockById(blockId); if (!b) return; b.balance = { total: +total || 0, used: b.balance?.used || 0 }; commit(); };
+  const setRentDueDay = (blockId, day) => { const b = blockById(blockId); if (!b) return; b.dueDay = Math.min(28, Math.max(1, +day || 1)); b.dues.forEach((d) => { if (paidOf(d) + (d.fromBalance || 0) < d.amount) { const dt = parse(d.date); dt.setDate(b.dueDay); d.date = iso(dt); } }); commit(); };
+  const payFromBalance = (blockId, dueId) => {
+    const b = blockById(blockId), d = findDue(dueId); if (!b || !d) return;
+    const take = Math.min(engRem(d), Math.max(0, (b.balance?.total || 0) - (b.balance?.used || 0)));
+    if (take <= 0) return;
+    d.fromBalance = (d.fromBalance || 0) + take; b.balance.used = (b.balance.used || 0) + take; commit();
+  };
+  const extendRentMonths = (blockId, n = 6) => {
+    const b = blockById(blockId); if (!b) return;
+    monthlyDates(n, b.dueDay || 1, b.dues.length).forEach((dt) => b.dues.push({ id: uid('due'), amount: b.amount, date: dt, label: b.name + ' · ' + MNS[parse(dt).getMonth()], payments: [], fromBalance: 0 }));
+    commit();
+  };
   const deleteSpace = (id) => { db.spaces = db.spaces.filter((s) => s.id !== id && s.parentId !== id); ref.current = db; commit(); };
   // ---- auth + cloud sync ----
   const ensurePersonal = () => { if (!db.spaces.some((s) => s.type === 'personal')) db.spaces.push({ id: uid('sp'), type: 'personal', name: 'Personal', icon: '👤', blocks: [] }); };
@@ -251,6 +294,7 @@ export function V2Provider({ children }) {
     createInstitute, createResidence, createSimple, createAsset, addSemester,
     addCategory, addRecurring, addOneTime, logExpense, logDaily, addScheduledCategory, removeBlock, payDue, deleteSpace, resetAll, setUser,
     addSimpleSemester, addDue, updateDue, deleteDue, unpayDue, addCost, linkSpaceToInstitute, unlinkSpaceFromInstitute,
+    ensureRentEngine, setRentAmount, setRentBalance, setRentDueDay, payFromBalance, extendRentMonths,
     // auth + sync
     login, logout, pullFromServer, isLoggedIn: !!db.user?.id,
   };
