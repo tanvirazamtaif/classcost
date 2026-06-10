@@ -373,32 +373,35 @@ function CostsBox({ costs, onOpen, onAdd }) {
   const shown = costs.filter((b) => (tag === 'All' || (b.category || b.name) === tag) && (!q.trim() || (b.name || '').toLowerCase().includes(q.trim().toLowerCase())));
   const toggleSearch = () => setSearchOpen((o) => { if (o) { setQ(''); setTag('All'); } return !o; });
   return (
-    <div className="overflow-hidden mb-5" style={{ minHeight: 320, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
-      <div className="flex items-center justify-end px-3 py-2">
+    <div className="mb-5">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-semibold t-hi">Costs</h2>
         <button className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: searchOpen ? 'var(--accent-light)' : 'transparent', color: searchOpen ? 'var(--accent)' : 'var(--text2)' }} onClick={toggleSearch} aria-label="Search costs"><Search size={15} /></button>
       </div>
       {searchOpen && (
-        <div className="px-3 pb-2.5" style={{ borderTop: '.5px solid var(--border)', paddingTop: '.625rem' }}>
-          <input className="field mb-2" style={{ padding: '.5rem .7rem' }} placeholder="Search costs…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+        <div className="mb-2">
+          <input className="field mb-2" placeholder="Search costs…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
           <div className="flex flex-wrap gap-1.5">{tags.map((t) => (<button key={t} className={`chipbtn ${tag === t ? 'active' : ''}`} style={{ width: 'auto', padding: '.3rem .6rem', fontSize: '.72rem' }} onClick={() => setTag(t)}>{t}</button>))}</div>
         </div>
       )}
-      {shown.length === 0 && <p className="text-[13px] t-mid text-center py-10" style={{ borderTop: '.5px solid var(--border)' }}>{costs.length ? 'No costs match.' : 'No costs yet.'}</p>}
-      {shown.map((b) => {
-        const tot = b.dues.reduce((a, dd) => a + (dd.amount || 0), 0), paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0);
-        return (
-          <button key={b.id} className="w-full text-left px-4 py-3.5 flex items-center gap-3" style={{ borderTop: '.5px solid var(--border)' }} onClick={() => onOpen(b)}>
-            <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: 'var(--accent-light)' }}>{b.icon}</span>
-            <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{b.name}</p><p className="text-[11px] t-mid">{b.category}</p></div>
-            <div className="text-right mr-1"><p className="text-[10px] t-lo">paid / total</p><p className="text-sm font-semibold t-hi">{fmt(paid)} / {fmt(tot)}</p></div>
-            <ChevronRight size={16} className="t-lo" />
-          </button>
-        );
-      })}
-      <button className="w-full text-left px-4 py-3.5 flex items-center gap-3" style={{ borderTop: '.5px solid var(--border)' }} onClick={onAdd}>
-        <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)' }}><Plus size={18} className="t-accent" /></span>
-        <span className="text-sm font-medium t-accent">Add cost</span>
-      </button>
+      <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
+        {shown.length === 0 && <p className="text-[13px] t-mid text-center py-10">{costs.length ? 'No costs match.' : 'No costs yet.'}</p>}
+        {shown.map((b, i) => {
+          const tot = b.dues.reduce((a, dd) => a + (dd.amount || 0), 0), paid = b.dues.reduce((a, dd) => a + paidOf(dd), 0);
+          return (
+            <button key={b.id} className="w-full text-left px-4 py-3.5 flex items-center gap-3" style={i > 0 ? { borderTop: '.5px solid var(--border)' } : undefined} onClick={() => onOpen(b)}>
+              <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: 'var(--accent-light)' }}>{b.icon}</span>
+              <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{b.name}</p><p className="text-[11px] t-mid">{b.category}</p></div>
+              <div className="text-right mr-1"><p className="text-[10px] t-lo">paid / total</p><p className="text-sm font-semibold t-hi">{fmt(paid)} / {fmt(tot)}</p></div>
+              <ChevronRight size={16} className="t-lo" />
+            </button>
+          );
+        })}
+        <button className="w-full text-left px-4 py-3.5 flex items-center gap-3" style={shown.length ? { borderTop: '.5px solid var(--border)' } : undefined} onClick={onAdd}>
+          <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)' }}><Plus size={18} className="t-accent" /></span>
+          <span className="text-sm font-medium t-accent">Add cost</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -461,7 +464,6 @@ function Institute({ nav, back, params }) {
           <div style={{ width: '25%' }} className="px-4 pt-4">
             <InstituteHero sm={scopedSummary(s.id)} />
             <InstituteTiles cats={scopedCategoryTotals(s.id)} onPick={(category, icon) => setQuick({ category, icon })} />
-            <h2 className="text-sm font-semibold t-hi mb-2">Costs</h2>
             <CostsBox costs={costs} onOpen={(b) => nav('semester', { spaceId: s.id, semId: b.id })} onAdd={() => setCostSheet('normal')} />
             {residences.length > 0 && (<><h2 className="text-sm font-semibold t-hi mb-2">Residence</h2><div className="mb-5">{spaceList(residences, 'residence')}</div></>)}
             {clubs.length > 0 && (<><h2 className="text-sm font-semibold t-hi mb-2">Club</h2><div className="mb-5">{spaceList(clubs, 'club')}</div></>)}
