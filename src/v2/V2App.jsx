@@ -366,16 +366,23 @@ function InstituteTiles({ cats, onPick }) {
   );
 }
 function CostsBox({ costs, onOpen, onAdd }) {
+  const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
   const [tag, setTag] = useState('All');
   const tags = ['All', ...COST_CHIPS.map((c) => c[0]), 'Others'];
   const shown = costs.filter((b) => (tag === 'All' || (b.category || b.name) === tag) && (!q.trim() || (b.name || '').toLowerCase().includes(q.trim().toLowerCase())));
+  const toggleSearch = () => setSearchOpen((o) => { if (o) { setQ(''); setTag('All'); } return !o; });
   return (
     <div className="mb-5" style={{ border: '2px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
-      <div className="p-2.5" style={{ borderBottom: '1.5px solid var(--border)' }}>
-        <div className="flex items-center gap-2 mb-2"><Search size={15} className="t-mid shrink-0" /><input className="field" style={{ padding: '.5rem .7rem' }} placeholder="Search costs…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-        <div className="flex flex-wrap gap-1.5">{tags.map((t) => (<button key={t} className={`chipbtn ${tag === t ? 'active' : ''}`} style={{ width: 'auto', padding: '.3rem .6rem', fontSize: '.72rem' }} onClick={() => setTag(t)}>{t}</button>))}</div>
+      <div className="flex items-center justify-end px-2 py-1.5" style={{ borderBottom: '1.5px solid var(--border)' }}>
+        <button className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: searchOpen ? 'var(--accent-light)' : 'transparent', color: searchOpen ? 'var(--accent)' : 'var(--text2)' }} onClick={toggleSearch} aria-label="Search costs"><Search size={16} /></button>
       </div>
+      {searchOpen && (
+        <div className="p-2.5" style={{ borderBottom: '1.5px solid var(--border)' }}>
+          <input className="field mb-2" style={{ padding: '.5rem .7rem' }} placeholder="Search costs…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          <div className="flex flex-wrap gap-1.5">{tags.map((t) => (<button key={t} className={`chipbtn ${tag === t ? 'active' : ''}`} style={{ width: 'auto', padding: '.3rem .6rem', fontSize: '.72rem' }} onClick={() => setTag(t)}>{t}</button>))}</div>
+        </div>
+      )}
       {shown.length === 0
         ? <p className="text-[13px] t-mid text-center py-5">{costs.length ? 'No costs match.' : 'No costs yet.'}</p>
         : shown.map((b, i) => {
