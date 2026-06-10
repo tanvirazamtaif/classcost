@@ -46,10 +46,14 @@ router.post('/profile', async (req, res) => {
   try {
     const taken = await prisma.feedProfile.findUnique({ where: { handle } });
     if (taken && taken.userId !== userId) return res.status(409).json({ error: 'That handle is taken' });
+    const set = {};
+    if (req.body.displayName !== undefined) set.displayName = String(req.body.displayName).slice(0, 60).trim() || null;
+    if (req.body.bio !== undefined) set.bio = String(req.body.bio).slice(0, 200).trim() || null;
+    if (req.body.avatarUrl !== undefined) set.avatarUrl = req.body.avatarUrl || null;
     const profile = await prisma.feedProfile.upsert({
       where: { userId },
-      update: { handle, displayName: req.body.displayName || undefined },
-      create: { userId, handle, displayName: req.body.displayName || null },
+      update: { handle, ...set },
+      create: { userId, handle, ...set },
     });
     res.json({ profile });
   } catch (err) { console.error('feed claim:', err); res.status(500).json({ error: 'Failed to claim handle' }); }
@@ -72,7 +76,7 @@ router.get('/posts', async (req, res) => {
     res.json({
       posts: posts.map((p) => ({
         id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt,
-        handle: p.author?.handle, displayName: p.author?.displayName,
+        handle: p.author?.handle, displayName: p.author?.displayName, avatarUrl: p.author?.avatarUrl,
         likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId,
       })),
       nextCursor: posts.length === take ? posts[posts.length - 1].id : null,
@@ -90,7 +94,7 @@ router.post('/posts', async (req, res) => {
     const profile = await prisma.feedProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(400).json({ error: 'Claim a handle first' });
     const post = await prisma.feedPost.create({ data: { authorId: userId, text, imageUrl: req.body.imageUrl || null } });
-    res.json({ post: { id: post.id, text: post.text, imageUrl: post.imageUrl, createdAt: post.createdAt, handle: profile.handle, displayName: profile.displayName, likes: 0, comments: 0, likedByMe: false, mine: true } });
+    res.json({ post: { id: post.id, text: post.text, imageUrl: post.imageUrl, createdAt: post.createdAt, handle: profile.handle, displayName: profile.displayName, avatarUrl: profile.avatarUrl, likes: 0, comments: 0, likedByMe: false, mine: true } });
   } catch (err) { console.error('feed post:', err); res.status(500).json({ error: 'Failed to post' }); }
 });
 
@@ -120,7 +124,7 @@ router.get('/posts/:id/comments', async (req, res) => {
     const userIds = [...new Set(comments.map((c) => c.userId))];
     const profiles = userIds.length ? await prisma.feedProfile.findMany({ where: { userId: { in: userIds } } }) : [];
     const byU = Object.fromEntries(profiles.map((p) => [p.userId, p]));
-    res.json({ comments: comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt, handle: byU[c.userId]?.handle, displayName: byU[c.userId]?.displayName, mine: c.userId === userId })) });
+    res.json({ comments: comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt, handle: byU[c.userId]?.handle, displayName: byU[c.userId]?.displayName, avatarUrl: byU[c.userId]?.avatarUrl, mine: c.userId === userId })) });
   } catch (err) { console.error('comments:', err); res.status(500).json({ error: 'Failed' }); }
 });
 router.post('/posts/:id/comments', async (req, res) => {
@@ -132,8 +136,32 @@ router.post('/posts/:id/comments', async (req, res) => {
     const profile = await prisma.feedProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(400).json({ error: 'Claim a handle first' });
     const c = await prisma.feedComment.create({ data: { postId: req.params.id, userId, text } });
-    res.json({ comment: { id: c.id, text: c.text, createdAt: c.createdAt, handle: profile.handle, displayName: profile.displayName, mine: true } });
+    res.json({ comment: { id: c.id, text: c.text, createdAt: c.createdAt, handle: profile.handle, displayName: profile.displayName, avatarUrl: profile.avatarUrl, mine: true } });
   } catch (err) { console.error('comment add:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── delete own content ──
+router.delete('/posts/:id', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const post = await prisma.feedPost.findUnique({ where: { id: req.params.id } });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.authorId !== userId) return res.status(403).json({ error: 'Not your post' });
+    await prisma.feedPost.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) { console.error('post delete:', err); res.status(500).json({ error: 'Failed to delete' }); }
+});
+router.delete('/posts/:id/comments/:cid', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const c = await prisma.feedComment.findUnique({ where: { id: req.params.cid } });
+    if (!c || c.postId !== req.params.id) return res.status(404).json({ error: 'Comment not found' });
+    let allowed = c.userId === userId;
+    if (!allowed) { const post = await prisma.feedPost.findUnique({ where: { id: c.postId } }); allowed = !!post && post.authorId === userId; }
+    if (!allowed) return res.status(403).json({ error: 'Not allowed' });
+    await prisma.feedComment.delete({ where: { id: req.params.cid } });
+    res.json({ ok: true });
+  } catch (err) { console.error('comment delete:', err); res.status(500).json({ error: 'Failed to delete' }); }
 });
 
 // ── follow ──
@@ -159,14 +187,18 @@ router.delete('/follow/:handle', async (req, res) => {
 // ── user search ──
 router.get('/users', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
-  const q = normHandle(req.query.q);
+  const q = String(req.query.q || '').trim();
   if (!q) return res.json({ users: [] });
+  const h = q.replace(/^@/, '').toLowerCase();
   try {
-    const profiles = await prisma.feedProfile.findMany({ where: { handle: { contains: q } }, take: 20 });
+    const profiles = await prisma.feedProfile.findMany({
+      where: { OR: [{ handle: { contains: h } }, { displayName: { contains: q, mode: 'insensitive' } }] },
+      take: 20,
+    });
     const ids = profiles.map((p) => p.userId);
     const following = ids.length ? await prisma.feedFollow.findMany({ where: { followerId: userId, followingId: { in: ids } }, select: { followingId: true } }) : [];
     const fSet = new Set(following.map((f) => f.followingId));
-    res.json({ users: profiles.map((p) => ({ handle: p.handle, displayName: p.displayName, isFollowing: fSet.has(p.userId), isMe: p.userId === userId })) });
+    res.json({ users: profiles.map((p) => ({ handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, isFollowing: fSet.has(p.userId), isMe: p.userId === userId })) });
   } catch (err) { console.error('search:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
@@ -182,7 +214,7 @@ router.get('/profile/u/:handle', async (req, res) => {
       prisma.feedFollow.count({ where: { followerId: profile.userId } }),
       prisma.feedFollow.findFirst({ where: { followerId: userId, followingId: profile.userId } }),
     ]);
-    res.json({ handle: profile.handle, displayName: profile.displayName, bio: profile.bio, counts: { posts, followers, following }, isFollowing: !!isF, isMe: profile.userId === userId });
+    res.json({ handle: profile.handle, displayName: profile.displayName, bio: profile.bio, avatarUrl: profile.avatarUrl, counts: { posts, followers, following }, isFollowing: !!isF, isMe: profile.userId === userId });
   } catch (err) { console.error('profile:', err); res.status(500).json({ error: 'Failed' }); }
 });
 router.get('/profile/u/:handle/posts', async (req, res) => {
@@ -194,7 +226,7 @@ router.get('/profile/u/:handle/posts', async (req, res) => {
     const ids = posts.map((p) => p.id);
     const mine = ids.length ? await prisma.feedLike.findMany({ where: { userId, postId: { in: ids } }, select: { postId: true } }) : [];
     const likedSet = new Set(mine.map((l) => l.postId));
-    res.json({ posts: posts.map((p) => ({ id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt, handle: p.author?.handle, displayName: p.author?.displayName, likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId })) });
+    res.json({ posts: posts.map((p) => ({ id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt, handle: p.author?.handle, displayName: p.author?.displayName, avatarUrl: p.author?.avatarUrl, likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId })) });
   } catch (err) { console.error('profile posts:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
@@ -251,6 +283,7 @@ router.get('/dm', async (req, res) => {
         threadId: t.id,
         handle: p.handle,
         displayName: p.displayName,
+        avatarUrl: p.avatarUrl,
         lastText: last ? last.text : '',
         lastAt: last ? last.createdAt : t.lastAt,
         mine: last ? last.senderId === userId : false,
@@ -277,7 +310,7 @@ router.get('/dm/:handle', async (req, res) => {
     const messages = await prisma.dmMessage.findMany({ where: { threadId: thread.id }, orderBy: { createdAt: 'asc' }, take: 300 });
     res.json({
       threadId: thread.id,
-      other: { handle: other.handle, displayName: other.displayName },
+      other: { handle: other.handle, displayName: other.displayName, avatarUrl: other.avatarUrl },
       messages: messages.map((m) => ({ id: m.id, text: m.text, mine: m.senderId === userId, createdAt: m.createdAt })),
     });
   } catch (err) { console.error('dm open:', err); res.status(500).json({ error: 'Failed to open conversation' }); }

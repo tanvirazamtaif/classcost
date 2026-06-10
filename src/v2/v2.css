@@ -92,3 +92,7 @@
   .v2-deskitem:hover { background: var(--pill-bg); color: var(--text1); }
   .v2-deskitem.active { background: var(--accent); color: var(--accent-text); }
 }
+
+/* double-tap like — heart pop */
+@keyframes feedheart { 0% { transform: scale(.4); opacity: 0; } 25% { transform: scale(1.15); opacity: .95; } 55% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.3); opacity: 0; } }
+.feed-heartpop { animation: feedheart .7s ease-out forwards; }

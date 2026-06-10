@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute } from './engine';
@@ -22,7 +22,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -728,6 +728,37 @@ const timeAgo = (d) => {
   if (s < 86400) return Math.floor(s / 3600) + 'h';
   return Math.floor(s / 86400) + 'd';
 };
+function Avatar({ url, name, size = 36, ring = false }) {
+  const initial = (name || 'S').toString().trim().charAt(0).toUpperCase() || 'S';
+  const base = { width: size, height: size, ...(ring ? { border: `${Math.max(1.5, size * 0.04)}px solid var(--border)`, boxSizing: 'border-box' } : {}) };
+  if (url) return <img src={url} alt="" className="rounded-full object-cover shrink-0 block" style={base} draggable={false} />;
+  return <span className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ ...base, background: '#22c55e', fontSize: Math.round(size * 0.4) }}>{initial}</span>;
+}
+function ccToast(msg) {
+  try {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = 'position:fixed;left:50%;bottom:96px;transform:translateX(-50%);max-width:80%;background:#15193C;color:#F2EFE6;border:1.5px solid rgba(255,255,255,.28);padding:.6rem 1rem;border-radius:11px;font-size:13px;font-weight:600;z-index:300;box-shadow:0 10px 30px rgba(0,0,0,.45);opacity:0;transition:opacity .25s;text-align:center;';
+    document.body.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 280); }, 1900);
+  } catch { /* noop */ }
+}
+function ReportSheet({ onClose, onSubmit }) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => { if (busy) return; setBusy(true); await onSubmit(reason.trim()); setBusy(false); };
+  return (
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-2"><Flag size={16} className="t-mid" /><p className="font-bold t-hi flex-1">Report</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <p className="text-[12px] t-mid mb-3">Tell us what's wrong (optional). Our team reviews every report.</p>
+        <textarea className="field" rows={3} placeholder="Reason…" value={reason} onChange={(e) => setReason(e.target.value)} style={{ resize: 'none' }} autoFocus />
+        <button className="btn btn-primary mt-3" disabled={busy} onClick={submit}>{busy ? 'Sending…' : 'Submit report'}</button>
+      </div>
+    </div>
+  );
+}
 function FeedScreen() {
   const { user } = useV2();
   const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
@@ -739,10 +770,11 @@ function FeedScreen() {
   const [searchMode, setSearchMode] = useState('browse'); // browse | dm
   const [composeOpen, setComposeOpen] = useState(false);
   const [dmHandle, setDmHandle] = useState(null);
+  const [myAvatar, setMyAvatar] = useState('');
   const startX = useRef(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
-    getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
+    getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
     return () => { on = false; };
   }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
@@ -756,7 +788,7 @@ function FeedScreen() {
   return (
     <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: 124 }}>
       <header className="px-4 pt-5 pb-3 flex items-center gap-2.5">
-        <button onClick={() => go(0)} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e', border: '1.5px solid var(--border)' }} aria-label="Your profile">{initial}</button>
+        <button onClick={() => go(0)} className="shrink-0" aria-label="Your profile"><Avatar url={myAvatar} name={user?.name || myHandle} size={36} ring /></button>
         <button onClick={() => go(1)} className="flex-1 flex items-center justify-center gap-2"><Logo size={22} /><span className="font-bold t-hi">Feed</span></button>
         <button onClick={() => setComposeOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '1.5px solid var(--border)' }} aria-label="New post"><PenSquare size={17} /></button>
         <button onClick={() => openSearch('browse')} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '1.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
@@ -824,6 +856,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
   const [err, setErr] = useState('');
   const [following, setFollowing] = useState(false);
   const [fBusy, setFBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   useEffect(() => {
     let on = true; setErr(''); setProf(null); setPosts(null);
     getFeedProfile(h).then((r) => { if (on) { setProf(r); setFollowing(!!r.isFollowing); } }).catch((x) => { if (on) setErr(x.message || 'offline'); });
@@ -838,7 +871,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
   const body = (
     <div className="py-3">
       <div className="flex flex-col items-center text-center mb-4 px-2">
-        <span className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-3" style={{ background: '#22c55e', border: '2px solid var(--border)' }}>{initial}</span>
+        <div className="mb-3"><Avatar url={prof?.avatarUrl} name={prof?.displayName || h} size={80} ring /></div>
         <p className="text-lg font-bold t-hi">{prof?.displayName || ('@' + h)}</p>
         <p className="text-[13px] t-accent">@{h}</p>
         {prof?.bio && <p className="text-[12px] t-mid mt-1 max-w-[260px]">{prof.bio}</p>}
@@ -856,13 +889,15 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
             {onMessage && <button className="btn btn-ghost flex items-center justify-center gap-1.5" onClick={() => onMessage('@' + h)}><MessageCircle size={15} /> Message</button>}
           </div>
         )}
+        {prof?.isMe && <button className="btn btn-ghost mt-4" style={{ maxWidth: 200 }} onClick={() => setEditOpen(true)}>Edit profile</button>}
       </div>
       <div className="px-2 space-y-3">
         {err && <div className="card p-6 text-center"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>}
         {!err && posts && posts.length === 0 && <div className="card p-6 text-center text-[13px] t-mid">No posts yet.</div>}
-        {posts && posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} />)}
+        {posts && posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={(id) => setPosts((ps) => (ps || []).filter((x) => x.id !== id))} />)}
       </div>
       <div className="h-4" />
+      {editOpen && prof && <EditFeedProfile profile={prof} onClose={() => setEditOpen(false)} onSaved={(np) => setProf((cur) => ({ ...cur, ...np }))} />}
     </div>
   );
   if (embedded) return body;
@@ -871,6 +906,45 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
       <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100%' }}>
         <Header title={'@' + h} onBack={onClose} />
         {body}
+      </div>
+    </div>
+  );
+}
+function EditFeedProfile({ profile, onClose, onSaved }) {
+  const [name, setName] = useState(profile?.displayName || '');
+  const [bio, setBio] = useState(profile?.bio || '');
+  const [avatar, setAvatar] = useState(profile?.avatarUrl || '');
+  const [busy, setBusy] = useState(false);
+  const [upBusy, setUpBusy] = useState(false);
+  const fileRef = useRef(null);
+  const pick = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (!f.type.startsWith('image/')) { ccToast('Pick an image'); return; }
+    setUpBusy(true);
+    try { const r = await uploadFeedImage(f); setAvatar(r.url); } catch { ccToast('Upload failed — is the server live?'); } finally { setUpBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+  const save = async () => {
+    if (busy) return; setBusy(true);
+    try { const r = await updateMyProfile({ handle: profile.handle, displayName: name.trim(), bio: bio.trim(), avatarUrl: avatar }); onSaved && onSaved(r.profile); ccToast('Profile updated'); onClose(); }
+    catch (x) { ccToast(x.message || 'Could not save'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="v2-backdrop" onClick={onClose}>
+      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-3"><p className="font-bold t-hi flex-1">Edit profile</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <div className="flex flex-col items-center mb-4">
+          <button onClick={() => fileRef.current?.click()} className="relative" aria-label="Change photo">
+            <Avatar url={avatar} name={name || profile?.handle} size={84} ring />
+            <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '2px solid var(--sheet-bg)' }}><Camera size={14} /></span>
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pick} />
+          <p className="text-[11px] t-lo mt-2">{upBusy ? 'Uploading…' : 'Tap to change photo'}</p>
+        </div>
+        <label className="text-[11px] uppercase tracking-wide t-lo">Display name</label>
+        <input className="field mt-1 mb-3" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+        <label className="text-[11px] uppercase tracking-wide t-lo">Bio</label>
+        <textarea className="field mt-1" rows={2} placeholder="A short bio…" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} style={{ resize: 'none' }} />
+        <button className="btn btn-primary mt-4" disabled={busy || upBusy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
   );
@@ -887,7 +961,12 @@ function FeedComments({ post, onClose, onAuthor }) {
   const send = async () => {
     const t = text.trim(); if (!t || busy) return; setBusy(true);
     try { const r = await addComment(post.id, t); setSt((s) => ({ ...s, list: [...s.list, r.comment] })); setText(''); }
-    catch (x) { window.alert(x.message || 'Could not comment'); } finally { setBusy(false); }
+    catch (x) { ccToast(x.message || 'Could not comment'); } finally { setBusy(false); }
+  };
+  const delComment = async (cid) => {
+    if (!window.confirm('Delete this comment?')) return;
+    setSt((s) => ({ ...s, list: s.list.filter((x) => x.id !== cid) }));
+    try { await deleteComment(post.id, cid); } catch { ccToast('Could not delete'); }
   };
   return (
     <div className="v2-backdrop" onClick={onClose}>
@@ -898,8 +977,9 @@ function FeedComments({ post, onClose, onAuthor }) {
             : st.list.length === 0 ? <p className="text-[13px] t-mid text-center py-6">No comments yet — say something.</p>
               : st.list.map((c) => (
                 <div key={c.id} className="flex gap-2.5">
-                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{(c.displayName || c.handle || 'S').charAt(0).toUpperCase()}</span>
-                  <div className="min-w-0"><p className="text-[12px]"><button className="font-semibold t-hi" onClick={() => onAuthor && c.handle && onAuthor(c.handle)}>@{c.handle}</button> <span className="t-lo">· {timeAgo(c.createdAt)}</span></p><p className="text-[13px] t-hi" style={{ whiteSpace: 'pre-wrap' }}>{c.text}</p></div>
+                  <button onClick={() => onAuthor && c.handle && onAuthor(c.handle)} className="shrink-0 mt-0.5"><Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={32} /></button>
+                  <div className="min-w-0 flex-1"><p className="text-[12px]"><button className="font-semibold t-hi" onClick={() => onAuthor && c.handle && onAuthor(c.handle)}>{c.displayName || ('@' + c.handle)}</button> <span className="t-lo">· {timeAgo(c.createdAt)}</span></p><p className="text-[13px] t-hi" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.text}</p></div>
+                  {(c.mine || post.mine) && <button className="t-lo shrink-0 p-1" onClick={() => delComment(c.id)} aria-label="Delete comment"><Trash2 size={14} /></button>}
                 </div>
               ))}
         </div>
@@ -943,65 +1023,113 @@ function FeedUserRow({ u, onOpen }) {
   };
   return (
     <button className="w-full flex items-center gap-3 p-2 rounded-lg text-left" onClick={() => onOpen(u.handle)}>
-      <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{(u.displayName || u.handle).charAt(0).toUpperCase()}</span>
+      <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={36} />
       <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold t-hi truncate">{u.displayName || ('@' + u.handle)}</p><p className="text-[11px] t-lo">@{u.handle}</p></div>
       {!u.isMe && <span className={`minibtn ${following ? 'btn-ghost' : 'btn-primary'}`} style={{ width: 'auto', padding: '.4rem .8rem' }} onClick={toggle}>{following ? 'Following' : 'Follow'}</span>}
     </button>
   );
 }
-function FeedPostCard({ p, onComment, onAuthor }) {
+function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
   const [liked, setLiked] = useState(!!p.likedByMe);
   const [likes, setLikes] = useState(p.likes || 0);
   const [busy, setBusy] = useState(false);
-  const initial = (p.displayName || p.handle || 'S').trim().charAt(0).toUpperCase();
-  const toggleLike = async () => {
-    if (busy) return; setBusy(true);
-    const next = !liked; setLiked(next); setLikes((n) => Math.max(0, n + (next ? 1 : -1)));
+  const [menu, setMenu] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [pop, setPop] = useState(false);
+  const lastTap = useRef(0);
+  const doLike = async (force) => {
+    const next = force === undefined ? !liked : force;
+    if (busy || next === liked) return;
+    setBusy(true); setLiked(next); setLikes((n) => Math.max(0, n + (next ? 1 : -1)));
     try { const r = next ? await likePost(p.id) : await unlikePost(p.id); if (typeof r?.likes === 'number') setLikes(r.likes); }
     catch { setLiked(!next); setLikes((n) => Math.max(0, n + (next ? -1 : 1))); }
     finally { setBusy(false); }
   };
+  const onImageTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current < 300) { doLike(true); setPop(true); setTimeout(() => setPop(false), 750); }
+    lastTap.current = now;
+  };
   const share = async () => {
     const txt = `${p.displayName || ('@' + p.handle)} on ClassCost:\n${p.text || ''}`;
-    try { if (navigator.share) await navigator.share({ text: txt }); else { await navigator.clipboard.writeText(txt); window.alert('Copied to clipboard'); } } catch { /* cancelled */ }
+    try { if (navigator.share) await navigator.share({ text: txt }); else { await navigator.clipboard.writeText(txt); ccToast('Copied to clipboard'); } } catch { /* cancelled */ }
   };
-  const report = async () => {
-    const reason = window.prompt('Report this post — reason (optional):');
-    if (reason === null) return;
-    try { await reportContent('post', p.id, reason || ''); window.alert("Thanks — we'll review it."); } catch { window.alert('Could not report right now.'); }
+  const del = async () => {
+    setMenu(false);
+    if (!window.confirm('Delete this post?')) return;
+    try { await deletePost(p.id); ccToast('Post deleted'); onDeleted && onDeleted(p.id); } catch { ccToast('Could not delete'); }
   };
   return (
     <div className="card p-4">
       <div className="flex items-center gap-2 mb-2.5">
         <button className="flex items-center gap-2.5 flex-1 min-w-0 text-left" onClick={() => onAuthor && onAuthor(p.handle)}>
-          <span className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
+          <Avatar url={p.avatarUrl} name={p.displayName || p.handle} size={36} />
           <div className="min-w-0 flex-1"><p className="text-[13px] font-semibold t-hi truncate">{p.displayName || ('@' + p.handle)}</p><p className="text-[11px] t-lo">@{p.handle} · {timeAgo(p.createdAt)}</p></div>
         </button>
-        <button className="t-lo shrink-0 p-1" onClick={report} aria-label="Report post"><Flag size={15} /></button>
+        <div className="relative shrink-0">
+          <button className="t-lo p-1" onClick={() => setMenu((m) => !m)} aria-label="More"><MoreHorizontal size={18} /></button>
+          {menu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
+              <div className="absolute right-0 top-7 z-20 card p-1" style={{ minWidth: 150, boxShadow: '0 10px 28px rgba(0,0,0,.35)' }}>
+                {p.mine
+                  ? <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium text-left" style={{ color: '#ef4444' }} onClick={del}><Trash2 size={15} />Delete post</button>
+                  : <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium text-left t-hi" onClick={() => { setMenu(false); setReportOpen(true); }}><Flag size={15} />Report post</button>}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-      {p.text && <p className="text-[14px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap' }}>{p.text}</p>}
-      {p.imageUrl && <img src={p.imageUrl} alt="" className="rounded-xl w-full mb-2" />}
+      {p.text && <p className="text-[14px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{p.text}</p>}
+      {p.imageUrl && (
+        <div className="relative mb-2 overflow-hidden rounded-xl select-none" style={{ border: '1px solid var(--border)' }} onClick={onImageTap}>
+          <img src={p.imageUrl} alt="" className="w-full block" style={{ maxHeight: 540, objectFit: 'cover' }} draggable={false} />
+          {pop && <span className="feed-heartpop" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}><Heart size={88} style={{ fill: '#fff', color: '#fff', filter: 'drop-shadow(0 2px 10px rgba(0,0,0,.5))' }} /></span>}
+        </div>
+      )}
       <div className="flex gap-5 mt-1 text-[12px]">
-        <button className="flex items-center gap-1.5" onClick={toggleLike} style={{ color: liked ? '#ef4444' : 'var(--text2)' }}><Heart size={16} style={liked ? { fill: '#ef4444' } : undefined} />{likes}</button>
+        <button className="flex items-center gap-1.5" onClick={() => doLike()} style={{ color: liked ? '#ef4444' : 'var(--text2)' }}><Heart size={16} style={liked ? { fill: '#ef4444' } : undefined} />{likes}</button>
         <button className="flex items-center gap-1.5 t-mid" onClick={() => onComment && onComment(p)}><MessageCircle size={16} />{p.comments || 0}</button>
         <button className="flex items-center gap-1.5 t-mid" onClick={share}><Share2 size={16} /></button>
       </div>
+      {reportOpen && <ReportSheet onClose={() => setReportOpen(false)} onSubmit={async (reason) => { try { await reportContent('post', p.id, reason); ccToast("Thanks — we'll review it"); } catch { ccToast('Could not report'); } setReportOpen(false); }} />}
     </div>
   );
 }
 function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
   const [st, setSt] = useState({ loading: true, posts: [], error: '' });
+  const [more, setMore] = useState(false);
+  const cursorRef = useRef(null);
+  const loadingRef = useRef(false);
+  const sentinel = useRef(null);
   useEffect(() => {
-    let on = true;
+    let on = true; cursorRef.current = null;
     setSt((s) => ({ ...s, loading: true, error: '' }));
-    listFeedPosts().then((r) => { if (on) setSt({ loading: false, posts: r?.posts || [], error: '' }); })
+    listFeedPosts().then((r) => { if (on) { cursorRef.current = r?.nextCursor || null; setSt({ loading: false, posts: r?.posts || [], error: '' }); } })
       .catch((x) => { if (on) setSt({ loading: false, posts: [], error: x.message || 'offline' }); });
     return () => { on = false; };
   }, [reloadKey]);
+  const loadMore = async () => {
+    if (loadingRef.current || !cursorRef.current) return;
+    loadingRef.current = true; setMore(true);
+    try { const r = await listFeedPosts(cursorRef.current); cursorRef.current = r?.nextCursor || null; setSt((s) => ({ ...s, posts: [...s.posts, ...(r?.posts || [])] })); }
+    catch { /* ignore */ } finally { loadingRef.current = false; setMore(false); }
+  };
+  useEffect(() => {
+    const node = sentinel.current; if (!node) return;
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) loadMore(); }, { rootMargin: '400px' });
+    io.observe(node); return () => io.disconnect();
+  }, [st.posts.length]);
+  const removePost = (id) => setSt((s) => ({ ...s, posts: s.posts.filter((p) => p.id !== id) }));
   if (st.loading) return <div className="py-12 text-center text-[13px] t-mid">Loading the feed…</div>;
   if (st.error) return <div className="card p-6 text-center mt-2"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
   if (!st.posts.length) return <div className="card p-6 text-center mt-2"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">Quiet in here</p><p className="text-[13px] t-mid mb-3">No posts yet — start the conversation.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>;
-  return <div className="py-2 space-y-3">{st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} />)}</div>;
+  return (
+    <div className="py-2 space-y-3">
+      {st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={removePost} />)}
+      {cursorRef.current && <div ref={sentinel} className="py-4 text-center text-[12px] t-lo">{more ? 'Loading more…' : ' '}</div>}
+    </div>
+  );
 }
 function ComposeSheet({ handle, onClose, onPosted }) {
   const [text, setText] = useState('');
@@ -1061,7 +1189,7 @@ function DMPane({ active, reloadKey, onOpenThread, onFind }) {
             : <div style={{ border: '2px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
                 {st.convos.map((c, i) => (
                   <button key={c.threadId} className="w-full text-left flex items-center gap-3 px-3 py-3" style={i < st.convos.length - 1 ? { borderBottom: '1.5px solid var(--border)' } : undefined} onClick={() => onOpenThread('@' + c.handle)}>
-                    <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e', border: '1.5px solid var(--border)' }}>{(c.displayName || c.handle).charAt(0).toUpperCase()}</span>
+                    <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={40} ring />
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold t-hi truncate">{c.displayName || ('@' + c.handle)}</p>
                       <p className="text-[12px] t-mid truncate">{c.mine ? 'You: ' : ''}{c.lastText || 'Say hi 👋'}</p>
