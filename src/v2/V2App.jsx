@@ -1,7 +1,7 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus, Pause, Play } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useDragControls } from 'framer-motion';
 import { haptics } from '../lib/haptics';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute, monthlyDates } from './engine';
@@ -1979,6 +1979,7 @@ function FeedComments({ post, onClose, onAuthor }) {
   const [st, setSt] = useState({ loading: true, list: [] });
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const dragControls = useDragControls();
   useEffect(() => {
     let on = true;
     getComments(post.id).then((r) => { if (on) setSt({ loading: false, list: r?.comments || [] }); }).catch(() => { if (on) setSt({ loading: false, list: [] }); });
@@ -1995,9 +1996,19 @@ function FeedComments({ post, onClose, onAuthor }) {
     try { await deleteComment(post.id, cid); } catch { ccToast('Could not delete'); }
   };
   return (
-    <div className="v2-backdrop" onClick={onClose}>
-      <div className="v2-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-        <div className="flex items-center gap-2 mb-1"><p className="font-semibold t-hi">Post</p><button className="ml-auto text-[13px] t-mid" onClick={onClose}>Close</button></div>
+    <div className="fixed inset-0 z-[60]" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
+      <motion.div
+        initial={{ y: '100%' }} animate={{ y: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 36 }}
+        drag="y" dragListener={false} dragControls={dragControls} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.7 }}
+        onDragEnd={(e, info) => { if (info.offset.y > 110 || info.velocity.y > 600) onClose(); }}
+        onClick={(ev) => ev.stopPropagation()}
+        className="absolute bottom-0 left-0 right-0 flex flex-col"
+        style={{ maxWidth: 480, margin: '0 auto', height: (typeof window !== 'undefined' && window.innerWidth >= 1024) ? '68vh' : '92vh', background: 'var(--sheet-bg)', borderTopLeftRadius: 18, borderTopRightRadius: 18, border: '.5px solid var(--border)', borderBottom: 'none', padding: '0 1.25rem 1rem' }}>
+        {/* grab handle — drag here to slide the sheet away */}
+        <div className="pt-2 pb-1" style={{ cursor: 'grab', touchAction: 'none' }} onPointerDown={(ev) => dragControls.start(ev)}>
+          <span className="block mx-auto rounded-full" style={{ width: 40, height: 4.5, background: 'var(--text3)', opacity: 0.5 }} />
+        </div>
+        <div className="flex items-center gap-2 mb-1" style={{ cursor: 'grab', touchAction: 'none' }} onPointerDown={(ev) => dragControls.start(ev)}><p className="font-semibold t-hi">Post</p><button className="ml-auto text-[13px] t-mid" onClick={onClose}>Close</button></div>
         <div className="flex-1 overflow-y-auto space-y-3 py-2" style={{ minHeight: 120 }}>
           {(post.imageUrl || post.text) && (
             <div className="pb-3 mb-1" style={{ borderBottom: '.5px solid var(--border)' }}>
@@ -2020,7 +2031,7 @@ function FeedComments({ post, onClose, onAuthor }) {
               ))}
         </div>
         <div className="flex gap-2 pt-2"><input className="field" placeholder="Add a comment…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} autoFocus /><button className="minibtn btn-primary" style={{ width: 'auto', padding: '.65rem 1rem' }} disabled={!text.trim() || busy} onClick={send}>Send</button></div>
-      </div>
+      </motion.div>
     </div>
   );
 }
