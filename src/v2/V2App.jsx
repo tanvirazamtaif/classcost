@@ -1362,10 +1362,8 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
               </>)}
         </div>
       )}
-      {/* grid tab bar */}
-      <div className="flex items-center justify-center t-hi" style={{ borderTop: '.5px solid var(--border)' }}>
-        <div className="py-2.5" style={{ borderBottom: '1.5px solid var(--text1)' }}>{gridIcon(true)}</div>
-      </div>
+      {/* divider above the grid (tab icon removed — only one content type) */}
+      <div style={{ borderTop: '.5px solid var(--border)' }} />
       {/* post grid */}
       {err
         ? <div className="card p-6 text-center mx-4 mt-3"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>
