@@ -1186,7 +1186,9 @@ const timeAgo = (d) => {
 };
 // deterministic per-user avatar color (hash of name/handle) so people are visually distinct — no more everyone-green
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f97316', '#0ea5e9', '#8b5cf6', '#ef4444', '#14b8a6', '#f59e0b', '#10b981', '#d946ef', '#3b82f6', '#e11d48'];
-const avatarColor = (name) => { const s = (name || 'S').toString().toLowerCase(); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; };
+// color follows the INITIAL letter (not the whole string) so "Tanvir Azam", "tanvir" and "@tanvir"
+// all paint identically — no color flash while different name sources hydrate on reload
+const avatarColor = (name) => { const ch = ((name || 'S').toString().trim().charAt(0) || 'S').toUpperCase(); return AVATAR_COLORS[(ch.charCodeAt(0) * 7) % AVATAR_COLORS.length]; };
 const fmtCount = (n) => { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K'; return String(n); };
 // emoji-only messages (❤️, 😂😂 …) render bare and big — no bubble around them
 const isEmojiOnly = (t) => {
@@ -1229,7 +1231,8 @@ function ReportSheet({ onClose, onSubmit }) {
 function FeedScreen({ nav, back, params }) {
   const { user } = useV2();
   const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
-  const [myAvatar, setMyAvatar] = useState('');
+  const [myAvatar, setMyAvatarState] = useState(() => { try { return localStorage.getItem('cc_feed_avatar') || ''; } catch { return ''; } });
+  const setMyAvatar = (url) => { setMyAvatarState(url || ''); try { localStorage.setItem('cc_feed_avatar', url || ''); } catch { /* ignore */ } };
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
   const [unread, setUnread] = useState({ dm: 0, other: 0 });
