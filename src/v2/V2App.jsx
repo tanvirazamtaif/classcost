@@ -8,16 +8,16 @@ import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, sta
 // ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
 // neutrals + one accent that inverts per mode (navy-on-cream / cream-on-navy) + muted gold.
 const v2Palette = (d) => d ? {
-  bg: '#0C0A1A', card: '#151421', border: 'rgba(255,255,255,.55)',
+  bg: '#0C0A1A', card: '#151421', border: 'rgba(255,255,255,.35)',
   accent: '#F2EFE6', accentText: '#0A143F', accentLight: 'rgba(242,239,230,.12)', gold: '#F2EFE6',
   text1: '#F2EFE6', text2: '#A6ABC6', text3: '#6E7596',
-  heroBg: '#151421', heroBorder: 'rgba(255,255,255,.55)',
+  heroBg: '#151421', heroBorder: 'rgba(255,255,255,.35)',
   pillBg: '#201E30', navBg: 'rgba(12,10,26,.92)', sheetBg: '#151421', cardShadow: 'none',
 } : {
-  bg: '#F5F4F0', card: '#FFFFFF', border: '#16181F',
+  bg: '#F5F4F0', card: '#FFFFFF', border: 'rgba(22,24,31,.45)',
   accent: '#0A143F', accentText: '#FFFFFF', accentLight: 'rgba(10,20,63,.07)', gold: '#0A143F',
   text1: '#0A143F', text2: '#5C6178', text3: '#9499A6',
-  heroBg: '#FFFFFF', heroBorder: '#16181F',
+  heroBg: '#FFFFFF', heroBorder: 'rgba(22,24,31,.45)',
   pillBg: '#EEEDE7', navBg: 'rgba(245,244,240,.95)', sheetBg: '#FFFFFF', cardShadow: 'none',
 };
 import { Logo } from '../components/ui/Logo';
@@ -1290,10 +1290,10 @@ function FeedScreen({ nav, back, params }) {
                 <Logo size={24} />
                 <span className="text-[15px] t-serif truncate"><span className="t-mid">classcost</span><span className="t-lo"> › </span><span className="font-bold t-hi">feed</span></span>
               </span>
-              <button onClick={() => goSub('messages')} className="relative rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Messages"
+              <button onClick={() => goSub('notifications')} className="relative rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Notifications"
                 style={{ width: 38, height: 38, background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
-                <Send size={18} strokeWidth={2} />
-                {unread.dm > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.dm > 9 ? '9+' : unread.dm}</span>}
+                <Heart size={18} strokeWidth={2} />
+                {unread.other > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.other > 9 ? '9+' : unread.other}</span>}
               </button>
             </>
           ) : (
@@ -1328,10 +1328,10 @@ function FeedScreen({ nav, back, params }) {
             <HeadIcon s="home" Icon={HomeIcon} label="Feed home" active={sub === 'home'} />
             <HeadIcon s="explore" Icon={Compass} label="Explore" active={sub === 'explore'} />
             <HeadIcon s="compose" Icon={Plus} label="New post" />
-            <button onClick={() => goSub('notifications')} className="relative rounded-full flex items-center justify-center shrink-0" aria-label="Notifications"
-              style={{ width: 38, height: 38, background: sub === 'notifications' ? 'var(--accent)' : 'var(--pill-bg)', color: sub === 'notifications' ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
-              <Heart size={19} strokeWidth={2} />
-              {unread.other > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.other > 9 ? '9+' : unread.other}</span>}
+            <button onClick={() => goSub('messages')} className="relative rounded-full flex items-center justify-center shrink-0" aria-label="Messages"
+              style={{ width: 38, height: 38, background: sub === 'messages' ? 'var(--accent)' : 'var(--pill-bg)', color: sub === 'messages' ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
+              <Send size={19} strokeWidth={2} />
+              {unread.dm > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.dm > 9 ? '9+' : unread.dm}</span>}
             </button>
             <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
               style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
@@ -1376,7 +1376,7 @@ function SuggestionsRow({ onOpenUser, onSeeAll, title = 'Suggested for you' }) {
       <div className="v2-stories flex gap-2.5 overflow-x-auto px-4 py-3">
         {users.map((u, i) => (
           <motion.div key={u.handle} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.05, type: 'spring', stiffness: 380, damping: 28 }}
-            className="relative flex flex-col items-center shrink-0 px-3 pt-6 pb-3" style={{ width: 152, border: '.5px solid var(--border)', borderRadius: 8, background: 'var(--card)' }}>
+            className="relative flex flex-col items-center shrink-0 px-3 pt-6 pb-3" style={{ width: 152, border: '.5px solid var(--border)', borderRadius: 8, background: 'var(--pill-bg)' }}>
             <button className="absolute top-1.5 right-2 t-lo text-[14px] leading-none p-1" style={{ background: 'none', border: 'none' }} onClick={() => dismiss(u.handle)} aria-label="Dismiss">✕</button>
             <button onClick={() => onOpenUser(u.handle)} style={{ background: 'none', border: 'none' }} aria-label={`Open @${u.handle}`}>
               <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={72} />
