@@ -1273,7 +1273,7 @@ function FeedScreen({ nav, back, params }) {
       {composeOpen && <ComposeSheet handle={handle} onClose={() => setComposeOpen(false)} onPosted={() => { setComposeOpen(false); setReloadKey((k) => k + 1); goSub('home'); }} />}
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={(h) => { setCommentsFor(null); setViewHandle(h); }} />}
       {viewHandle && <FeedProfileView handle={viewHandle} onClose={() => setViewHandle(null)} onComment={onComment} onAuthor={(h) => setViewHandle(h)} onMessage={(h) => { setViewHandle(null); setDmHandle(h); }} onEdit={goEdit} />}
-      {dmHandle && <DMThread handle={dmHandle} onClose={() => setDmHandle(null)} onSent={() => setReloadKey((k) => k + 1)} />}
+      {dmHandle && <DMThread handle={dmHandle} onClose={() => setDmHandle(null)} onSent={() => setReloadKey((k) => k + 1)} onProfile={(hh) => { setDmHandle(null); setViewHandle(hh); }} />}
     </div>
   );
 }
@@ -1780,25 +1780,36 @@ function DMPane({ active, reloadKey, onOpenThread, onFind }) {
         <p className="font-bold t-hi t-serif text-[18px] flex-1">Messages</p>
         <button className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} onClick={onFind} aria-label="New message"><PenSquare size={16} /></button>
       </div>
-      {st.loading ? <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3 py-2"><div className="v2-skel rounded-full shrink-0" style={{ width: 40, height: 40 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '45%', marginBottom: 6 }} /><div className="v2-skel rounded" style={{ height: 8, width: '70%' }} /></div></div>)}</div>
+      {st.loading ? <div className="space-y-1">{[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3 py-2.5"><div className="v2-skel rounded-full shrink-0" style={{ width: 52, height: 52 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 11, width: '45%', marginBottom: 7 }} /><div className="v2-skel rounded" style={{ height: 9, width: '70%' }} /></div></div>)}</div>
         : st.err ? <div className="card p-6 text-center"><div className="text-3xl mb-2">✉️</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Messages work once the server is live.' : "Couldn't load messages — try again in a moment."}</p></div>
-          : st.convos.length === 0 ? <div className="card p-8 text-center"><div className="text-4xl mb-2">💬</div><p className="font-semibold t-hi mb-1">No messages yet</p><p className="text-[13px] t-mid mb-3">Reach anyone on ClassCost by their @handle.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onFind}>Find someone</button></div>
-            : <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-                {st.convos.map((c, i) => (
-                  <button key={c.threadId} className="w-full text-left flex items-center gap-3 px-3 py-3" style={i < st.convos.length - 1 ? { borderBottom: '.5px solid var(--border)' } : undefined} onClick={() => onOpenThread('@' + c.handle)}>
-                    <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={40} ring />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-semibold t-hi truncate">{c.displayName || ('@' + c.handle)}</p>
-                      <p className="text-[12px] t-mid truncate">{c.mine ? 'You: ' : ''}{c.lastText || 'Say hi 👋'}</p>
+          : st.convos.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-light)' }}><Send size={26} className="t-accent" /></div>
+              <p className="font-semibold t-hi mb-1">your messages</p>
+              <p className="text-[13px] t-mid mb-4">slide into anyone's DMs by their @handle.</p>
+              <button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onFind}>start a chat</button>
+            </div>
+          ) : (
+            <div>
+              {st.convos.map((c, i) => (
+                <motion.button key={c.threadId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.045, type: 'spring', stiffness: 380, damping: 28 }} whileTap={{ scale: 0.98 }}
+                  className="w-full text-left flex items-center gap-3 py-2.5" onClick={() => onOpenThread('@' + c.handle)} style={{ background: 'none', border: 'none' }}>
+                  <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={52} ring />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-[14px] font-semibold t-hi truncate">{c.displayName || ('@' + c.handle)}</p>
+                      {c.lastAt && <span className="text-[11px] t-lo shrink-0 ml-auto">{timeAgo(c.lastAt)}</span>}
                     </div>
-                    <ChevronRight size={16} className="t-lo shrink-0" />
-                  </button>
-                ))}
-              </div>}
+                    <p className="text-[12.5px] t-mid truncate mt-0.5">{c.mine ? 'you: ' : ''}{c.lastText || 'say hi 👋'}</p>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          )}
     </div>
   );
 }
-function DMThread({ handle, onClose, onSent }) {
+function DMThread({ handle, onClose, onSent, onProfile }) {
   const h = (handle || '').replace('@', '');
   const [st, setSt] = useState({ loading: true, msgs: [], other: { handle: h }, err: false });
   const [text, setText] = useState('');
@@ -1816,34 +1827,89 @@ function DMThread({ handle, onClose, onSent }) {
     return () => { on = false; clearInterval(id); };
   }, [h]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [st.msgs.length]);
-  const send = async () => {
-    const t = text.trim(); if (!t || busy) return; setBusy(true);
+  const send = async (override) => {
+    const t = (override !== undefined ? override : text).trim(); if (!t || busy) return; setBusy(true);
     const tmp = { id: 'tmp-' + Date.now(), text: t, mine: true, createdAt: new Date().toISOString(), pending: true };
-    setSt((s) => ({ ...s, msgs: [...s.msgs, tmp] })); setText('');
+    setSt((s) => ({ ...s, msgs: [...s.msgs, tmp] })); if (override === undefined) setText('');
     try { const r = await sendDm(h, t); setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? r.message : m)), err: false })); onSent && onSent(); }
     catch (x) {
       if (import.meta.env.DEV) { /* keep the bubble locally so DMs are demoable offline */ }
-      else { setSt((s) => ({ ...s, msgs: s.msgs.filter((m) => m.id !== tmp.id) })); window.alert(x.message || 'Could not send'); }
+      else { setSt((s) => ({ ...s, msgs: s.msgs.filter((m) => m.id !== tmp.id) })); ccToast(x.message || 'Could not send'); }
     } finally { setBusy(false); }
   };
   const other = st.other || { handle: h };
-  const title = '@' + (other.handle || h);
+  const name = other.displayName || ('@' + (other.handle || h));
+  const GAP = 5 * 60 * 1000;
+  const near = (a, b) => a && b && a.mine === b.mine && Math.abs(new Date(a.createdAt) - new Date(b.createdAt)) < GAP;
+  const dayOf = (d) => new Date(d).toDateString();
+  const fmtDay = (d) => new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const canSend = !!text.trim() && !busy;
   return (
     <div className="fixed z-[46] flex flex-col" style={{ inset: 0, background: 'var(--bg)' }}>
       <div className="flex flex-col" style={{ maxWidth: 480, margin: '0 auto', width: '100%', height: '100%' }}>
-        <Header title={title} onBack={onClose} />
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-          {st.loading ? <p className="text-[13px] t-mid text-center py-8">Loading…</p>
-            : st.msgs.length === 0 ? <div className="text-center py-12"><div className="text-4xl mb-2">👋</div><p className="text-[13px] t-mid">Say hi to {other.displayName || title}.</p>{import.meta.env.DEV && <p className="text-[11px] t-lo mt-2">Messages persist once the server is live.</p>}</div>
-              : st.msgs.map((m) => (
-                <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
-                  <div className="max-w-[78%] px-3 py-2 text-[13px]" style={{ background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)', border: '.5px solid var(--border)', borderRadius: 6, borderBottomRightRadius: m.mine ? 2 : 6, borderBottomLeftRadius: m.mine ? 6 : 2, opacity: m.pending ? 0.6 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.text}</div>
+        {/* chat header — identity, tappable to open the profile */}
+        <div className="px-3 py-2.5 flex items-center gap-1.5" style={{ borderBottom: '.5px solid var(--border)', background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
+          <button onClick={onClose} className="p-1.5 t-mid" aria-label="Back"><ChevronLeft size={20} /></button>
+          <button className="flex items-center gap-2.5 flex-1 min-w-0 text-left" onClick={() => onProfile && onProfile(other.handle || h)}>
+            <Avatar url={other.avatarUrl} name={other.displayName || other.handle || h} size={36} ring />
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold t-hi truncate leading-tight">{name}</p>
+              <p className="text-[11px] t-lo truncate">@{other.handle || h}</p>
+            </div>
+          </button>
+        </div>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3">
+          {st.loading ? (
+            <div className="space-y-2 pt-2">
+              <div className="v2-skel rounded-2xl" style={{ height: 36, width: '55%' }} />
+              <div className="v2-skel rounded-2xl ml-auto" style={{ height: 36, width: '45%' }} />
+              <div className="v2-skel rounded-2xl" style={{ height: 36, width: '38%' }} />
+            </div>
+          ) : st.msgs.length === 0 ? (
+            <div className="text-center py-12 flex flex-col items-center">
+              <Avatar url={other.avatarUrl} name={other.displayName || other.handle || h} size={76} ring />
+              <p className="font-semibold t-hi mt-3">{name}</p>
+              <p className="text-[12px] t-lo mb-4">@{other.handle || h}</p>
+              <motion.button whileTap={{ scale: 0.92 }} className="btn btn-ghost" style={{ maxWidth: 160 }} onClick={() => send('👋')}>say hi 👋</motion.button>
+              {import.meta.env.DEV && <p className="text-[11px] t-lo mt-3">Messages persist once the server is live.</p>}
+            </div>
+          ) : st.msgs.map((m, i) => {
+            const prev = st.msgs[i - 1], next = st.msgs[i + 1];
+            const newDay = !prev || dayOf(prev.createdAt) !== dayOf(m.createdAt);
+            const first = newDay || !near(prev, m);
+            const last = !next || dayOf(next.createdAt) !== dayOf(m.createdAt) || !near(m, next);
+            const R = 16, S = 5;
+            return (
+              <div key={m.id}>
+                {newDay && <p className="text-center text-[10.5px] t-lo font-medium uppercase tracking-wide py-3">{fmtDay(m.createdAt)}</p>}
+                <div className={`flex items-end gap-1.5 ${m.mine ? 'justify-end' : 'justify-start'}`} style={{ marginTop: first && !newDay ? 12 : 2 }}>
+                  {!m.mine && (last
+                    ? <span className="shrink-0"><Avatar url={other.avatarUrl} name={other.displayName || other.handle || h} size={24} /></span>
+                    : <span className="shrink-0" style={{ width: 24 }} />)}
+                  <motion.div initial={{ opacity: 0, y: 6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 480, damping: 30 }}
+                    className="max-w-[76%] px-3.5 py-2 text-[13.5px]"
+                    style={{
+                      background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)',
+                      border: m.mine ? 'none' : '.5px solid var(--border)',
+                      borderRadius: R,
+                      borderTopRightRadius: m.mine && !first ? S : R, borderBottomRightRadius: m.mine && !last ? S : (m.mine ? 4 : R),
+                      borderTopLeftRadius: !m.mine && !first ? S : R, borderBottomLeftRadius: !m.mine && !last ? S : (!m.mine ? 4 : R),
+                      opacity: m.pending ? 0.55 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4,
+                    }}>
+                    {m.text}
+                  </motion.div>
                 </div>
-              ))}
+                {last && <p className={`text-[10px] t-lo mt-1 ${m.mine ? 'text-right pr-1' : 'pl-9'}`}>{m.pending ? 'sending…' : fmtTime(m.createdAt)}</p>}
+              </div>
+            );
+          })}
         </div>
         <div className="px-3 py-2.5 flex items-center gap-2" style={{ borderTop: '.5px solid var(--border)', background: 'var(--sheet-bg)' }}>
-          <input className="field flex-1" placeholder="Message…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
-          <button className="w-11 h-11 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '.5px solid var(--border)', opacity: (!text.trim() || busy) ? 0.5 : 1 }} disabled={!text.trim() || busy} onClick={send} aria-label="Send"><Send size={17} /></button>
+          <input className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder="message…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
+          <motion.button whileTap={{ scale: 0.85 }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: canSend ? 'var(--accent)' : 'var(--pill-bg)', color: canSend ? 'var(--accent-text)' : 'var(--text3)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}
+            disabled={!canSend} onClick={() => send()} aria-label="Send"><Send size={17} /></motion.button>
         </div>
       </div>
     </div>
