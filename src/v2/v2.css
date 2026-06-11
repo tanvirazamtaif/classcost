@@ -101,7 +101,7 @@
 
 /* skeleton shimmer (feed loading) */
 .v2-skel { position: relative; overflow: hidden; background: var(--pill-bg); }
-.v2-skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent); animation: v2shimmer 1.3s infinite; }
+.v2-skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); animation: v2shimmer 1.3s infinite; }
 @keyframes v2shimmer { 100% { transform: translateX(100%); } }
 
 /* double-tap like — heart pop */

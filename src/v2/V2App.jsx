@@ -1328,7 +1328,7 @@ function ExplorePane({ onOpenPost, onOpenUser }) {
           {Array.from({ length: 9 }).map((_, i) => <div key={i} className="v2-skel" style={{ aspectRatio: '1 / 1' }} />)}
         </div>
       ) : tiles.length === 0 ? (
-        <div className="py-16 text-center"><div className="text-4xl mb-2">🧭</div><p className="font-semibold t-hi mb-1">nothing to explore yet</p><p className="text-[13px] t-mid">photos people post will show up here.</p></div>
+        <div className="py-16 text-center"><div className="text-4xl mb-2">🧭</div><p className="font-semibold t-hi mb-1">{st.posts.length ? 'no photos yet' : 'nothing to explore yet'}</p><p className="text-[13px] t-mid">{st.posts.length ? 'text posts live on the feed — photos show up here.' : 'photos people post will show up here.'}</p></div>
       ) : (
         <>
           <div className="grid grid-cols-3" style={{ gap: 2 }}>
@@ -1645,8 +1645,8 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
           <button className="t-lo p-1" onClick={() => setMenu((m) => !m)} aria-label="More"><MoreHorizontal size={18} /></button>
           {menu && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
-              <div className="absolute right-0 top-7 z-20 card p-1" style={{ minWidth: 150, boxShadow: '0 10px 28px rgba(0,0,0,.35)' }}>
+              <div className="fixed inset-0 z-[39]" onClick={() => setMenu(false)} />
+              <div className="absolute right-0 top-7 z-40 card p-1" style={{ minWidth: 150, boxShadow: '0 10px 28px rgba(0,0,0,.35)' }}>
                 {p.mine
                   ? <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium text-left" style={{ color: '#ef4444' }} onClick={del}><Trash2 size={15} />Delete post</button>
                   : <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium text-left t-hi" onClick={() => { setMenu(false); setReportOpen(true); }}><Flag size={15} />Report post</button>}
