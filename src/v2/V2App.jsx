@@ -1225,7 +1225,6 @@ function FeedScreen({ nav, back, params }) {
   const [myAvatar, setMyAvatar] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
-  const [dmSearch, setDmSearch] = useState(false);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
     getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
@@ -1245,36 +1244,44 @@ function FeedScreen({ nav, back, params }) {
   const openThread = (hh) => nav('feed', { ...(params || {}), dm: hh });
   const threadToProfile = (hh) => { const { dm, ...rest } = params || {}; nav('feed', { ...rest, user: (hh || '').replace('@', '') }); };
   const goEdit = () => nav('feed', { sub: 'edit-profile' });
-  const HeadIcon = ({ s, Icon, label, onClick }) => (
-    <button onClick={onClick || (() => goSub(s))} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label={label}
-      style={{ background: sub === s ? 'var(--accent)' : 'var(--pill-bg)', color: sub === s ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
+  const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile' };
+  const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
+  const HeadIcon = ({ s, Icon, label }) => (
+    <button onClick={() => goSub(s)} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label={label}
+      style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
       <Icon size={17} />
     </button>
   );
   return (
     <div className="v2-scroll" style={{ overflowX: 'hidden' }}>
-      {/* sticky top bar — all feed navigation lives here (no secondary footer) */}
-      <header className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
-        <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
-          style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
-          <Avatar url={myAvatar} name={user?.name || myHandle} size={32} ring />
-        </button>
-        <div className="flex-1" />
-        <HeadIcon s="search" Icon={Search} label="Search" />
-        <HeadIcon s="explore" Icon={Compass} label="Explore" />
-        <HeadIcon s="compose" Icon={PenSquare} label="New post" />
-        <HeadIcon s="messages" Icon={Send} label="Messages" />
-      </header>
+      {/* sticky top bar — feed home shows the icon row; sub-pages show back + title */}
+      {!ownHeader && (
+        <header className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
+          {sub === 'home' ? (
+            <>
+              <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile">
+                <Avatar url={myAvatar} name={user?.name || myHandle} size={32} ring />
+              </button>
+              <div className="flex-1" />
+              <HeadIcon s="explore" Icon={Compass} label="Explore" />
+              <HeadIcon s="compose" Icon={PenSquare} label="New post" />
+              <HeadIcon s="messages" Icon={Send} label="Messages" />
+            </>
+          ) : (
+            <>
+              <button onClick={back} className="t-mid p-1 -ml-1 shrink-0" aria-label="Back to feed"><ChevronLeft size={22} /></button>
+              <p className="font-bold t-hi t-serif text-[17px] flex-1">{TITLES[sub] || ''}</p>
+            </>
+          )}
+        </header>
+      )}
 
       {sub === 'home' && <FeedListPane reloadKey={reloadKey} onCompose={() => goSub('compose')} onComment={onComment} onAuthor={onAuthor} />}
-      {sub === 'search' && <SearchPane onOpenUser={onAuthor} />}
       {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
-      {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} onFind={() => setDmSearch(true)} />}
+      {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
       {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
-
-      {dmSearch && <FeedSearch title="New message" onClose={() => setDmSearch(false)} onOpen={(h) => { setDmSearch(false); openThread(h); }} />}
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
       {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
@@ -1567,31 +1574,6 @@ function FeedComments({ post, onClose, onAuthor }) {
     </div>
   );
 }
-function FeedSearch({ onClose, onOpen, title }) {
-  const [q, setQ] = useState('');
-  const [st, setSt] = useState({ loading: false, users: [] });
-  useEffect(() => {
-    const t = q.trim(); if (!t) { setSt({ loading: false, users: [] }); return; }
-    setSt((s) => ({ ...s, loading: true }));
-    let on = true;
-    const id = setTimeout(() => { searchUsers(t).then((r) => { if (on) setSt({ loading: false, users: r?.users || [] }); }).catch(() => { if (on) setSt({ loading: false, users: [] }); }); }, 300);
-    return () => { on = false; clearTimeout(id); };
-  }, [q]);
-  return (
-    <div className="v2-backdrop" onClick={onClose}>
-      <div className="v2-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-        {title && <p className="font-bold t-hi mb-2">{title}</p>}
-        <div className="flex items-center gap-2 mb-3"><Search size={18} className="t-mid shrink-0" /><input className="field" placeholder="Search @handles…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus /><button className="text-[13px] t-mid shrink-0" onClick={onClose}>Close</button></div>
-        <div className="flex-1 overflow-y-auto" style={{ minHeight: 120 }}>
-          {st.loading ? <p className="text-[13px] t-mid text-center py-6">Searching…</p>
-            : !q.trim() ? <p className="text-[13px] t-lo text-center py-6">Find students by their @handle.</p>
-              : st.users.length === 0 ? <p className="text-[13px] t-mid text-center py-6">No one found.</p>
-                : st.users.map((u) => <FeedUserRow key={u.handle} u={u} onOpen={onOpen} />)}
-        </div>
-      </div>
-    </div>
-  );
-}
 function FeedUserRow({ u, onOpen }) {
   const [following, setFollowing] = useState(!!u.isFollowing);
   const [busy, setBusy] = useState(false);
@@ -1729,30 +1711,6 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
     </div>
   );
 }
-function SearchPane({ onOpenUser }) {
-  const [q, setQ] = useState('');
-  const [results, setResults] = useState(null);
-  useEffect(() => { // debounced people search
-    const term = q.trim().replace('@', '');
-    if (!term) { setResults(null); return; }
-    const t = setTimeout(() => { searchUsers(term).then((r) => setResults(r?.users || [])).catch(() => setResults([])); }, 250);
-    return () => clearTimeout(t);
-  }, [q]);
-  return (
-    <div className="px-4 py-3">
-      <div className="flex items-center gap-2 mb-2" style={{ padding: '.6rem .9rem', borderRadius: 999, border: '.5px solid var(--border)', background: 'var(--card)' }}>
-        <Search size={15} className="t-lo shrink-0" />
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="search people…" className="flex-1 min-w-0 text-[14px]" style={{ border: 'none', outline: 'none', background: 'transparent', color: 'var(--text1)' }} />
-        {q && <button className="t-lo text-[12px] shrink-0" onClick={() => setQ('')}>clear</button>}
-      </div>
-      {results === null
-        ? <div className="py-14 text-center"><div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-light)' }}><Search size={22} className="t-accent" /></div><p className="font-semibold t-hi mb-1">find your people</p><p className="text-[13px] t-mid">search any name or @handle.</p></div>
-        : results.length === 0
-          ? <p className="text-[13px] t-mid text-center py-10">no one found for “{q.trim()}”</p>
-          : results.map((u) => <FeedUserRow key={u.handle} u={u} onOpen={onOpenUser} />)}
-    </div>
-  );
-}
 function ComposePage({ handle, myAvatar, userName, onBack, onPosted }) {
   const [text, setText] = useState('');
   const [img, setImg] = useState(null); // { url, preview }
@@ -1803,31 +1761,46 @@ function ComposePage({ handle, myAvatar, userName, onBack, onPosted }) {
 }
 
 /* ---------------- direct messages ---------------- */
-function DMPane({ active, reloadKey, onOpenThread, onFind }) {
+function DMPane({ active, reloadKey, onOpenThread }) {
   const [st, setSt] = useState({ loading: true, convos: [], err: false });
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState([]);
+  const searchRef = useRef(null);
   useEffect(() => {
     let on = true; setSt((s) => ({ ...s, loading: true }));
     listConversations().then((r) => { if (on) setSt({ loading: false, convos: r?.conversations || [], err: false }); }).catch(() => { if (on) setSt({ loading: false, convos: [], err: true }); });
     return () => { on = false; };
   }, [reloadKey, active]);
+  useEffect(() => { // people search beyond existing chats (debounced)
+    const term = q.trim().replace('@', '');
+    if (!term) { setFound([]); return; }
+    const t = setTimeout(() => { searchUsers(term).then((r) => setFound(r?.users || [])).catch(() => setFound([])); }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+  const ql = q.trim().toLowerCase().replace('@', '');
+  const convos = ql ? st.convos.filter((c) => (c.displayName || '').toLowerCase().includes(ql) || (c.handle || '').toLowerCase().includes(ql)) : st.convos;
+  const extra = ql ? found.filter((u) => !st.convos.some((c) => c.handle === u.handle)) : [];
   return (
     <div className="px-4 py-3">
-      <div className="flex items-center gap-2 mb-3">
-        <p className="font-bold t-hi t-serif text-[18px] flex-1">Messages</p>
-        <button className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} onClick={onFind} aria-label="New message"><PenSquare size={16} /></button>
+      <div className="flex items-center gap-2 mb-2" style={{ padding: '.6rem .9rem', borderRadius: 999, border: '.5px solid var(--border)', background: 'var(--card)' }}>
+        <Search size={15} className="t-lo shrink-0" />
+        <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="search chats & people…" className="flex-1 min-w-0 text-[14px]" style={{ border: 'none', outline: 'none', background: 'transparent', color: 'var(--text1)' }} />
+        {q && <button className="t-lo text-[12px] shrink-0" onClick={() => setQ('')}>clear</button>}
       </div>
       {st.loading ? <div className="space-y-1">{[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3 py-2.5"><div className="v2-skel rounded-full shrink-0" style={{ width: 52, height: 52 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 11, width: '45%', marginBottom: 7 }} /><div className="v2-skel rounded" style={{ height: 9, width: '70%' }} /></div></div>)}</div>
         : st.err ? <div className="card p-6 text-center"><div className="text-3xl mb-2">✉️</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Messages work once the server is live.' : "Couldn't load messages — try again in a moment."}</p></div>
-          : st.convos.length === 0 ? (
+          : (!ql && st.convos.length === 0) ? (
             <div className="py-16 text-center">
               <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-light)' }}><Send size={26} className="t-accent" /></div>
               <p className="font-semibold t-hi mb-1">your messages</p>
-              <p className="text-[13px] t-mid mb-4">slide into anyone's DMs by their @handle.</p>
-              <button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onFind}>start a chat</button>
+              <p className="text-[13px] t-mid mb-4">slide into anyone's DMs — search a name or @handle above.</p>
+              <button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={() => searchRef.current?.focus()}>start a chat</button>
             </div>
+          ) : (ql && convos.length === 0 && extra.length === 0) ? (
+            <p className="text-[13px] t-mid text-center py-10">no one found for “{q.trim()}”</p>
           ) : (
             <div>
-              {st.convos.map((c, i) => (
+              {convos.map((c, i) => (
                 <motion.button key={c.threadId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.045, type: 'spring', stiffness: 380, damping: 28 }} whileTap={{ scale: 0.98 }}
                   className="w-full text-left flex items-center gap-3 py-2.5" onClick={() => onOpenThread('@' + c.handle)} style={{ background: 'none', border: 'none' }}>
                   <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={52} ring />
@@ -1840,6 +1813,12 @@ function DMPane({ active, reloadKey, onOpenThread, onFind }) {
                   </div>
                 </motion.button>
               ))}
+              {extra.length > 0 && (
+                <>
+                  <p className="text-[11px] uppercase tracking-wide t-lo mt-3 mb-1 px-1">more people</p>
+                  {extra.map((u) => <FeedUserRow key={u.handle} u={u} onOpen={onOpenThread} />)}
+                </>
+              )}
             </div>
           )}
     </div>
