@@ -128,10 +128,31 @@ router.get('/posts/:id', async (req, res) => {
 });
 
 // ── notifications ──
+// Backfill rows for likes/comments/follows that happened before the notification system
+// existed (or were missed). Idempotent per (type, actor, post); created pre-read with the
+// original event time so history shows without inflating the unread badge.
+async function backfillNotifications(userId) {
+  const myPosts = await prisma.feedPost.findMany({ where: { authorId: userId }, select: { id: true, text: true } });
+  const postIds = myPosts.map((p) => p.id);
+  const textBy = Object.fromEntries(myPosts.map((p) => [p.id, (p.text || '').slice(0, 80) || null]));
+  const [likes, comments, follows, existing] = await Promise.all([
+    postIds.length ? prisma.feedLike.findMany({ where: { postId: { in: postIds }, NOT: { userId } } }) : [],
+    postIds.length ? prisma.feedComment.findMany({ where: { postId: { in: postIds }, NOT: { userId } } }) : [],
+    prisma.feedFollow.findMany({ where: { followingId: userId } }),
+    prisma.feedNotification.findMany({ where: { userId }, select: { actorId: true, type: true, postId: true } }),
+  ]);
+  const seen = new Set(existing.map((e) => `${e.type}|${e.actorId}|${e.postId || ''}`));
+  const rows = [];
+  for (const l of likes) { const k = `like|${l.userId}|${l.postId}`; if (!seen.has(k)) { seen.add(k); rows.push({ userId, actorId: l.userId, type: 'like', postId: l.postId, text: textBy[l.postId], readAt: l.createdAt, createdAt: l.createdAt }); } }
+  for (const c of comments) { const k = `comment|${c.userId}|${c.postId}`; if (!seen.has(k)) { seen.add(k); rows.push({ userId, actorId: c.userId, type: 'comment', postId: c.postId, text: (c.text || '').slice(0, 120) || null, readAt: c.createdAt, createdAt: c.createdAt }); } }
+  for (const f of follows) { const k = `follow|${f.followerId}|`; if (!seen.has(k)) { seen.add(k); rows.push({ userId, actorId: f.followerId, type: 'follow', postId: null, text: null, readAt: f.createdAt, createdAt: f.createdAt }); } }
+  if (rows.length) await prisma.feedNotification.createMany({ data: rows });
+}
 router.get('/notifications', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
   try {
-    const items = await prisma.feedNotification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 40 });
+    try { await backfillNotifications(userId); } catch (err) { console.error('notif backfill:', err); }
+    const items = await prisma.feedNotification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 60 });
     const actorIds = [...new Set(items.map((n) => n.actorId))];
     const profiles = actorIds.length ? await prisma.feedProfile.findMany({ where: { userId: { in: actorIds } } }) : [];
     const byU = Object.fromEntries(profiles.map((p) => [p.userId, p]));
