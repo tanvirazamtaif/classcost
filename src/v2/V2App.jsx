@@ -1254,29 +1254,29 @@ function FeedScreen({ nav, back, params }) {
   const threadToProfile = (hh) => { const { dm, ...rest } = params || {}; nav('feed', { ...rest, user: (hh || '').replace('@', '') }); };
   const goEdit = () => nav('feed', { sub: 'edit-profile' });
   const openPost = async (pid) => { try { const r = await getFeedPost(pid); if (r?.post) setCommentsFor(r.post); } catch { ccToast('Post unavailable'); } };
-  const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications' };
+  const openPosts = (hh, pid) => nav('feed', { sub: 'posts', pof: (hh || '').replace('@', ''), pid });
+  const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications', posts: 'Posts' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
-  const HeadIcon = ({ s, Icon, label }) => (
+  const HeadIcon = ({ s, Icon, label, active }) => (
     <button onClick={() => goSub(s)} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label={label}
-      style={{ background: 'rgba(255,255,255,.12)', border: '.5px solid rgba(255,255,255,.45)', color: '#F2EFE6' }}>
+      style={{ background: active ? 'var(--accent)' : 'var(--pill-bg)', color: active ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
       <Icon size={17} />
     </button>
   );
   return (
-    <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: sub === 'home' ? 156 : undefined }}>
-      {/* sticky top bar — feed home shows the icon row; sub-pages show back + title */}
+    <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: ownHeader ? undefined : 156 }}>
+      {/* sticky top bar — home: logo + breadcrumb + messages; sub-pages: back + title */}
       {!ownHeader && (
         <header className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
           {sub === 'home' ? (
             <>
-              <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile">
-                <Avatar url={myAvatar} name={user?.name || myHandle} size={32} ring />
-              </button>
-              <div className="flex-1" />
-              <button onClick={() => goSub('notifications')} className="relative w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Notifications"
+              <span className="flex items-center gap-2 flex-1 min-w-0">
+                <Logo size={24} />
+                <span className="text-[15px] t-serif truncate"><span className="t-mid">classcost</span><span className="t-lo"> › </span><span className="font-bold t-hi">feed</span></span>
+              </span>
+              <button onClick={() => goSub('messages')} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Messages"
                 style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
-                <Bell size={17} />
-                {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread > 9 ? '9+' : unread}</span>}
+                <Send size={17} />
               </button>
             </>
           ) : (
@@ -1293,21 +1293,32 @@ function FeedScreen({ nav, back, params }) {
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
       {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
       {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread(0)} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
-      {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
+      {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} />}
+      {sub === 'posts' && <UserPostsPage handle={params?.pof || myHandle} focusId={params?.pid} onComment={onComment} onAuthor={onAuthor} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
-      {/* secondary footer — round action icons on a slim blurred bar (feed home only) */}
-      {sub === 'home' && (
+
+      {/* secondary footer — off-white bar with side borders; persistent feed navigation */}
+      {!ownHeader && (
         <div className="v2-feedfooter">
-          <div className="flex items-center justify-center gap-10 py-2.5" style={{ background: '#0A143F', borderTop: '.5px solid var(--border)' }}>
-            <HeadIcon s="explore" Icon={Compass} label="Explore" />
+          <div className="flex items-center justify-center gap-8 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
+            <HeadIcon s="home" Icon={HomeIcon} label="Feed home" active={sub === 'home'} />
+            <HeadIcon s="explore" Icon={Compass} label="Explore" active={sub === 'explore'} />
             <HeadIcon s="compose" Icon={PenSquare} label="New post" />
-            <HeadIcon s="messages" Icon={Send} label="Messages" />
+            <button onClick={() => goSub('notifications')} className="relative w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label="Notifications"
+              style={{ background: sub === 'notifications' ? 'var(--accent)' : 'var(--pill-bg)', color: sub === 'notifications' ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
+              <Bell size={17} />
+              {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread > 9 ? '9+' : unread}</span>}
+            </button>
+            <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
+              style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
+              <Avatar url={myAvatar} name={user?.name || myHandle} size={30} />
+            </button>
           </div>
         </div>
       )}
 
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
-      {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
+      {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
     </div>
   );
@@ -1357,6 +1368,41 @@ function NotificationsPane({ onSeen, onOpenUser, onOpenThread, onOpenPost }) {
             <p className="text-[11px] t-lo mt-0.5">{timeAgo(n.createdAt)}</p>
           </div>
         </motion.button>
+      ))}
+    </div>
+  );
+}
+function UserPostsPage({ handle, focusId, onComment, onAuthor }) {
+  const [posts, setPosts] = useState(null);
+  const focusRef = useRef(null);
+  useEffect(() => {
+    let on = true; setPosts(null);
+    getUserPosts(handle).then((r) => { if (on) setPosts(r?.posts || []); }).catch(() => { if (on) setPosts([]); });
+    return () => { on = false; };
+  }, [handle]);
+  useEffect(() => { // land on the tapped post, IG-style
+    if (posts && posts.length && focusRef.current) focusRef.current.scrollIntoView({ block: 'start' });
+  }, [posts]);
+  if (!posts) return (
+    <div>
+      {[0, 1].map((i) => (
+        <div key={i} className="pt-3 pb-4" style={{ borderBottom: '.5px solid var(--border)' }}>
+          <div className="px-4 flex items-center gap-2.5 mb-3">
+            <div className="v2-skel rounded-full shrink-0" style={{ width: 38, height: 38 }} />
+            <div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '38%', marginBottom: 7 }} /><div className="v2-skel rounded" style={{ height: 8, width: '22%' }} /></div>
+          </div>
+          <div className="v2-skel" style={{ aspectRatio: '1 / 1' }} />
+        </div>
+      ))}
+    </div>
+  );
+  if (!posts.length) return <div className="py-16 text-center text-[13px] t-mid">No posts here.</div>;
+  return (
+    <div>
+      {posts.map((p) => (
+        <div key={p.id} ref={p.id === focusId ? focusRef : undefined} style={{ scrollMarginTop: 56 }}>
+          <FeedPostCard p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={(id) => setPosts((ps) => (ps || []).filter((x) => x.id !== id))} />
+        </div>
       ))}
     </div>
   );
@@ -1457,7 +1503,7 @@ function FeedOnboard({ onDone }) {
     </div>
   );
 }
-function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage, onEdit }) {
+function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage, onEdit, onOpenPosts }) {
   const h = (handle || '').replace('@', '');
   const [prof, setProf] = useState(null);
   const [posts, setPosts] = useState(null);
@@ -1520,7 +1566,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
         : (
           <div className="grid grid-cols-3" style={{ gap: 2 }}>
             {posts.map((p) => (
-              <button key={p.id} onClick={() => onComment && onComment(p)} className="relative block overflow-hidden" style={{ aspectRatio: '1 / 1', background: 'var(--pill-bg)', padding: 0, border: 0 }}>
+              <button key={p.id} onClick={() => (onOpenPosts ? onOpenPosts(h, p.id) : onComment && onComment(p))} className="relative block overflow-hidden" style={{ aspectRatio: '1 / 1', background: 'var(--pill-bg)', padding: 0, border: 0 }}>
                 {p.imageUrl
                   ? <img src={p.imageUrl} alt="" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
                   : <span className="absolute inset-0 flex items-center justify-center text-center p-2 text-[11px] font-medium t-hi" style={{ lineHeight: 1.3, overflow: 'hidden' }}>{p.text}</span>}
