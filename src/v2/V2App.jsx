@@ -1226,7 +1226,6 @@ function FeedScreen({ nav, back, params }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
   const [dmSearch, setDmSearch] = useState(false);
-  const [composeOpen, setComposeOpen] = useState(false);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
     getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
@@ -1256,26 +1255,26 @@ function FeedScreen({ nav, back, params }) {
     <div className="v2-scroll" style={{ overflowX: 'hidden' }}>
       {/* sticky top bar — all feed navigation lives here (no secondary footer) */}
       <header className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
-        <button onClick={() => goSub('home')} className="flex items-center gap-2 flex-1 min-w-0 text-left" aria-label="Feed home">
-          <Logo size={24} /><span className="font-bold t-hi t-serif text-[17px] lowercase">feed</span>
-        </button>
-        <HeadIcon s="explore" Icon={Compass} label="Explore" />
-        <HeadIcon s="compose" Icon={PenSquare} label="New post" onClick={() => setComposeOpen(true)} />
-        <HeadIcon s="messages" Icon={Send} label="Messages" />
         <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
           style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
-          <Avatar url={myAvatar} name={user?.name || myHandle} size={30} />
+          <Avatar url={myAvatar} name={user?.name || myHandle} size={32} ring />
         </button>
+        <div className="flex-1" />
+        <HeadIcon s="search" Icon={Search} label="Search" />
+        <HeadIcon s="explore" Icon={Compass} label="Explore" />
+        <HeadIcon s="compose" Icon={PenSquare} label="New post" />
+        <HeadIcon s="messages" Icon={Send} label="Messages" />
       </header>
 
-      {sub === 'home' && <FeedListPane reloadKey={reloadKey} onCompose={() => setComposeOpen(true)} onComment={onComment} onAuthor={onAuthor} />}
+      {sub === 'home' && <FeedListPane reloadKey={reloadKey} onCompose={() => goSub('compose')} onComment={onComment} onAuthor={onAuthor} />}
+      {sub === 'search' && <SearchPane onOpenUser={onAuthor} />}
       {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
+      {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
       {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} onFind={() => setDmSearch(true)} />}
       {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
 
       {dmSearch && <FeedSearch title="New message" onClose={() => setDmSearch(false)} onOpen={(h) => { setDmSearch(false); openThread(h); }} />}
-      {composeOpen && <ComposeSheet handle={handle} onClose={() => setComposeOpen(false)} onPosted={() => { setComposeOpen(false); setReloadKey((k) => k + 1); goSub('home'); }} />}
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
       {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
@@ -1730,7 +1729,31 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
     </div>
   );
 }
-function ComposeSheet({ handle, onClose, onPosted }) {
+function SearchPane({ onOpenUser }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState(null);
+  useEffect(() => { // debounced people search
+    const term = q.trim().replace('@', '');
+    if (!term) { setResults(null); return; }
+    const t = setTimeout(() => { searchUsers(term).then((r) => setResults(r?.users || [])).catch(() => setResults([])); }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-2 mb-2" style={{ padding: '.6rem .9rem', borderRadius: 999, border: '.5px solid var(--border)', background: 'var(--card)' }}>
+        <Search size={15} className="t-lo shrink-0" />
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="search people…" className="flex-1 min-w-0 text-[14px]" style={{ border: 'none', outline: 'none', background: 'transparent', color: 'var(--text1)' }} />
+        {q && <button className="t-lo text-[12px] shrink-0" onClick={() => setQ('')}>clear</button>}
+      </div>
+      {results === null
+        ? <div className="py-14 text-center"><div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-light)' }}><Search size={22} className="t-accent" /></div><p className="font-semibold t-hi mb-1">find your people</p><p className="text-[13px] t-mid">search any name or @handle.</p></div>
+        : results.length === 0
+          ? <p className="text-[13px] t-mid text-center py-10">no one found for “{q.trim()}”</p>
+          : results.map((u) => <FeedUserRow key={u.handle} u={u} onOpen={onOpenUser} />)}
+    </div>
+  );
+}
+function ComposePage({ handle, myAvatar, userName, onBack, onPosted }) {
   const [text, setText] = useState('');
   const [img, setImg] = useState(null); // { url, preview }
   const [busy, setBusy] = useState(false);
@@ -1748,22 +1771,30 @@ function ComposeSheet({ handle, onClose, onPosted }) {
   const post = async () => {
     if ((!text.trim() && !img) || busy) return;
     setBusy(true); setErr('');
-    try { await createFeedPost(text.trim(), img?.url); setText(''); setImg(null); onPosted(); }
+    try { await createFeedPost(text.trim(), img?.url); setText(''); setImg(null); ccToast('Posted'); onPosted(); }
     catch (x) { setErr(x.message || 'Could not post. Is the server live?'); }
     finally { setBusy(false); }
   };
   return (
-    <div className="v2-backdrop" onClick={onClose}>
-      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 mb-3"><PenSquare size={17} className="t-mid shrink-0" /><p className="font-bold t-hi flex-1">New post</p><button className="text-[13px] t-mid shrink-0" onClick={onClose}>Close</button></div>
-        <p className="text-[12px] t-accent font-medium mb-2">{handle}</p>
-        <textarea className="field" rows={4} placeholder="Share something with your campus…" value={text} onChange={(e) => setText(e.target.value)} style={{ resize: 'none' }} autoFocus />
-        {img && <div className="relative mt-3"><img src={img.preview} alt="" className="rounded-xl w-full" /><button className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-white text-[13px]" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setImg(null)} aria-label="Remove image">✕</button></div>}
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickImage} />
-        <div className="flex items-center gap-2 mt-3">
-          <button className="minibtn btn-ghost" style={{ width: 'auto', padding: '.5rem .8rem' }} disabled={upBusy} onClick={() => fileRef.current?.click()}><ImageIcon size={15} className="inline mr-1" />{upBusy ? 'Uploading…' : (img ? 'Change' : 'Photo')}</button>
-          <button className="btn btn-primary" style={{ width: 'auto', marginLeft: 'auto', padding: '.6rem 1.2rem' }} disabled={(!text.trim() && !img) || busy} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
+    <div>
+      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '.5px solid var(--border)' }}>
+        <button onClick={onBack} className="t-mid p-1 -ml-1" aria-label="Back"><ChevronLeft size={20} /></button>
+        <p className="font-bold t-hi flex-1">New post</p>
+        <button className="minibtn btn-primary" style={{ padding: '.45rem 1.1rem' }} disabled={(!text.trim() && !img) || busy || upBusy} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
+      </div>
+      <div className="px-4 py-4">
+        <div className="flex items-center gap-2.5 mb-3">
+          <Avatar url={myAvatar} name={userName} size={38} ring />
+          <p className="text-[13px] font-semibold t-accent">{handle}</p>
         </div>
+        <textarea className="w-full t-hi" rows={6} placeholder="share something with your campus…" value={text} onChange={(e) => setText(e.target.value)}
+          style={{ resize: 'none', border: 'none', outline: 'none', background: 'transparent', fontSize: 16, lineHeight: 1.5, minHeight: 130, color: 'var(--text1)' }} autoFocus />
+        {img
+          ? <div className="relative mt-2"><img src={img.preview} alt="" className="w-full block" style={{ borderRadius: 6, border: '.5px solid var(--border)' }} /><button className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-white text-[14px]" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setImg(null)} aria-label="Remove image">✕</button></div>
+          : <button className="w-full flex items-center justify-center gap-2 py-5 t-mid text-[13px] font-medium" style={{ border: '1.5px dashed var(--border)', borderRadius: 6, background: 'transparent' }} disabled={upBusy} onClick={() => fileRef.current?.click()}>
+              <ImageIcon size={17} />{upBusy ? 'uploading…' : 'add a photo'}
+            </button>}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickImage} />
         {err && <p className="text-[12px] mt-2" style={{ color: '#ef4444' }}>{err}</p>}
         <p className="text-[11px] t-lo text-center mt-3">Photos upload to host storage · all posts are public · a report system keeps it safe.</p>
       </div>
