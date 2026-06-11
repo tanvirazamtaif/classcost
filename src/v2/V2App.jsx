@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { haptics } from '../lib/haptics';
 import { V2Provider, useV2 } from './store';
@@ -1314,7 +1314,7 @@ function FeedScreen({ nav, back, params }) {
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
       {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
       {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread((u) => ({ ...u, other: 0 }))} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
-      {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} />}
+      {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} onDiscover={() => goSub('discover')} />}
       {sub === 'posts' && <UserPostsPage handle={params?.pof || myHandle} focusId={params?.pid} onComment={onComment} onAuthor={onAuthor} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
 
@@ -1339,7 +1339,7 @@ function FeedScreen({ nav, back, params }) {
       )}
 
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
-      {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} />}
+      {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} onDiscover={() => goSub('discover')} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
       {storyView && <StoryViewer groups={storyView.groups} start={storyView.gi} onClose={() => setStoryView(null)} onChanged={() => { setStoryView(null); setStoriesKey((k) => k + 1); }} />}
     </div>
@@ -1351,7 +1351,7 @@ const suggestionSub = (u) => {
   if (u.institute) return `🎓 ${u.institute}`;
   return u.displayName ? '@' + u.handle : 'new on classcost';
 };
-function SuggestionsRow({ onOpenUser, onSeeAll }) {
+function SuggestionsRow({ onOpenUser, onSeeAll, title = 'Suggested for you' }) {
   const [users, setUsers] = useState(null);
   useEffect(() => {
     let on = true;
@@ -1367,7 +1367,7 @@ function SuggestionsRow({ onOpenUser, onSeeAll }) {
   return (
     <div style={{ borderBottom: '.5px solid var(--border)' }}>
       <div className="px-4 pt-3 flex items-baseline">
-        <p className="text-[12.5px] font-semibold t-hi flex-1">Suggested for you</p>
+        <p className="text-[12.5px] font-semibold t-hi flex-1">{title}</p>
         <button className="text-[12.5px] font-semibold t-accent" style={{ background: 'none', border: 'none' }} onClick={onSeeAll}>See all</button>
       </div>
       <div className="v2-stories flex gap-2.5 overflow-x-auto px-4 py-3">
@@ -1702,7 +1702,7 @@ function FeedOnboard({ onDone }) {
     </div>
   );
 }
-function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage, onEdit, onOpenPosts }) {
+function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage, onEdit, onOpenPosts, onDiscover }) {
   const h = (handle || '').replace('@', '');
   const { topSpaces } = useV2();
   const [prof, setProf] = useState(null);
@@ -1711,6 +1711,14 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
   const [following, setFollowing] = useState(false);
   const [fBusy, setFBusy] = useState(false);
   const [followsOpen, setFollowsOpen] = useState(null); // 'followers' | 'following' | null
+  const [showDiscover, setShowDiscover] = useState(false);
+  const shareProfile = async () => {
+    const url = `${window.location.origin}/?u=${h}`;
+    try {
+      if (navigator.share) await navigator.share({ url, text: `${prof?.displayName || '@' + h} on ClassCost` });
+      else { await navigator.clipboard.writeText(url); ccToast('Profile link copied'); }
+    } catch { /* cancelled */ }
+  };
   useEffect(() => {
     let on = true; setErr(''); setProf(null); setPosts(null); setFollowsOpen(null);
     getFeedProfile(h).then((r) => { if (on) { setProf(r); setFollowing(!!r.isFollowing); } }).catch((x) => { if (on) setErr(x.message || 'offline'); });
@@ -1764,13 +1772,22 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
       {prof && (
         <div className="px-4 flex gap-2 mb-4">
           {prof.isMe
-            ? <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={onEdit}>Edit profile</button>
+            ? (<>
+                <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={onEdit}>Edit profile</button>
+                <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={shareProfile}>Share profile</button>
+                <button className="btn btn-ghost shrink-0 flex items-center justify-center" style={{ padding: '.5rem .7rem', width: 'auto', background: showDiscover ? 'var(--accent)' : undefined, color: showDiscover ? 'var(--accent-text)' : undefined }} onClick={() => setShowDiscover((v) => !v)} aria-label="Discover people">
+                  <UserPlus size={17} strokeWidth={2} />
+                </button>
+              </>)
             : (<>
                 <button className={`btn flex-1 ${following ? 'btn-ghost' : 'btn-primary'}`} style={{ padding: '.5rem' }} onClick={toggleFollow}>{following ? 'Following' : 'Follow'}</button>
                 {onMessage && <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={() => onMessage('@' + h)}>Message</button>}
+                <button className="btn btn-ghost shrink-0" style={{ padding: '.5rem .8rem', width: 'auto' }} onClick={shareProfile} aria-label="Share profile"><Send size={16} strokeWidth={2} /></button>
               </>)}
         </div>
       )}
+      {/* inline discover people (the 👤+ button), IG-style */}
+      {showDiscover && <div className="mb-2"><SuggestionsRow title="Discover people" onOpenUser={onAuthor} onSeeAll={onDiscover} /></div>}
       {/* divider above the grid (tab icon removed — only one content type) */}
       <div style={{ borderTop: '.5px solid var(--border)' }} />
       {/* post grid */}
@@ -2560,10 +2577,16 @@ function Shell() {
   // restore the last route on reload — history.state survives a reload, sessionStorage is the fallback
   const navInit = useRef(undefined);
   if (navInit.current === undefined) {
-    let snap = null;
-    try { snap = (window.history.state && window.history.state.ccNav) || null; } catch { snap = null; }
-    if (!snap) { try { const s = sessionStorage.getItem('cc_v2_nav'); if (s) snap = JSON.parse(s); } catch { snap = null; } }
-    navInit.current = (snap && snap.route) ? snap : { route: { view: 'home', params: {} }, stack: [] };
+    let deepUser = null;
+    try { deepUser = new URLSearchParams(window.location.search).get('u'); } catch { deepUser = null; }
+    if (deepUser) { // shared profile link: classcost.com/?u=handle
+      navInit.current = { route: { view: 'feed', params: { user: deepUser.replace('@', '') } }, stack: [{ view: 'feed', params: {} }] };
+    } else {
+      let snap = null;
+      try { snap = (window.history.state && window.history.state.ccNav) || null; } catch { snap = null; }
+      if (!snap) { try { const s = sessionStorage.getItem('cc_v2_nav'); if (s) snap = JSON.parse(s); } catch { snap = null; } }
+      navInit.current = (snap && snap.route) ? snap : { route: { view: 'home', params: {} }, stack: [] };
+    }
   }
   const [route, setRoute] = useState(navInit.current.route);
   const [theme, setTheme] = useState(() => { try { return localStorage.getItem('cc_v2_theme') || 'light'; } catch { return 'light'; } });
@@ -2581,7 +2604,11 @@ function Shell() {
   const tab = (view) => { try { window.scrollTo(0, 0); } catch { /* noop */ } if (route.view === view && !Object.keys(route.params || {}).length) return; const next = { view, params: {} }; stack.current = []; setRoute(next); persistNav(next, []); };
   const back = () => { if (stack.current.length) { try { window.history.back(); return; } catch { /* fall through */ } } const p = stack.current.pop(); setRoute(p || { view: 'home', params: {} }); };
   useEffect(() => {
-    try { window.history.replaceState({ ...(window.history.state || {}), ccNav: { route, stack: stack.current } }, ''); } catch { /* noop */ }
+    try {
+      let cleanUrl;
+      try { const uu = new URL(window.location); if (uu.searchParams.has('u')) { uu.searchParams.delete('u'); cleanUrl = uu.toString(); } } catch { cleanUrl = undefined; }
+      window.history.replaceState({ ...(window.history.state || {}), ccNav: { route, stack: stack.current } }, '', cleanUrl);
+    } catch { /* noop */ }
     const onPop = (e) => {
       let nv = null; try { nv = (e.state && e.state.ccNav) || null; } catch { nv = null; }
       const r = (nv && nv.route) ? nv.route : { view: 'home', params: {} };
