@@ -1451,7 +1451,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
   if (embedded) return body;
   return (
     <div className="fixed z-[45] overflow-y-auto" style={{ inset: 0, background: 'var(--bg)' }}>
-      <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100%' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100%', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
         <Header title={'@' + h} onBack={onClose} />
         {body}
       </div>
@@ -1871,7 +1871,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
   const typed = !!text.trim();
   return (
     <div className="fixed z-[46] flex flex-col" style={{ inset: 0, background: 'var(--bg)' }}>
-      <div className="flex flex-col relative" style={{ maxWidth: 480, margin: '0 auto', width: '100%', height: '100%' }}>
+      <div className="flex flex-col relative" style={{ maxWidth: 480, margin: '0 auto', width: '100%', height: '100%', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
         {/* chat header — identity, tappable to open the profile */}
         <div className="px-3 py-2.5 flex items-center gap-1.5" style={{ borderBottom: '.5px solid var(--border)', background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
           <button onClick={onClose} className="p-1.5 t-mid" aria-label="Back"><ChevronLeft size={20} /></button>
