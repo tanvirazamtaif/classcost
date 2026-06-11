@@ -146,7 +146,13 @@ router.post('/notifications/read', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
   try {
     const types = Array.isArray(req.body?.types) && req.body.types.length ? { type: { in: req.body.types.map(String) } } : {};
-    await prisma.feedNotification.updateMany({ where: { userId, readAt: null, ...types }, data: { readAt: new Date() } });
+    let actor = {};
+    if (req.body?.fromHandle) { // scope to one sender (per-thread read)
+      const p = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.body.fromHandle) } });
+      if (!p) return res.json({ ok: true });
+      actor = { actorId: p.userId };
+    }
+    await prisma.feedNotification.updateMany({ where: { userId, readAt: null, ...types, ...actor }, data: { readAt: new Date() } });
     res.json({ ok: true });
   } catch (err) { console.error('notifications read:', err); res.status(500).json({ error: 'Failed' }); }
 });
@@ -409,6 +415,8 @@ router.get('/dm', async (req, res) => {
     const otherIds = [...new Set(threads.map((t) => (t.userAId === userId ? t.userBId : t.userAId)))];
     const profs = otherIds.length ? await prisma.feedProfile.findMany({ where: { userId: { in: otherIds } } }) : [];
     const byId = Object.fromEntries(profs.map((p) => [p.userId, p]));
+    const unreadRows = await prisma.feedNotification.findMany({ where: { userId, type: 'dm', readAt: null }, select: { actorId: true } });
+    const unreadSet = new Set(unreadRows.map((r) => r.actorId));
     const conversations = [];
     for (const t of threads) {
       const otherId = t.userAId === userId ? t.userBId : t.userAId;
@@ -423,6 +431,7 @@ router.get('/dm', async (req, res) => {
         lastText: last ? (last.text || (last.imageUrl ? '📷 photo' : '')) : '',
         lastAt: last ? last.createdAt : t.lastAt,
         mine: last ? last.senderId === userId : false,
+        unread: unreadSet.has(otherId),
       });
     }
     res.json({ conversations });

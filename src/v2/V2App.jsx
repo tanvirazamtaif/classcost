@@ -2115,8 +2115,7 @@ function DMPane({ active, reloadKey, onOpenThread }) {
       .then((r) => { if (on) setSt({ loading: false, convos: r?.conversations || [], err: false }); })
       .catch(() => { if (on) setSt((s2) => ({ ...s2, loading: false, err: silent ? s2.err : true })); });
     pull(false);
-    const id = setInterval(() => pull(true), 4000); // live list — new chats appear without reloading
-    markNotificationsRead(['dm']).then(() => { try { window.dispatchEvent(new CustomEvent('cc-news-refresh')); } catch { /* noop */ } }).catch(() => {});
+    const id = setInterval(() => pull(true), 4000); // live list — new chats appear without reloading; unreads clear per-thread
     return () => { on = false; clearInterval(id); };
   }, [reloadKey, active]);
   useEffect(() => { // people search beyond existing chats (debounced)
@@ -2151,14 +2150,18 @@ function DMPane({ active, reloadKey, onOpenThread }) {
               {convos.map((c, i) => (
                 <motion.button key={c.threadId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.045, type: 'spring', stiffness: 380, damping: 28 }} whileTap={{ scale: 0.98 }}
                   className="w-full text-left flex items-center gap-3 py-2.5" onClick={() => onOpenThread('@' + c.handle)} style={{ background: 'none', border: 'none' }}>
-                  <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={52} ring />
+                  <span className="relative shrink-0">
+                    <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={52} />
+                    {c.unread && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full" style={{ background: '#ef4444', border: '2.5px solid var(--bg)' }} />}
+                  </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <p className="text-[14px] font-semibold t-hi truncate">{c.displayName || ('@' + c.handle)}</p>
-                      {c.lastAt && <span className="text-[11px] t-lo shrink-0 ml-auto">{timeAgo(c.lastAt)}</span>}
+                      <p className={`text-[14px] t-hi truncate ${c.unread ? 'font-bold' : 'font-semibold'}`}>{c.displayName || ('@' + c.handle)}</p>
+                      {c.lastAt && <span className={`text-[11px] shrink-0 ml-auto ${c.unread ? 'font-bold' : 't-lo'}`} style={c.unread ? { color: '#ef4444' } : undefined}>{timeAgo(c.lastAt)}</span>}
                     </div>
-                    <p className="text-[12.5px] t-mid truncate mt-0.5">{c.mine ? 'you: ' : ''}{c.lastText || 'say hi 👋'}</p>
+                    <p className={`text-[12.5px] truncate mt-0.5 ${c.unread ? 't-hi font-semibold' : 't-mid'}`}>{c.mine ? 'you: ' : ''}{c.lastText || 'say hi 👋'}</p>
                   </div>
+                  {c.unread && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />}
                 </motion.button>
               ))}
               {extra.length > 0 && (
@@ -2204,6 +2207,11 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
     if (atBottomRef.current) el.scrollTop = el.scrollHeight;
     else setShowJump(true);
   }, [st.msgs.length]);
+  useEffect(() => { // reading the thread clears this sender's unread state (badge + convo dot)
+    if (st.loading) return;
+    markNotificationsRead(['dm'], h).then(() => { try { window.dispatchEvent(new CustomEvent('cc-news-refresh')); } catch { /* noop */ } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [h, st.loading, st.msgs.length]);
   const onScroll = () => {
     const el = scrollRef.current; if (!el) return;
     atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
