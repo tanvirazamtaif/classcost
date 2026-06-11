@@ -23,7 +23,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions, getFollowers, getFollowing } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -1660,8 +1660,9 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
   const [err, setErr] = useState('');
   const [following, setFollowing] = useState(false);
   const [fBusy, setFBusy] = useState(false);
+  const [followsOpen, setFollowsOpen] = useState(null); // 'followers' | 'following' | null
   useEffect(() => {
-    let on = true; setErr(''); setProf(null); setPosts(null);
+    let on = true; setErr(''); setProf(null); setPosts(null); setFollowsOpen(null);
     getFeedProfile(h).then((r) => { if (on) { setProf(r); setFollowing(!!r.isFollowing); } }).catch((x) => { if (on) setErr(x.message || 'offline'); });
     getUserPosts(h).then((r) => { if (on) setPosts(r?.posts || []); }).catch(() => { if (on) setPosts([]); });
     return () => { on = false; };
@@ -1695,7 +1696,9 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
         <Avatar url={prof?.avatarUrl} name={prof?.displayName || h} size={86} ring />
         <div className="flex-1 flex items-center justify-around text-center">
           {[[counts.posts ?? 0, 'posts'], [counts.followers ?? 0, 'followers'], [counts.following ?? 0, 'following']].map(([n, l]) => (
-            <div key={l}><p className="font-bold t-hi text-[18px] leading-none">{fmtCount(n)}</p><p className="text-[12px] t-mid mt-1">{l}</p></div>
+            <button key={l} onClick={() => (l === 'posts' ? undefined : setFollowsOpen(l))} style={{ background: 'none', border: 'none', cursor: l === 'posts' ? 'default' : 'pointer' }}>
+              <p className="font-bold t-hi text-[18px] leading-none">{fmtCount(n)}</p><p className="text-[12px] t-mid mt-1">{l}</p>
+            </button>
           ))}
         </div>
       </div>
@@ -1737,6 +1740,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
           </div>
         )}
       <div className="h-4" />
+      {followsOpen && <FollowsSheet handle={h} initial={followsOpen} onClose={() => setFollowsOpen(null)} onOpenUser={(hh) => { setFollowsOpen(null); onAuthor && onAuthor(hh); }} />}
     </div>
   );
   if (embedded) return body;
@@ -1745,6 +1749,45 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
       <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100%', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
         <Header title={'@' + h} onBack={onClose} />
         {body}
+      </div>
+    </div>
+  );
+}
+function FollowsSheet({ handle, initial, onClose, onOpenUser }) {
+  const [tab, setTab] = useState(initial); // 'followers' | 'following'
+  const [lists, setLists] = useState({ followers: null, following: null });
+  useEffect(() => {
+    let on = true;
+    if (lists[tab] !== null) return undefined;
+    (tab === 'followers' ? getFollowers(handle) : getFollowing(handle))
+      .then((r) => { if (on) setLists((s) => ({ ...s, [tab]: r?.users || [] })); })
+      .catch(() => { if (on) setLists((s) => ({ ...s, [tab]: [] })); });
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, handle]);
+  const cur = lists[tab];
+  return (
+    <div className="fixed z-[55] overflow-y-auto" style={{ inset: 0, background: 'var(--bg)' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100%', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
+        <div className="px-3 py-2.5 flex items-center gap-1.5" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
+          <button onClick={onClose} className="p-1.5 t-mid" aria-label="Back" style={{ background: 'none', border: 'none' }}><ChevronLeft size={20} /></button>
+          <p className="font-bold t-hi t-serif text-[16px] flex-1">@{handle}</p>
+        </div>
+        <div className="flex" style={{ borderBottom: '.5px solid var(--border)' }}>
+          {['followers', 'following'].map((t) => (
+            <button key={t} onClick={() => setTab(t)} className="flex-1 py-2.5 text-[13px] font-semibold capitalize"
+              style={{ background: 'none', border: 'none', color: tab === t ? 'var(--text1)' : 'var(--text3)', borderBottom: tab === t ? '1.5px solid var(--text1)' : '1.5px solid transparent' }}>
+              {t}
+            </button>
+          ))}
+        </div>
+        <div className="px-4 py-2">
+          {cur === null
+            ? <div className="space-y-1 pt-2">{[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3 py-2"><div className="v2-skel rounded-full shrink-0" style={{ width: 40, height: 40 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '45%', marginBottom: 6 }} /><div className="v2-skel rounded" style={{ height: 8, width: '28%' }} /></div></div>)}</div>
+            : cur.length === 0
+              ? <p className="text-[13px] t-mid text-center py-12">{tab === 'followers' ? 'no followers yet.' : 'not following anyone yet.'}</p>
+              : cur.map((u) => <FeedUserRow key={u.handle} u={u} onOpen={onOpenUser} />)}
+        </div>
       </div>
     </div>
   );

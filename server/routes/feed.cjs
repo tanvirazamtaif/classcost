@@ -151,6 +151,26 @@ router.post('/notifications/read', async (req, res) => {
   } catch (err) { console.error('notifications read:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
+// follower / following lists for a profile
+async function followList(req, res, dir) {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const target = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
+    if (!target) return res.status(404).json({ error: 'No such user' });
+    const rows = dir === 'followers'
+      ? await prisma.feedFollow.findMany({ where: { followingId: target.userId }, orderBy: { createdAt: 'desc' }, take: 200 })
+      : await prisma.feedFollow.findMany({ where: { followerId: target.userId }, orderBy: { createdAt: 'desc' }, take: 200 });
+    const ids = rows.map((r) => (dir === 'followers' ? r.followerId : r.followingId));
+    const profiles = ids.length ? await prisma.feedProfile.findMany({ where: { userId: { in: ids } } }) : [];
+    const mine = ids.length ? await prisma.feedFollow.findMany({ where: { followerId: userId, followingId: { in: ids } }, select: { followingId: true } }) : [];
+    const fSet = new Set(mine.map((f) => f.followingId));
+    const byU = Object.fromEntries(profiles.map((p) => [p.userId, p]));
+    res.json({ users: ids.map((id) => byU[id]).filter(Boolean).map((p) => ({ handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, institute: p.institute, isFollowing: fSet.has(p.userId), isMe: p.userId === userId })) });
+  } catch (err) { console.error('follow list:', err); res.status(500).json({ error: 'Failed' }); }
+}
+router.get('/profile/u/:handle/followers', (req, res) => followList(req, res, 'followers'));
+router.get('/profile/u/:handle/following', (req, res) => followList(req, res, 'following'));
+
 // GET /api/feed/suggestions — people you don't follow yet (newest profiles first)
 router.get('/suggestions', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
