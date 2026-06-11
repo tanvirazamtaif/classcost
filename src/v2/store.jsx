@@ -233,7 +233,7 @@ export function V2Provider({ children }) {
   const setRentBalance = (blockId, total) => { const b = blockById(blockId); if (!b) return; b.balance = { total: +total || 0, used: b.balance?.used || 0 }; commit(); };
   const setRentDueDay = (blockId, day) => { const b = blockById(blockId); if (!b) return; b.dueDay = Math.min(28, Math.max(1, +day || 1)); b.dues.forEach((d) => { if (paidOf(d) + (d.fromBalance || 0) < d.amount) { const dt = parse(d.date); dt.setDate(b.dueDay); d.date = iso(dt); } }); commit(); };
   const payFromBalance = (blockId, dueId) => {
-    const b = blockById(blockId), d = findDue(dueId); if (!b || !d) return;
+    const b = blockById(blockId), d = findDue(dueId); if (!b || !d || b.kind !== 'rentengine' || !b.balance) return;
     const take = Math.min(engRem(d), Math.max(0, (b.balance?.total || 0) - (b.balance?.used || 0)));
     if (take <= 0) return;
     d.fromBalance = (d.fromBalance || 0) + take; b.balance.used = (b.balance.used || 0) + take; commit();
