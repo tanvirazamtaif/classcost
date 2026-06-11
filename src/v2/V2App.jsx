@@ -1349,6 +1349,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
         <p className="font-semibold t-hi text-[14px] leading-tight">{prof?.displayName || ('@' + h)}</p>
         {prof?.displayName && <p className="text-[12px] t-lo">@{h}</p>}
         {prof?.bio && <p className="text-[13px] t-hi mt-1" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{prof.bio}</p>}
+        {prof?.isMe && !prof?.bio && <button className="text-[13px] t-accent mt-1 font-medium" onClick={() => setEditOpen(true)}>+ Add a bio</button>}
       </div>
       {/* actions */}
       {prof && (
