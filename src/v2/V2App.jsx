@@ -1225,10 +1225,8 @@ function FeedScreen({ nav, back, params }) {
   const [myAvatar, setMyAvatar] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
-  const [viewHandle, setViewHandle] = useState(null);
   const [dmSearch, setDmSearch] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
-  const [dmHandle, setDmHandle] = useState(null);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
     getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
@@ -1236,12 +1234,18 @@ function FeedScreen({ nav, back, params }) {
   }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
   const myHandle = handle.replace('@', '');
-  // sub-pages ride the real router (history-aware): home · explore · messages · profile · edit-profile
+  // sub-pages ride the real router (history-aware): home · explore · messages · profile · edit-profile.
+  // The open DM thread (params.dm) and viewed profile (params.user) live in params too, so they
+  // survive reloads and the browser back button closes them one step at a time.
   const sub = params?.sub || 'home';
+  const viewUser = params?.user || null;
+  const dmOpen = params?.dm || null;
   const goSub = (s) => nav('feed', s === 'home' ? {} : { sub: s });
   const onComment = (p) => setCommentsFor(p);
-  const onAuthor = (h) => setViewHandle(h);
-  const goEdit = () => { setViewHandle(null); nav('feed', { sub: 'edit-profile' }); };
+  const onAuthor = (hh) => { setCommentsFor(null); nav('feed', { ...(params || {}), user: (hh || '').replace('@', '') }); };
+  const openThread = (hh) => nav('feed', { ...(params || {}), dm: hh });
+  const threadToProfile = (hh) => { const { dm, ...rest } = params || {}; nav('feed', { ...rest, user: (hh || '').replace('@', '') }); };
+  const goEdit = () => nav('feed', { sub: 'edit-profile' });
   const HeadIcon = ({ s, Icon, label, onClick }) => (
     <button onClick={onClick || (() => goSub(s))} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label={label}
       style={{ background: sub === s ? 'var(--accent)' : 'var(--pill-bg)', color: sub === s ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
@@ -1265,16 +1269,16 @@ function FeedScreen({ nav, back, params }) {
       </header>
 
       {sub === 'home' && <FeedListPane reloadKey={reloadKey} onCompose={() => setComposeOpen(true)} onComment={onComment} onAuthor={onAuthor} />}
-      {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={(h) => setViewHandle(h)} />}
-      {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={(h) => setDmHandle(h)} onFind={() => setDmSearch(true)} />}
-      {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={(h) => setDmHandle(h)} onEdit={goEdit} />}
+      {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
+      {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} onFind={() => setDmSearch(true)} />}
+      {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
 
-      {dmSearch && <FeedSearch title="New message" onClose={() => setDmSearch(false)} onOpen={(h) => { setDmSearch(false); setDmHandle(h); }} />}
+      {dmSearch && <FeedSearch title="New message" onClose={() => setDmSearch(false)} onOpen={(h) => { setDmSearch(false); openThread(h); }} />}
       {composeOpen && <ComposeSheet handle={handle} onClose={() => setComposeOpen(false)} onPosted={() => { setComposeOpen(false); setReloadKey((k) => k + 1); goSub('home'); }} />}
-      {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={(h) => { setCommentsFor(null); setViewHandle(h); }} />}
-      {viewHandle && <FeedProfileView handle={viewHandle} onClose={() => setViewHandle(null)} onComment={onComment} onAuthor={(h) => setViewHandle(h)} onMessage={(h) => { setViewHandle(null); setDmHandle(h); }} onEdit={goEdit} />}
-      {dmHandle && <DMThread handle={dmHandle} onClose={() => setDmHandle(null)} onSent={() => setReloadKey((k) => k + 1)} onProfile={(hh) => { setDmHandle(null); setViewHandle(hh); }} />}
+      {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
+      {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
+      {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
     </div>
   );
 }
