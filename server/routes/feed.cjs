@@ -206,7 +206,15 @@ router.get('/suggestions', async (req, res) => {
     const exclude = [userId, ...following.map((f) => f.followingId)];
     const take = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
     const profiles = await prisma.feedProfile.findMany({ where: { userId: { notIn: exclude } }, orderBy: { createdAt: 'desc' }, take });
-    res.json({ users: profiles.map((p) => ({ handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, institute: p.institute, isFollowing: false, isMe: false })) });
+    // mutuals: people I follow who also follow the suggested user
+    const myFollowing = following.map((f) => f.followingId);
+    const ids = profiles.map((p) => p.userId);
+    const mutualRows = (ids.length && myFollowing.length)
+      ? await prisma.feedFollow.findMany({ where: { followingId: { in: ids }, followerId: { in: myFollowing } }, select: { followingId: true } })
+      : [];
+    const mutuals = {};
+    for (const r of mutualRows) mutuals[r.followingId] = (mutuals[r.followingId] || 0) + 1;
+    res.json({ users: profiles.map((p) => ({ handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, institute: p.institute, mutuals: mutuals[p.userId] || 0, isFollowing: false, isMe: false })) });
   } catch (err) { console.error('suggestions:', err); res.status(500).json({ error: 'Failed' }); }
 });
 

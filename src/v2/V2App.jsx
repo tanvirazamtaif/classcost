@@ -1345,6 +1345,12 @@ function FeedScreen({ nav, back, params }) {
     </div>
   );
 }
+// subtitle for suggestion cards/rows — mutuals beat institute; never repeat the @handle shown as the title
+const suggestionSub = (u) => {
+  if (u.mutuals > 0) return `${u.mutuals} mutual friend${u.mutuals > 1 ? 's' : ''}`;
+  if (u.institute) return `🎓 ${u.institute}`;
+  return u.displayName ? '@' + u.handle : 'new on classcost';
+};
 function SuggestionsRow({ onOpenUser, onSeeAll }) {
   const [users, setUsers] = useState(null);
   useEffect(() => {
@@ -1373,7 +1379,7 @@ function SuggestionsRow({ onOpenUser, onSeeAll }) {
               <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={72} />
             </button>
             <p className="text-[13px] font-semibold t-hi truncate mt-2.5" style={{ maxWidth: 126 }}>{u.displayName || ('@' + u.handle)}</p>
-            <p className="text-[11px] t-lo truncate mt-0.5" style={{ maxWidth: 126 }}>{u.institute ? `🎓 ${u.institute}` : '@' + u.handle}</p>
+            <p className="text-[11px] t-lo truncate mt-0.5" style={{ maxWidth: 126 }}>{suggestionSub(u)}</p>
             <button className={`minibtn mt-2.5 ${u.isFollowing ? 'btn-ghost' : 'btn-primary'}`} style={{ width: '100%', padding: '.5rem 0' }} onClick={() => !u.isFollowing && follow(u.handle)}>
               {u.isFollowing ? 'Following' : 'Follow'}
             </button>
@@ -1405,7 +1411,7 @@ function DiscoverPane({ onOpenUser }) {
               <button onClick={() => onOpenUser(u.handle)} className="shrink-0" style={{ background: 'none', border: 'none' }}><Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={48} /></button>
               <button onClick={() => onOpenUser(u.handle)} className="flex-1 min-w-0 text-left" style={{ background: 'none', border: 'none' }}>
                 <p className="text-[13.5px] font-semibold t-hi truncate">{u.displayName || ('@' + u.handle)}</p>
-                <p className="text-[11.5px] t-lo truncate">{u.institute ? `🎓 ${u.institute}` : '@' + u.handle}</p>
+                <p className="text-[11.5px] t-lo truncate">{suggestionSub(u)}</p>
               </button>
               <button className={`minibtn shrink-0 ${u.isFollowing ? 'btn-ghost' : 'btn-primary'}`} style={{ width: 'auto', padding: '.45rem 1rem' }} onClick={() => !u.isFollowing && follow(u.handle)}>
                 {u.isFollowing ? 'Following' : 'Follow'}
