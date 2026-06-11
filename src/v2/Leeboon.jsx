@@ -66,7 +66,7 @@ async function serverBrain(text, priorMsgs, store, ctx) {
   throw new Error('unrecognized response');
 }
 
-export function Leeboon({ nav, d, news, inFeed }) {
+export function Leeboon({ nav, d, news, inFeed, inChat }) {
   const store = useV2();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
@@ -182,6 +182,18 @@ export function Leeboon({ nav, d, news, inFeed }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   useEffect(() => { interact(); return () => { [sadTimer, angryTimer, moveTimer, waveTimer, fxTimer].forEach((t) => clearTimeout(t.current)); ignoreTimers.current.forEach(clearTimeout); }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  // ── he waits OUTSIDE the chat; long chats earn a pouty greeting when you return ──
+  const chatSince = useRef(0);
+  useEffect(() => {
+    if (inChat) { chatSince.current = Date.now(); return; }
+    if (chatSince.current) {
+      const away = Date.now() - chatSince.current;
+      chatSince.current = 0;
+      if (away > 30000) setTimeout(() => react({ mood: 'curious', bubble: 'i was waiting for you… what were you doing ?? 👀' }, 5000), 700);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inChat]);
 
   // ── feed news → full hype mode: perch right beside the Feed tab and wave at it ──
   const newsCount = (news?.dm || 0) + (news?.other || 0);
@@ -307,7 +319,7 @@ export function Leeboon({ nav, d, news, inFeed }) {
   return (
     <>
       <AnimatePresence>
-        {!open && (
+        {!open && !inChat && (
           <motion.button
             initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
             transition={{ scale: { type: 'spring', stiffness: 400, damping: 25 }, opacity: { duration: 0.2 } }}

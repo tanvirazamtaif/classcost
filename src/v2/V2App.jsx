@@ -2156,10 +2156,7 @@ function DMPane({ active, reloadKey, onOpenThread }) {
               {convos.map((c, i) => (
                 <motion.button key={c.threadId} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.045, type: 'spring', stiffness: 380, damping: 28 }} whileTap={{ scale: 0.98 }}
                   className="w-full text-left flex items-center gap-3 py-2.5" onClick={() => onOpenThread('@' + c.handle)} style={{ background: 'none', border: 'none' }}>
-                  <span className="relative shrink-0">
-                    <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={52} />
-                    {c.unread && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full" style={{ background: '#ef4444', border: '2.5px solid var(--bg)' }} />}
-                  </span>
+                  <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={52} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
                       <p className={`text-[14px] t-hi truncate ${c.unread ? 'font-bold' : 'font-semibold'}`}>{c.displayName || ('@' + c.handle)}</p>
@@ -2639,7 +2636,7 @@ function Shell() {
 
       {/* centered content column */}
       <div className="v2-main">{screen}</div>
-      <Leeboon nav={nav} d={d} news={news} inFeed={view === 'feed'} />
+      <Leeboon nav={nav} d={d} news={news} inFeed={view === 'feed'} inChat={view === 'feed' && !!(params && params.dm)} />
 
       {/* desktop right rail */}
       <aside className="v2-desk v2-rail">
