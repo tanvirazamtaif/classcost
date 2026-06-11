@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute, monthlyDates } from './engine';
@@ -1218,63 +1218,129 @@ function ReportSheet({ onClose, onSubmit }) {
     </div>
   );
 }
-function FeedScreen() {
+function FeedScreen({ nav, back, params }) {
   const { user } = useV2();
   const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
-  const [pane, setPane] = useState(1); // 0 profile · 1 feed · 2 messages
+  const [myAvatar, setMyAvatar] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
   const [viewHandle, setViewHandle] = useState(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchMode, setSearchMode] = useState('browse'); // browse | dm
+  const [dmSearch, setDmSearch] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [dmHandle, setDmHandle] = useState(null);
-  const startX = useRef(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
-    getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
+    getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
     return () => { on = false; };
   }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
   const myHandle = handle.replace('@', '');
-  const initial = (user?.name || myHandle || 'S').trim().charAt(0).toUpperCase();
-  const go = (p) => { setPane(Math.max(0, Math.min(2, p))); try { window.scrollTo(0, 0); } catch { /* noop */ } };
+  // sub-pages ride the real router (history-aware): home · explore · messages · profile · edit-profile
+  const sub = params?.sub || 'home';
+  const goSub = (s) => nav('feed', s === 'home' ? {} : { sub: s });
   const onComment = (p) => setCommentsFor(p);
   const onAuthor = (h) => setViewHandle(h);
-  const openSearch = (mode) => { setSearchMode(mode); setSearchOpen(true); };
-  const TABS = [{ i: 0, label: 'Profile', Icon: User }, { i: 1, label: 'Feed', Icon: Newspaper }, { i: 2, label: 'Messages', Icon: MessageCircle }];
+  const goEdit = () => { setViewHandle(null); nav('feed', { sub: 'edit-profile' }); };
+  const HeadIcon = ({ s, Icon, label, onClick }) => (
+    <button onClick={onClick || (() => goSub(s))} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label={label}
+      style={{ background: sub === s ? 'var(--accent)' : 'var(--pill-bg)', color: sub === s ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
+      <Icon size={17} />
+    </button>
+  );
   return (
-    <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: 124 }}>
-      <header className="px-4 pt-5 pb-3 flex items-center gap-2.5">
-        <span className="shrink-0 w-9" aria-hidden="true" />
-        <button onClick={() => go(1)} className="flex-1 flex items-center justify-center gap-2"><Logo size={22} /><span className="font-bold t-hi">Feed</span></button>
-        <button onClick={() => setComposeOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="New post"><PenSquare size={17} /></button>
-        <button onClick={() => openSearch('browse')} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
+    <div className="v2-scroll" style={{ overflowX: 'hidden' }}>
+      {/* sticky top bar — all feed navigation lives here (no secondary footer) */}
+      <header className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
+        <button onClick={() => goSub('home')} className="flex items-center gap-2 flex-1 min-w-0 text-left" aria-label="Feed home">
+          <Logo size={24} /><span className="font-bold t-hi t-serif text-[17px] lowercase">feed</span>
+        </button>
+        <HeadIcon s="explore" Icon={Compass} label="Explore" />
+        <HeadIcon s="compose" Icon={PenSquare} label="New post" onClick={() => setComposeOpen(true)} />
+        <HeadIcon s="messages" Icon={Send} label="Messages" />
+        <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
+          style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
+          <Avatar url={myAvatar} name={user?.name || myHandle} size={30} />
+        </button>
       </header>
-      <div onPointerDown={(e) => { startX.current = e.clientX; }} onPointerUp={(e) => { const dx = e.clientX - startX.current; if (dx < -55 && pane < 2) go(pane + 1); else if (dx > 55 && pane > 0) go(pane - 1); }} style={{ overflow: 'hidden' }}>
-        <motion.div className="flex items-start" style={{ width: '300%' }} animate={{ x: `-${pane * (100 / 3)}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
-          <div style={{ width: '33.3333%' }}><FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={(h) => setDmHandle(h)} /></div>
-          <div style={{ width: '33.3333%' }}><FeedListPane reloadKey={reloadKey} onCompose={() => setComposeOpen(true)} onComment={onComment} onAuthor={onAuthor} /></div>
-          <div style={{ width: '33.3333%' }} className="px-4"><DMPane active={pane === 2} reloadKey={reloadKey} onOpenThread={(h) => setDmHandle(h)} onFind={() => openSearch('dm')} /></div>
-        </motion.div>
-      </div>
 
-      {/* secondary footer — feed page switcher (replaces the dots) */}
-      <div className="v2-feedfooter">
-        <div className="flex" style={{ background: 'var(--sheet-bg)', borderTop: '.5px solid var(--border)', borderBottom: '.5px solid var(--border)' }}>
-          {TABS.map(({ i, label, Icon }) => (
-            <button key={i} onClick={() => go(i)} className="flex-1 flex flex-col items-center gap-0.5 py-2" style={{ background: pane === i ? 'var(--accent)' : 'transparent', color: pane === i ? 'var(--accent-text)' : 'var(--text2)', borderLeft: i ? '.5px solid var(--border)' : undefined, transition: 'background .15s' }}>
-              <Icon size={17} /><span className="text-[10px] font-semibold tracking-wide">{label}</span>
-            </button>
-          ))}
+      {sub === 'home' && <FeedListPane reloadKey={reloadKey} onCompose={() => setComposeOpen(true)} onComment={onComment} onAuthor={onAuthor} />}
+      {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={(h) => setViewHandle(h)} />}
+      {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={(h) => setDmHandle(h)} onFind={() => setDmSearch(true)} />}
+      {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={(h) => setDmHandle(h)} onEdit={goEdit} />}
+      {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
+
+      {dmSearch && <FeedSearch title="New message" onClose={() => setDmSearch(false)} onOpen={(h) => { setDmSearch(false); setDmHandle(h); }} />}
+      {composeOpen && <ComposeSheet handle={handle} onClose={() => setComposeOpen(false)} onPosted={() => { setComposeOpen(false); setReloadKey((k) => k + 1); goSub('home'); }} />}
+      {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={(h) => { setCommentsFor(null); setViewHandle(h); }} />}
+      {viewHandle && <FeedProfileView handle={viewHandle} onClose={() => setViewHandle(null)} onComment={onComment} onAuthor={(h) => setViewHandle(h)} onMessage={(h) => { setViewHandle(null); setDmHandle(h); }} onEdit={goEdit} />}
+      {dmHandle && <DMThread handle={dmHandle} onClose={() => setDmHandle(null)} onSent={() => setReloadKey((k) => k + 1)} />}
+    </div>
+  );
+}
+function ExplorePane({ onOpenPost, onOpenUser }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState(null); // null = browsing the grid
+  const [st, setSt] = useState({ loading: true, posts: [] });
+  const cursorRef = useRef(null);
+  const loadingRef = useRef(false);
+  const sentinel = useRef(null);
+  useEffect(() => {
+    let on = true;
+    listFeedPosts().then((r) => { if (on) { cursorRef.current = r?.nextCursor || null; setSt({ loading: false, posts: r?.posts || [] }); } })
+      .catch(() => { if (on) setSt({ loading: false, posts: [] }); });
+    return () => { on = false; };
+  }, []);
+  useEffect(() => { // debounced people search
+    const term = q.trim().replace('@', '');
+    if (!term) { setResults(null); return; }
+    const t = setTimeout(() => { searchUsers(term).then((r) => setResults(r?.users || [])).catch(() => setResults([])); }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+  const loadMore = async () => {
+    if (loadingRef.current || !cursorRef.current) return;
+    loadingRef.current = true;
+    try { const r = await listFeedPosts(cursorRef.current); cursorRef.current = r?.nextCursor || null; setSt((s) => ({ ...s, posts: [...s.posts, ...(r?.posts || [])] })); }
+    catch { /* ignore */ } finally { loadingRef.current = false; }
+  };
+  useEffect(() => {
+    const node = sentinel.current; if (!node) return;
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) loadMore(); }, { rootMargin: '400px' });
+    io.observe(node); return () => io.disconnect();
+  }, [st.posts.length, results]);
+  const tiles = st.posts.filter((p) => p.imageUrl);
+  return (
+    <div>
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2" style={{ padding: '.6rem .9rem', borderRadius: 999, border: '.5px solid var(--border)', background: 'var(--card)' }}>
+          <Search size={15} className="t-lo shrink-0" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="search people…" className="flex-1 min-w-0 text-[14px] t-hi" style={{ border: 'none', outline: 'none', background: 'transparent', color: 'var(--text1)' }} />
+          {q && <button className="t-lo text-[12px] shrink-0" onClick={() => setQ('')}>clear</button>}
         </div>
       </div>
-
-      {searchOpen && <FeedSearch title={searchMode === 'dm' ? 'New message' : 'Search people'} onClose={() => setSearchOpen(false)} onOpen={(h) => { setSearchOpen(false); if (searchMode === 'dm') setDmHandle(h); else setViewHandle(h); }} />}
-      {composeOpen && <ComposeSheet handle={handle} onClose={() => setComposeOpen(false)} onPosted={() => { setComposeOpen(false); setReloadKey((k) => k + 1); go(1); }} />}
-      {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={(h) => { setCommentsFor(null); setViewHandle(h); }} />}
-      {viewHandle && <FeedProfileView handle={viewHandle} onClose={() => setViewHandle(null)} onComment={onComment} onAuthor={(h) => setViewHandle(h)} onMessage={(h) => { setViewHandle(null); setDmHandle(h); }} />}
-      {dmHandle && <DMThread handle={dmHandle} onClose={() => setDmHandle(null)} onSent={() => setReloadKey((k) => k + 1)} />}
+      {results !== null ? (
+        <div className="px-4 py-1">
+          {results.length === 0
+            ? <p className="text-[13px] t-mid text-center py-10">no one found for “{q.trim()}”</p>
+            : results.map((u) => <FeedUserRow key={u.handle} u={u} onOpen={onOpenUser} />)}
+        </div>
+      ) : st.loading ? (
+        <div className="grid grid-cols-3" style={{ gap: 2 }}>
+          {Array.from({ length: 9 }).map((_, i) => <div key={i} className="v2-skel" style={{ aspectRatio: '1 / 1' }} />)}
+        </div>
+      ) : tiles.length === 0 ? (
+        <div className="py-16 text-center"><div className="text-4xl mb-2">🧭</div><p className="font-semibold t-hi mb-1">nothing to explore yet</p><p className="text-[13px] t-mid">photos people post will show up here.</p></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3" style={{ gap: 2 }}>
+            {tiles.map((p) => (
+              <button key={p.id} onClick={() => onOpenPost(p)} className="relative block overflow-hidden" style={{ aspectRatio: '1 / 1', background: 'var(--pill-bg)', padding: 0, border: 0 }} aria-label="Open post">
+                <img src={p.imageUrl} alt="" loading="lazy" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
+              </button>
+            ))}
+          </div>
+          {cursorRef.current && <div ref={sentinel} className="py-4" />}
+        </>
+      )}
     </div>
   );
 }
@@ -1307,14 +1373,13 @@ function FeedOnboard({ onDone }) {
     </div>
   );
 }
-function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage }) {
+function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage, onEdit }) {
   const h = (handle || '').replace('@', '');
   const [prof, setProf] = useState(null);
   const [posts, setPosts] = useState(null);
   const [err, setErr] = useState('');
   const [following, setFollowing] = useState(false);
   const [fBusy, setFBusy] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   useEffect(() => {
     let on = true; setErr(''); setProf(null); setPosts(null);
     getFeedProfile(h).then((r) => { if (on) { setProf(r); setFollowing(!!r.isFollowing); } }).catch((x) => { if (on) setErr(x.message || 'offline'); });
@@ -1348,13 +1413,13 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
         <p className="font-semibold t-hi text-[14px] leading-tight">{prof?.displayName || ('@' + h)}</p>
         {prof?.displayName && <p className="text-[12px] t-lo">@{h}</p>}
         {prof?.bio && <p className="text-[13px] t-hi mt-1" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{prof.bio}</p>}
-        {prof?.isMe && !prof?.bio && <button className="text-[13px] t-accent mt-1 font-medium" onClick={() => setEditOpen(true)}>+ Add a bio</button>}
+        {prof?.isMe && !prof?.bio && <button className="text-[13px] t-accent mt-1 font-medium" onClick={onEdit}>+ Add a bio</button>}
       </div>
       {/* actions */}
       {prof && (
         <div className="px-4 flex gap-2 mb-4">
           {prof.isMe
-            ? <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={() => setEditOpen(true)}>Edit profile</button>
+            ? <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={onEdit}>Edit profile</button>
             : (<>
                 <button className={`btn flex-1 ${following ? 'btn-ghost' : 'btn-primary'}`} style={{ padding: '.5rem' }} onClick={toggleFollow}>{following ? 'Following' : 'Follow'}</button>
                 {onMessage && <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={() => onMessage('@' + h)}>Message</button>}
@@ -1380,7 +1445,6 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
           </div>
         )}
       <div className="h-4" />
-      {editOpen && prof && <EditFeedProfile profile={prof} onClose={() => setEditOpen(false)} onSaved={(np) => setProf((cur) => ({ ...cur, ...np }))} />}
     </div>
   );
   if (embedded) return body;
@@ -1393,13 +1457,20 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
     </div>
   );
 }
-function EditFeedProfile({ profile, onClose, onSaved }) {
-  const [name, setName] = useState(profile?.displayName || '');
-  const [bio, setBio] = useState(profile?.bio || '');
-  const [avatar, setAvatar] = useState(profile?.avatarUrl || '');
+function EditProfilePage({ myHandle, onBack, onSaved }) {
+  const [loaded, setLoaded] = useState(false);
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
+  const [avatar, setAvatar] = useState('');
   const [busy, setBusy] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
   const fileRef = useRef(null);
+  useEffect(() => {
+    let on = true;
+    getFeedProfile(myHandle).then((r) => { if (on) { setName(r?.displayName || ''); setBio(r?.bio || ''); setAvatar(r?.avatarUrl || ''); setLoaded(true); } })
+      .catch(() => { if (on) setLoaded(true); });
+    return () => { on = false; };
+  }, [myHandle]);
   const pick = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     if (!f.type.startsWith('image/')) { ccToast('Pick an image'); return; }
@@ -1408,26 +1479,37 @@ function EditFeedProfile({ profile, onClose, onSaved }) {
   };
   const save = async () => {
     if (busy) return; setBusy(true);
-    try { const r = await updateMyProfile({ handle: profile.handle, displayName: name.trim(), bio: bio.trim(), avatarUrl: avatar }); onSaved && onSaved(r.profile); ccToast('Profile updated'); onClose(); }
+    try { const r = await updateMyProfile({ handle: myHandle, displayName: name.trim(), bio: bio.trim(), avatarUrl: avatar }); ccToast('Profile updated'); onSaved && onSaved(r?.profile); }
     catch (x) { ccToast(x.message || 'Could not save'); } finally { setBusy(false); }
   };
   return (
-    <div className="v2-backdrop" onClick={onClose}>
-      <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 mb-3"><p className="font-bold t-hi flex-1">Edit profile</p><button className="text-[13px] t-mid" onClick={onClose}>Close</button></div>
-        <div className="flex flex-col items-center mb-4">
-          <button onClick={() => fileRef.current?.click()} className="relative" aria-label="Change photo">
-            <Avatar url={avatar} name={name || profile?.handle} size={84} ring />
-            <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '2px solid var(--sheet-bg)' }}><Camera size={14} /></span>
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pick} />
-          <p className="text-[11px] t-lo mt-2">{upBusy ? 'Uploading…' : 'Tap to change photo'}</p>
+    <div>
+      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '.5px solid var(--border)' }}>
+        <button onClick={onBack} className="t-mid p-1 -ml-1" aria-label="Back"><ChevronLeft size={20} /></button>
+        <p className="font-bold t-hi flex-1">Edit profile</p>
+        <button className="minibtn btn-primary" style={{ padding: '.45rem 1rem' }} disabled={busy || upBusy || !loaded} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
+      </div>
+      <div className="px-4 py-6 flex flex-col items-center">
+        <button onClick={() => fileRef.current?.click()} className="relative" aria-label="Change photo">
+          <Avatar url={avatar} name={name || myHandle} size={96} ring />
+          <span className="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '2px solid var(--bg)' }}><Camera size={15} /></span>
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pick} />
+        <button className="text-[13px] t-accent font-medium mt-3" onClick={() => fileRef.current?.click()}>{upBusy ? 'Uploading…' : 'Change photo'}</button>
+      </div>
+      <div className="px-4 space-y-4 pb-10" style={{ maxWidth: 420, margin: '0 auto' }}>
+        <div>
+          <label className="text-[11px] uppercase tracking-wide t-lo">Display name</label>
+          <input className="field mt-1" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
         </div>
-        <label className="text-[11px] uppercase tracking-wide t-lo">Display name</label>
-        <input className="field mt-1 mb-3" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
-        <label className="text-[11px] uppercase tracking-wide t-lo">Bio</label>
-        <textarea className="field mt-1" rows={2} placeholder="A short bio…" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} style={{ resize: 'none' }} />
-        <button className="btn btn-primary mt-4" disabled={busy || upBusy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
+        <div>
+          <div className="flex items-baseline justify-between"><label className="text-[11px] uppercase tracking-wide t-lo">Bio</label><span className="text-[11px] t-lo">{bio.length}/200</span></div>
+          <textarea className="field mt-1" rows={4} placeholder="say something about you…" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} style={{ resize: 'none' }} />
+        </div>
+        <div>
+          <label className="text-[11px] uppercase tracking-wide t-lo">Handle</label>
+          <div className="field mt-1 t-mid" style={{ cursor: 'default', userSelect: 'none' }}>@{myHandle}</div>
+        </div>
       </div>
     </div>
   );
@@ -1553,11 +1635,11 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
     try { await deletePost(p.id); ccToast('Post deleted'); onDeleted && onDeleted(p.id); } catch { ccToast('Could not delete'); }
   };
   return (
-    <div className="px-4 py-4" style={{ borderBottom: '.5px solid var(--border)' }}>
-      <div className="flex items-center gap-2 mb-2.5">
+    <article className="pt-3 pb-2.5" style={{ borderBottom: '.5px solid var(--border)' }}>
+      <div className="px-4 flex items-center gap-2 mb-2.5">
         <button className="flex items-center gap-2.5 flex-1 min-w-0 text-left" onClick={() => onAuthor && onAuthor(p.handle)}>
-          <Avatar url={p.avatarUrl} name={p.displayName || p.handle} size={36} />
-          <div className="min-w-0 flex-1"><p className="text-[13px] font-semibold t-hi truncate">{p.displayName || ('@' + p.handle)}</p><p className="text-[11px] t-lo">@{p.handle} · {timeAgo(p.createdAt)}</p></div>
+          <Avatar url={p.avatarUrl} name={p.displayName || p.handle} size={38} ring />
+          <div className="min-w-0 flex-1"><p className="text-[13.5px] font-semibold t-hi truncate leading-tight">{p.displayName || ('@' + p.handle)}</p><p className="text-[11px] t-lo">@{p.handle} · {timeAgo(p.createdAt)}</p></div>
         </button>
         <div className="relative shrink-0">
           <button className="t-lo p-1" onClick={() => setMenu((m) => !m)} aria-label="More"><MoreHorizontal size={18} /></button>
@@ -1573,20 +1655,27 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
           )}
         </div>
       </div>
-      {p.text && <p className="text-[14px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{p.text}</p>}
+      {p.text && !p.imageUrl && <p className="px-4 text-[15px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.45 }}>{p.text}</p>}
       {p.imageUrl && (
-        <div className="relative -mx-4 mb-2 overflow-hidden select-none" style={{ aspectRatio: '1 / 1' }} onClick={onImageTap}>
-          <img src={p.imageUrl} alt="" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
+        <div className="relative overflow-hidden select-none" style={{ aspectRatio: '1 / 1' }} onClick={onImageTap}>
+          <img src={p.imageUrl} alt="" loading="lazy" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
           {pop && <span className="feed-heartpop" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}><Heart size={88} style={{ fill: '#fff', color: '#fff', filter: 'drop-shadow(0 2px 10px rgba(0,0,0,.5))' }} /></span>}
         </div>
       )}
-      <div className="flex gap-5 mt-1 text-[12px]">
-        <button className="flex items-center gap-1.5" onClick={() => doLike()} style={{ color: liked ? '#ef4444' : 'var(--text2)' }}><Heart size={16} style={liked ? { fill: '#ef4444' } : undefined} />{likes}</button>
-        <button className="flex items-center gap-1.5 t-mid" onClick={() => onComment && onComment(p)}><MessageCircle size={16} />{p.comments || 0}</button>
-        <button className="flex items-center gap-1.5 t-mid" onClick={share}><Share2 size={16} /></button>
+      <div className="px-4 flex items-center gap-4 pt-2">
+        <motion.button whileTap={{ scale: 1.3 }} transition={{ type: 'spring', stiffness: 500, damping: 14 }} className="p-0" onClick={() => doLike()} aria-label="Like" style={{ color: liked ? '#ef4444' : 'var(--text1)', background: 'none', border: 'none' }}>
+          <Heart size={23} strokeWidth={1.8} style={liked ? { fill: '#ef4444' } : undefined} />
+        </motion.button>
+        <button className="t-hi p-0" onClick={() => onComment && onComment(p)} aria-label="Comments" style={{ background: 'none', border: 'none' }}><MessageCircle size={22} strokeWidth={1.8} /></button>
+        <button className="t-hi p-0" onClick={share} aria-label="Share" style={{ background: 'none', border: 'none' }}><Share2 size={21} strokeWidth={1.8} /></button>
+      </div>
+      <div className="px-4 pt-1.5">
+        {likes > 0 && <p className="text-[13px] font-semibold t-hi">{likes} like{likes === 1 ? '' : 's'}</p>}
+        {p.imageUrl && p.text && <p className="text-[13.5px] t-hi mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4 }}><button className="font-semibold" onClick={() => onAuthor && onAuthor(p.handle)}>{p.displayName || p.handle}</button> {p.text}</p>}
+        {(p.comments || 0) > 0 && <button className="text-[12.5px] t-lo mt-0.5 block" onClick={() => onComment && onComment(p)}>view all {p.comments} comment{p.comments === 1 ? '' : 's'}</button>}
       </div>
       {reportOpen && <ReportSheet onClose={() => setReportOpen(false)} onSubmit={async (reason) => { try { await reportContent('post', p.id, reason); ccToast("Thanks — we'll review it"); } catch { ccToast('Could not report'); } setReportOpen(false); }} />}
-    </div>
+    </article>
   );
 }
 function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
@@ -1614,9 +1703,21 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
     io.observe(node); return () => io.disconnect();
   }, [st.posts.length]);
   const removePost = (id) => setSt((s) => ({ ...s, posts: s.posts.filter((p) => p.id !== id) }));
-  if (st.loading) return <div className="py-12 text-center text-[13px] t-mid">Loading the feed…</div>;
-  if (st.error) return <div className="card p-6 text-center mt-2 mx-4"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
-  if (!st.posts.length) return <div className="card p-6 text-center mt-2 mx-4"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">Quiet in here</p><p className="text-[13px] t-mid mb-3">No posts yet — start the conversation.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>;
+  if (st.loading) return (
+    <div>
+      {[0, 1].map((i) => (
+        <div key={i} className="pt-3 pb-4" style={{ borderBottom: '.5px solid var(--border)' }}>
+          <div className="px-4 flex items-center gap-2.5 mb-3">
+            <div className="v2-skel rounded-full shrink-0" style={{ width: 38, height: 38 }} />
+            <div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '38%', marginBottom: 7 }} /><div className="v2-skel rounded" style={{ height: 8, width: '22%' }} /></div>
+          </div>
+          <div className="v2-skel" style={{ aspectRatio: '1 / 1' }} />
+        </div>
+      ))}
+    </div>
+  );
+  if (st.error) return <div className="card p-6 text-center mt-3 mx-4"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
+  if (!st.posts.length) return <div className="py-16 px-6 text-center"><div className="text-4xl mb-2">🌱</div><p className="font-semibold t-hi mb-1">quiet in here</p><p className="text-[13px] t-mid mb-4">be the first — say what's on your mind.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>write something</button></div>;
   return (
     <div>
       {st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={removePost} />)}
@@ -1674,9 +1775,12 @@ function DMPane({ active, reloadKey, onOpenThread, onFind }) {
     return () => { on = false; };
   }, [reloadKey, active]);
   return (
-    <div className="py-2">
-      <button className="btn btn-primary mb-3 flex items-center justify-center gap-2" onClick={onFind}><PenSquare size={15} />New message</button>
-      {st.loading ? <div className="card p-6 text-center text-[13px] t-mid">Loading…</div>
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-2 mb-3">
+        <p className="font-bold t-hi t-serif text-[18px] flex-1">Messages</p>
+        <button className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} onClick={onFind} aria-label="New message"><PenSquare size={16} /></button>
+      </div>
+      {st.loading ? <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3 py-2"><div className="v2-skel rounded-full shrink-0" style={{ width: 40, height: 40 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '45%', marginBottom: 6 }} /><div className="v2-skel rounded" style={{ height: 8, width: '70%' }} /></div></div>)}</div>
         : st.err ? <div className="card p-6 text-center"><div className="text-3xl mb-2">✉️</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Messages work once the server is live.' : "Couldn't load messages — try again in a moment."}</p></div>
           : st.convos.length === 0 ? <div className="card p-8 text-center"><div className="text-4xl mb-2">💬</div><p className="font-semibold t-hi mb-1">No messages yet</p><p className="text-[13px] t-mid mb-3">Reach anyone on ClassCost by their @handle.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onFind}>Find someone</button></div>
             : <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
@@ -1892,7 +1996,7 @@ function Shell() {
     try { sessionStorage.setItem('cc_v2_nav', JSON.stringify({ route: r, stack: st })); } catch { /* noop */ }
   };
   const nav = (view, params = {}) => { if (route.view === view && JSON.stringify(route.params) === JSON.stringify(params)) return; const next = { view, params }; const st = [...stack.current, route]; stack.current = st; setRoute(next); persistNav(next, st); try { window.scrollTo(0, 0); } catch { /* noop */ } };
-  const tab = (view) => { try { window.scrollTo(0, 0); } catch { /* noop */ } if (route.view === view) return; const next = { view, params: {} }; stack.current = []; setRoute(next); persistNav(next, []); };
+  const tab = (view) => { try { window.scrollTo(0, 0); } catch { /* noop */ } if (route.view === view && !Object.keys(route.params || {}).length) return; const next = { view, params: {} }; stack.current = []; setRoute(next); persistNav(next, []); };
   const back = () => { if (stack.current.length) { try { window.history.back(); return; } catch { /* fall through */ } } const p = stack.current.pop(); setRoute(p || { view: 'home', params: {} }); };
   useEffect(() => {
     try { window.history.replaceState({ ...(window.history.state || {}), ccNav: { route, stack: stack.current } }, ''); } catch { /* noop */ }
