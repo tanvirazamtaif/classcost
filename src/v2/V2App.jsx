@@ -225,7 +225,7 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
 
         {/* profile — framed */}
         <button className="w-full text-left flex items-center gap-3 p-2.5 mb-5" onClick={() => go(() => nav('profile'))} style={{ border: '.5px solid var(--border)', borderRadius: 6, background: 'var(--card)' }}>
-          <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-base font-semibold shrink-0" style={{ background: avatarColor(user?.name), border: '.5px solid var(--border)' }}>{initial}</span>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-base font-semibold shrink-0" style={{ background: avatarColor(user?.name) }}>{initial}</span>
           <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{user?.name || 'Student'}</p><p className="text-[11px] t-mid truncate">{user?.email || 'View profile'}</p></div>
           <ChevronRight size={16} className="t-lo shrink-0" />
         </button>
@@ -1190,7 +1190,8 @@ const avatarColor = (name) => { const s = (name || 'S').toString().toLowerCase()
 const fmtCount = (n) => { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K'; return String(n); };
 function Avatar({ url, name, size = 36, ring = false }) {
   const initial = (name || 'S').toString().trim().charAt(0).toUpperCase() || 'S';
-  const base = { width: size, height: size, ...(ring ? { border: `${Math.max(1.5, size * 0.04)}px solid var(--border)`, boxSizing: 'border-box' } : {}) };
+  const base = { width: size, height: size }; // 'ring' is intentionally a no-op — profile pictures stay borderless
+  void ring;
   if (url) return <img src={url} alt="" className="rounded-full object-cover shrink-0 block" style={base} draggable={false} />;
   return <span className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ ...base, background: avatarColor(name), fontSize: Math.round(size * 0.4) }}>{initial}</span>;
 }
