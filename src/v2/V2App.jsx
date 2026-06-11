@@ -23,7 +23,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -1225,10 +1225,18 @@ function FeedScreen({ nav, back, params }) {
   const [myAvatar, setMyAvatar] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
+  const [unread, setUnread] = useState(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
     getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
     return () => { on = false; };
+  }, []);
+  useEffect(() => { // unread badge — refresh on mount and every 45s
+    let on = true;
+    const pull = () => getFeedNotifications().then((r) => { if (on && typeof r?.unread === 'number') setUnread(r.unread); }).catch(() => {});
+    pull();
+    const id = setInterval(pull, 45000);
+    return () => { on = false; clearInterval(id); };
   }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
   const myHandle = handle.replace('@', '');
@@ -1244,7 +1252,8 @@ function FeedScreen({ nav, back, params }) {
   const openThread = (hh) => nav('feed', { ...(params || {}), dm: hh });
   const threadToProfile = (hh) => { const { dm, ...rest } = params || {}; nav('feed', { ...rest, user: (hh || '').replace('@', '') }); };
   const goEdit = () => nav('feed', { sub: 'edit-profile' });
-  const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile' };
+  const openPost = async (pid) => { try { const r = await getFeedPost(pid); if (r?.post) setCommentsFor(r.post); } catch { ccToast('Post unavailable'); } };
+  const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
   const HeadIcon = ({ s, Icon, label }) => (
     <button onClick={() => goSub(s)} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label={label}
@@ -1265,6 +1274,11 @@ function FeedScreen({ nav, back, params }) {
               <div className="flex-1" />
               <HeadIcon s="explore" Icon={Compass} label="Explore" />
               <HeadIcon s="compose" Icon={PenSquare} label="New post" />
+              <button onClick={() => goSub('notifications')} className="relative w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Notifications"
+                style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
+                <Bell size={17} />
+                {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread > 9 ? '9+' : unread}</span>}
+              </button>
               <HeadIcon s="messages" Icon={Send} label="Messages" />
             </>
           ) : (
@@ -1280,11 +1294,61 @@ function FeedScreen({ nav, back, params }) {
       {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
       {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
+      {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread(0)} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
       {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
       {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
+    </div>
+  );
+}
+function NotificationsPane({ onSeen, onOpenUser, onOpenThread, onOpenPost }) {
+  const [st, setSt] = useState({ loading: true, items: [] });
+  useEffect(() => {
+    let on = true;
+    getFeedNotifications()
+      .then((r) => {
+        if (on) setSt({ loading: false, items: r?.notifications || [] });
+        markNotificationsRead().then(() => onSeen && onSeen()).catch(() => {});
+      })
+      .catch(() => { if (on) setSt({ loading: false, items: [] }); });
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const LABEL = { like: 'liked your post', comment: 'commented', dm: 'sent you a message', follow_post: 'shared a new post', follow: 'started following you' };
+  const open = (n) => {
+    if (!n.handle) return;
+    if (n.type === 'dm') onOpenThread('@' + n.handle);
+    else if (n.postId) onOpenPost(n.postId);
+    else onOpenUser(n.handle);
+  };
+  return (
+    <div className="px-4 py-2">
+      {st.loading ? (
+        <div className="space-y-1 pt-2">{[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 py-2"><div className="v2-skel rounded-full shrink-0" style={{ width: 42, height: 42 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '70%', marginBottom: 6 }} /><div className="v2-skel rounded" style={{ height: 8, width: '30%' }} /></div></div>)}</div>
+      ) : st.items.length === 0 ? (
+        <div className="py-16 text-center">
+          <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-light)' }}><Bell size={22} className="t-accent" /></div>
+          <p className="font-semibold t-hi mb-1">nothing yet</p>
+          <p className="text-[13px] t-mid">likes, comments, messages and new posts land here.</p>
+        </div>
+      ) : st.items.map((n, i) => (
+        <motion.button key={n.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 10) * 0.035, type: 'spring', stiffness: 380, damping: 28 }} whileTap={{ scale: 0.98 }}
+          className="w-full text-left flex items-center gap-3 py-2.5" style={{ background: 'none', border: 'none' }} onClick={() => open(n)}>
+          <span className="relative shrink-0">
+            <Avatar url={n.avatarUrl} name={n.displayName || n.handle} size={42} ring />
+            {!n.read && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444', border: '2px solid var(--bg)' }} />}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] t-hi" style={{ lineHeight: 1.35 }}>
+              <span className="font-semibold">{n.displayName || ('@' + (n.handle || 'someone'))}</span> {LABEL[n.type] || 'did something'}
+              {n.text ? <span className="t-mid">{': '}&ldquo;{n.text}&rdquo;</span> : ''}
+            </p>
+            <p className="text-[11px] t-lo mt-0.5">{timeAgo(n.createdAt)}</p>
+          </div>
+        </motion.button>
+      ))}
     </div>
   );
 }

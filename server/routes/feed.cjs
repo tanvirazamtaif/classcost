@@ -18,6 +18,19 @@ function authUser(req, res) {
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 const normHandle = (h) => String(h || '').trim().replace(/^@/, '').toLowerCase();
 
+// Fire-and-forget notification. DMs collapse into one unread row per sender so a
+// chat burst doesn't flood the list; never notify yourself.
+async function notify(userId, actorId, type, postId, text) {
+  if (!userId || !actorId || userId === actorId) return;
+  try {
+    if (type === 'dm') {
+      const ex = await prisma.feedNotification.findFirst({ where: { userId, actorId, type: 'dm', readAt: null }, orderBy: { createdAt: 'desc' } });
+      if (ex) { await prisma.feedNotification.update({ where: { id: ex.id }, data: { text: text || null, createdAt: new Date() } }); return; }
+    }
+    await prisma.feedNotification.create({ data: { userId, actorId, type, postId: postId || null, text: text || null } });
+  } catch (err) { console.error('notify:', err); }
+}
+
 // GET /api/feed/profile/me — my feed profile (null if not claimed)
 router.get('/profile/me', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
@@ -95,16 +108,57 @@ router.post('/posts', async (req, res) => {
     if (!profile) return res.status(400).json({ error: 'Claim a handle first' });
     const post = await prisma.feedPost.create({ data: { authorId: userId, text, imageUrl: req.body.imageUrl || null } });
     res.json({ post: { id: post.id, text: post.text, imageUrl: post.imageUrl, createdAt: post.createdAt, handle: profile.handle, displayName: profile.displayName, avatarUrl: profile.avatarUrl, likes: 0, comments: 0, likedByMe: false, mine: true } });
+    try { // tell followers
+      const followers = await prisma.feedFollow.findMany({ where: { followingId: userId }, select: { followerId: true } });
+      if (followers.length) await prisma.feedNotification.createMany({ data: followers.map((f) => ({ userId: f.followerId, actorId: userId, type: 'follow_post', postId: post.id, text: (text || '📷 photo').slice(0, 80) })) });
+    } catch (err) { console.error('notify followers:', err); }
   } catch (err) { console.error('feed post:', err); res.status(500).json({ error: 'Failed to post' }); }
+});
+
+// GET /api/feed/posts/:id — one post (notification tap-through)
+router.get('/posts/:id', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const p = await prisma.feedPost.findUnique({ where: { id: req.params.id }, include: { author: true, _count: { select: { likes: true, comments: true } } } });
+    if (!p) return res.status(404).json({ error: 'Post not found' });
+    const liked = await prisma.feedLike.findUnique({ where: { postId_userId: { postId: p.id, userId } } });
+    res.json({ post: { id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt, handle: p.author.handle, displayName: p.author.displayName, avatarUrl: p.author.avatarUrl, likes: p._count.likes, comments: p._count.comments, likedByMe: !!liked, mine: p.authorId === userId } });
+  } catch (err) { console.error('post get:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── notifications ──
+router.get('/notifications', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const items = await prisma.feedNotification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 40 });
+    const actorIds = [...new Set(items.map((n) => n.actorId))];
+    const profiles = actorIds.length ? await prisma.feedProfile.findMany({ where: { userId: { in: actorIds } } }) : [];
+    const byU = Object.fromEntries(profiles.map((p) => [p.userId, p]));
+    const unread = await prisma.feedNotification.count({ where: { userId, readAt: null } });
+    res.json({
+      unread,
+      notifications: items.map((n) => ({ id: n.id, type: n.type, postId: n.postId, text: n.text, createdAt: n.createdAt, read: !!n.readAt, handle: byU[n.actorId]?.handle, displayName: byU[n.actorId]?.displayName, avatarUrl: byU[n.actorId]?.avatarUrl })),
+    });
+  } catch (err) { console.error('notifications:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.post('/notifications/read', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try { await prisma.feedNotification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } }); res.json({ ok: true }); }
+  catch (err) { console.error('notifications read:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
 // ── likes ──
 router.post('/posts/:id/like', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
   try {
+    const already = await prisma.feedLike.findUnique({ where: { postId_userId: { postId: req.params.id, userId } } });
     await prisma.feedLike.upsert({ where: { postId_userId: { postId: req.params.id, userId } }, update: {}, create: { postId: req.params.id, userId } });
     const likes = await prisma.feedLike.count({ where: { postId: req.params.id } });
     res.json({ likes, likedByMe: true });
+    if (!already) {
+      const post = await prisma.feedPost.findUnique({ where: { id: req.params.id } });
+      if (post) notify(post.authorId, userId, 'like', post.id, (post.text || '').slice(0, 80));
+    }
   } catch (err) { console.error('like:', err); res.status(500).json({ error: 'Failed' }); }
 });
 router.delete('/posts/:id/like', async (req, res) => {
@@ -137,6 +191,8 @@ router.post('/posts/:id/comments', async (req, res) => {
     if (!profile) return res.status(400).json({ error: 'Claim a handle first' });
     const c = await prisma.feedComment.create({ data: { postId: req.params.id, userId, text } });
     res.json({ comment: { id: c.id, text: c.text, createdAt: c.createdAt, handle: profile.handle, displayName: profile.displayName, avatarUrl: profile.avatarUrl, mine: true } });
+    const post = await prisma.feedPost.findUnique({ where: { id: req.params.id } });
+    if (post) notify(post.authorId, userId, 'comment', post.id, text.slice(0, 120));
   } catch (err) { console.error('comment add:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
@@ -171,8 +227,10 @@ router.post('/follow/:handle', async (req, res) => {
     const target = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
     if (!target) return res.status(404).json({ error: 'No such user' });
     if (target.userId === userId) return res.status(400).json({ error: "You can't follow yourself" });
+    const already = await prisma.feedFollow.findUnique({ where: { followerId_followingId: { followerId: userId, followingId: target.userId } } });
     await prisma.feedFollow.upsert({ where: { followerId_followingId: { followerId: userId, followingId: target.userId } }, update: {}, create: { followerId: userId, followingId: target.userId } });
     res.json({ following: true });
+    if (!already) notify(target.userId, userId, 'follow', null, null);
   } catch (err) { console.error('follow:', err); res.status(500).json({ error: 'Failed' }); }
 });
 router.delete('/follow/:handle', async (req, res) => {
@@ -336,6 +394,7 @@ router.post('/dm/:handle', async (req, res) => {
     const msg = await prisma.dmMessage.create({ data: { threadId: thread.id, senderId: userId, text } });
     await prisma.dmThread.update({ where: { id: thread.id }, data: { lastAt: msg.createdAt } });
     res.json({ message: { id: msg.id, text: msg.text, mine: true, createdAt: msg.createdAt } });
+    notify(other.userId, userId, 'dm', null, text.slice(0, 120));
   } catch (err) { console.error('dm send:', err); res.status(500).json({ error: 'Failed to send' }); }
 });
 

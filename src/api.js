@@ -233,6 +233,11 @@ export async function listConversations() { return request('/api/feed/dm'); }
 export async function getThread(handle) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`); }
 export async function sendDm(handle, text) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`, { method: 'POST', body: JSON.stringify({ text }) }); }
 
+// Notifications
+export async function getFeedNotifications() { return request('/api/feed/notifications'); }
+export async function markNotificationsRead() { return request('/api/feed/notifications/read', { method: 'POST' }); }
+export async function getFeedPost(id) { return request(`/api/feed/posts/${encodeURIComponent(id)}`); }
+
 // Profile edit + content delete
 export async function updateMyProfile(data) { return request('/api/feed/profile', { method: 'POST', body: JSON.stringify(data) }); }
 export async function deletePost(id) { return request(`/api/feed/posts/${id}`, { method: 'DELETE' }); }

@@ -173,6 +173,20 @@ model DmMessage {
   @@index([threadId, createdAt])
 }
 
+model FeedNotification {
+  id        String    @id @default(cuid())
+  userId    String // recipient User.id
+  type      String // like | comment | dm | follow_post | follow
+  actorId   String // User.id of who triggered it
+  postId    String?
+  text      String? // short preview (comment text, dm snippet, post snippet)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
 model PromoCode {
   id           String    @id @default(uuid())
   code         String    @unique
