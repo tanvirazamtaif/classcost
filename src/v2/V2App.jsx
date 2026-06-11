@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus, Pause, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { haptics } from '../lib/haptics';
 import { V2Provider, useV2 } from './store';
@@ -14,10 +14,10 @@ const v2Palette = (d) => d ? {
   heroBg: '#151421', heroBorder: 'rgba(255,255,255,.35)',
   pillBg: '#201E30', navBg: 'rgba(12,10,26,.92)', sheetBg: '#151421', cardShadow: 'none',
 } : {
-  bg: '#F5F4F0', card: '#FFFFFF', border: 'rgba(22,24,31,.45)',
+  bg: '#F5F4F0', card: '#FFFFFF', border: '#2B3148',
   accent: '#0A143F', accentText: '#FFFFFF', accentLight: 'rgba(10,20,63,.07)', gold: '#0A143F',
   text1: '#0A143F', text2: '#5C6178', text3: '#9499A6',
-  heroBg: '#FFFFFF', heroBorder: 'rgba(22,24,31,.45)',
+  heroBg: '#FFFFFF', heroBorder: '#2B3148',
   pillBg: '#EEEDE7', navBg: 'rgba(245,244,240,.95)', sheetBg: '#FFFFFF', cardShadow: 'none',
 };
 import { Logo } from '../components/ui/Logo';
@@ -1472,14 +1472,27 @@ function StoriesRail({ myAvatar, myName, onOpen }) {
 function StoryViewer({ groups, start, onClose, onChanged }) {
   const [gi, setGi] = useState(start);
   const [si, setSi] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [loaded, setLoaded] = useState(false); // progress only runs once the image has fully loaded
+  const [liked, setLiked] = useState(false);
+  const [reply, setReply] = useState('');
+  const [sendBusy, setSendBusy] = useState(false);
+  const pausedRef = useRef(false);
+  const elapsedRef = useRef(0);
   const g = groups[gi];
   const s = g?.stories?.[si];
-  useEffect(() => { // auto-advance every 5s
-    if (!s) return;
-    const t = setTimeout(() => nextStory(), 5000);
-    return () => clearTimeout(t);
+  useEffect(() => { setLoaded(false); setLiked(false); elapsedRef.current = 0; }, [gi, si]);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+  useEffect(() => { // pause-aware, load-gated auto-advance
+    if (!s || !loaded) return undefined;
+    const id = setInterval(() => {
+      if (pausedRef.current) return;
+      elapsedRef.current += 100;
+      if (elapsedRef.current >= 5000) { clearInterval(id); nextStory(); }
+    }, 100);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gi, si]);
+  }, [gi, si, loaded]);
   useEffect(() => { if (!g || !s) onClose(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [g, s]);
   if (!g || !s) return null;
   const nextStory = () => {
@@ -1495,15 +1508,24 @@ function StoryViewer({ groups, start, onClose, onChanged }) {
     try { await deleteStory(s.id); ccToast('Story deleted'); onChanged && onChanged(); }
     catch { ccToast('Could not delete'); }
   };
+  const likeStory = async () => {
+    if (liked) return; setLiked(true); haptics.light?.();
+    try { await sendDm(g.handle, '❤️ liked your story'); ccToast('Liked'); } catch { setLiked(false); ccToast('Could not like'); }
+  };
+  const sendReply = async () => {
+    const t = reply.trim(); if (!t || sendBusy) return; setSendBusy(true);
+    try { await sendDm(g.handle, `↪ story reply: ${t}`); setReply(''); ccToast('Reply sent'); }
+    catch { ccToast('Could not send'); } finally { setSendBusy(false); }
+  };
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center" style={{ background: '#000' }}>
       <div className="relative w-full h-full" style={{ maxWidth: 480, margin: '0 auto' }}>
-        {/* progress segments */}
+        {/* progress segments — the active one starts only after the image loads, and pauses with ⏸ */}
         <div className="absolute top-2 left-2 right-2 z-10 flex gap-1">
           {g.stories.map((x, i) => (
             <div key={x.id} className="flex-1 rounded-full overflow-hidden" style={{ height: 2.5, background: 'rgba(255,255,255,.3)' }}>
               {i < si ? <div style={{ width: '100%', height: '100%', background: '#fff' }} />
-                : i === si ? <div key={`${gi}-${si}`} style={{ height: '100%', background: '#fff', animation: 'v2storybar 5s linear forwards' }} /> : null}
+                : i === si && loaded ? <div key={`${gi}-${si}`} style={{ height: '100%', background: '#fff', animation: 'v2storybar 5s linear forwards', animationPlayState: paused ? 'paused' : 'running' }} /> : null}
             </div>
           ))}
         </div>
@@ -1514,13 +1536,28 @@ function StoryViewer({ groups, start, onClose, onChanged }) {
             <p className="text-[13px] font-semibold truncate" style={{ color: '#fff' }}>{g.displayName || ('@' + g.handle)}</p>
             <p className="text-[11px]" style={{ color: 'rgba(255,255,255,.7)' }}>{timeAgo(s.createdAt)}</p>
           </div>
+          <button className="p-1.5" style={{ color: 'rgba(255,255,255,.85)', background: 'none', border: 'none' }} onClick={() => setPaused((p) => !p)} aria-label={paused ? 'Play' : 'Pause'}>
+            {paused ? <Play size={18} /> : <Pause size={18} />}
+          </button>
           {g.isMe && <button className="p-1.5" style={{ color: 'rgba(255,255,255,.85)', background: 'none', border: 'none' }} onClick={removeStory} aria-label="Delete story"><Trash2 size={18} /></button>}
           <button className="p-1.5 text-[20px] leading-none" style={{ color: '#fff', background: 'none', border: 'none' }} onClick={onClose} aria-label="Close">✕</button>
         </div>
         {/* image + tap zones */}
-        <img src={s.imageUrl} alt="" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'contain' }} draggable={false} />
-        <button className="absolute left-0 top-0 bottom-0 z-[5]" style={{ width: '33%', background: 'none', border: 'none' }} onClick={prevStory} aria-label="Previous" />
-        <button className="absolute right-0 top-0 bottom-0 z-[5]" style={{ width: '67%', background: 'none', border: 'none' }} onClick={nextStory} aria-label="Next" />
+        {!loaded && <div className="absolute inset-0 flex items-center justify-center z-[4]"><div className="v2-skel rounded-full" style={{ width: 42, height: 42 }} /></div>}
+        <img src={s.imageUrl} alt="" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity .2s' }} draggable={false} onLoad={() => setLoaded(true)} />
+        <button className="absolute left-0 z-[5]" style={{ width: '33%', top: 0, bottom: 76, background: 'none', border: 'none' }} onClick={prevStory} aria-label="Previous" />
+        <button className="absolute right-0 z-[5]" style={{ width: '67%', top: 0, bottom: 76, background: 'none', border: 'none' }} onClick={nextStory} aria-label="Next" />
+        {/* reply + like (not on your own story) */}
+        {!g.isMe && (
+          <div className="absolute left-3 right-3 z-10 flex items-center gap-2" style={{ bottom: 14 }}>
+            <input value={reply} onChange={(e) => setReply(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendReply(); }} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
+              placeholder={`reply to @${g.handle}…`} className="flex-1 min-w-0 text-[13.5px]"
+              style={{ padding: '.7rem 1.1rem', borderRadius: 999, border: '1px solid rgba(255,255,255,.5)', background: 'rgba(0,0,0,.35)', color: '#fff', outline: 'none' }} />
+            {reply.trim()
+              ? <motion.button whileTap={{ scale: 0.85 }} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: '#fff', color: '#0A143F', border: 'none' }} disabled={sendBusy} onClick={sendReply} aria-label="Send reply"><Send size={16} strokeWidth={2} /></motion.button>
+              : <motion.button whileTap={{ scale: 0.8 }} className="p-1.5 shrink-0" style={{ background: 'none', border: 'none', color: '#ef4444' }} onClick={likeStory} aria-label="Like story"><Heart size={26} strokeWidth={2} style={liked ? { fill: '#ef4444' } : undefined} /></motion.button>}
+          </div>
+        )}
       </div>
     </div>
   );
