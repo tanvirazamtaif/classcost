@@ -2111,9 +2111,13 @@ function DMPane({ active, reloadKey, onOpenThread }) {
   const searchRef = useRef(null);
   useEffect(() => {
     let on = true; setSt((s) => ({ ...s, loading: true }));
-    listConversations().then((r) => { if (on) setSt({ loading: false, convos: r?.conversations || [], err: false }); }).catch(() => { if (on) setSt({ loading: false, convos: [], err: true }); });
+    const pull = (silent) => listConversations()
+      .then((r) => { if (on) setSt({ loading: false, convos: r?.conversations || [], err: false }); })
+      .catch(() => { if (on) setSt((s2) => ({ ...s2, loading: false, err: silent ? s2.err : true })); });
+    pull(false);
+    const id = setInterval(() => pull(true), 4000); // live list — new chats appear without reloading
     markNotificationsRead(['dm']).then(() => { try { window.dispatchEvent(new CustomEvent('cc-news-refresh')); } catch { /* noop */ } }).catch(() => {});
-    return () => { on = false; };
+    return () => { on = false; clearInterval(id); };
   }, [reloadKey, active]);
   useEffect(() => { // people search beyond existing chats (debounced)
     const term = q.trim().replace('@', '');
@@ -2192,7 +2196,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
       }).catch(() => { if (on) setSt((s) => ({ ...s, loading: false, err: true })); });
     };
     load(false);
-    const id = setInterval(() => load(true), 3000);
+    const id = setInterval(() => load(true), 2000);
     return () => { on = false; clearInterval(id); };
   }, [h]);
   useEffect(() => {

@@ -183,28 +183,31 @@ export function Leeboon({ nav, d, news, inFeed }) {
   }, [open]);
   useEffect(() => { interact(); return () => { [sadTimer, angryTimer, moveTimer, waveTimer, fxTimer].forEach((t) => clearTimeout(t.current)); ignoreTimers.current.forEach(clearTimeout); }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
-  // ── feed news → full hype mode: run to the Feed tab, point at it, and keep cheering ──
+  // ── feed news → full hype mode: perch right beside the Feed tab and wave at it ──
   const newsCount = (news?.dm || 0) + (news?.other || 0);
   const hypeTick = useRef(0);
+  const [hype, setHype] = useState(null); // persistent bubble while pointing at the Feed tab
   useEffect(() => {
     if (open) return undefined;
-    if (!newsCount || inFeed) { wanderPaused.current = false; return undefined; }
+    if (!newsCount || inFeed) { setHype(null); wanderPaused.current = false; return undefined; }
     wanderPaused.current = true;
     const NEWS_LINES = { dm: 'you got a message!! ✉️', like: 'someone liked your post!! ❤️', comment: 'new comment on your post!! 💬', follow: 'new follower!! 🎉', follow_post: 'fresh post from your people!! ✨' };
     const excite = () => {
       const w = window.innerWidth, hh = window.innerHeight;
-      const p = w >= 1024 ? { top: 252, left: 252 } : { top: hh - SPRITE_H - 96, left: Math.min(w - SPRITE_W - 18, Math.round(w / 2) + 30) };
-      goTo(clamp(p.top, TOP_MIN, hh - SPRITE_H - 18), clamp(p.left, 18, w - SPRITE_W - 18));
-      setFacing('left'); // the Feed tab sits to his left (sidebar on desktop, bottom-nav centre on mobile)
+      const p = w >= 1024
+        ? { top: 218, left: 244 } // hugging the sidebar Feed item
+        : { top: hh - 52 - SPRITE_H - 4, left: Math.round(w / 2 - SPRITE_W / 2) }; // perched on the Feed tab
+      goTo(clamp(p.top, TOP_MIN, hh - SPRITE_H - 8), clamp(p.left, 8, w - SPRITE_W - 8));
+      setFacing('left');
       applyMood('excited');
-      const main = NEWS_LINES[news?.latest?.type] || 'something happened in the feed!! 👀';
-      const line = hypeTick.current % 2 === 0 ? main : 'tap the Feed!! 👉';
+      const main = NEWS_LINES[news?.latest?.type] || 'something happened in the feed!!';
+      setHype(hypeTick.current % 2 === 0 ? main : 'tap the Feed!!');
       hypeTick.current += 1;
-      react({ mood: 'excited', effect: 'hearts', bubble: line }, 3600);
+      setWaving(true); clearTimeout(waveTimer.current); waveTimer.current = setTimeout(() => setWaving(false), 2300); // the arm does the pointing
     };
     excite();
     const id = setInterval(excite, 8000);
-    return () => { clearInterval(id); wanderPaused.current = false; };
+    return () => { clearInterval(id); setHype(null); wanderPaused.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newsCount, inFeed, open, news?.latest?.type]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, thinking, open]);
@@ -308,15 +311,15 @@ export function Leeboon({ nav, d, news, inFeed }) {
             style={{ top: pos.top, left: pos.left, width: SPRITE_W }}
           >
             <AnimatePresence>
-              {(waving || fx?.bubble || hover?.bubble) && (
+              {(waving || fx?.bubble || hover?.bubble || hype) && (
                 <motion.span
-                  key={hover?.bubble || fx?.bubble || 'hi'}
+                  key={hover?.bubble || fx?.bubble || hype || 'hi'}
                   initial={{ opacity: 0, y: 8, scale: 0.7 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.7 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 22 }}
                   className={`absolute ${helloRight ? 'right-0' : 'left-0'} px-2.5 py-1 rounded-2xl text-[12px] font-bold pointer-events-none shadow-md`}
                   style={{ bottom: 'calc(100% + 7px)', maxWidth: 'min(68vw, 240px)', textAlign: 'center', background: d ? '#1e1e2e' : '#fffaf0', color: d ? '#fde68a' : '#7a4a1e', border: `1px solid ${d ? '#33334a' : '#fde9c8'}` }}
                 >
-                  {hover?.bubble || fx?.bubble || 'Hi there! 👋'}
+                  {hover?.bubble || fx?.bubble || hype || 'Hi there! 👋'}
                   <span className={`absolute -bottom-1 ${helloRight ? 'right-4' : 'left-4'} w-2.5 h-2.5 rotate-45`} style={{ background: d ? '#1e1e2e' : '#fffaf0' }} />
                 </motion.span>
               )}
