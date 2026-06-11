@@ -23,7 +23,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -1227,6 +1227,8 @@ function FeedScreen({ nav, back, params }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
   const [unread, setUnread] = useState(0);
+  const [storyView, setStoryView] = useState(null); // { groups, gi }
+  const [storiesKey, setStoriesKey] = useState(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
     getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
@@ -1288,7 +1290,12 @@ function FeedScreen({ nav, back, params }) {
         </header>
       )}
 
-      {sub === 'home' && <FeedListPane reloadKey={reloadKey} onCompose={() => goSub('compose')} onComment={onComment} onAuthor={onAuthor} />}
+      {sub === 'home' && (
+        <>
+          <StoriesRail key={storiesKey} myAvatar={myAvatar} myName={user?.name || myHandle} onOpen={(gi, groups) => setStoryView({ groups, gi })} />
+          <FeedListPane reloadKey={reloadKey} onCompose={() => goSub('compose')} onComment={onComment} onAuthor={onAuthor} />
+        </>
+      )}
       {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
       {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
@@ -1311,7 +1318,7 @@ function FeedScreen({ nav, back, params }) {
             </button>
             <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
               style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
-              <Avatar url={myAvatar} name={user?.name || myHandle} size={32} />
+              <Avatar url={myAvatar} name={user?.name || myHandle} size={38} />
             </button>
           </div>
         </div>
@@ -1320,6 +1327,108 @@ function FeedScreen({ nav, back, params }) {
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
       {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
+      {storyView && <StoryViewer groups={storyView.groups} start={storyView.gi} onClose={() => setStoryView(null)} onChanged={() => { setStoryView(null); setStoriesKey((k) => k + 1); }} />}
+    </div>
+  );
+}
+function StoriesRail({ myAvatar, myName, onOpen }) {
+  const [groups, setGroups] = useState(null);
+  const [upBusy, setUpBusy] = useState(false);
+  const fileRef = useRef(null);
+  useEffect(() => {
+    let on = true;
+    listStories().then((r) => { if (on) setGroups(r?.groups || []); }).catch(() => { if (on) setGroups([]); });
+    return () => { on = false; };
+  }, []);
+  const pick = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (!f.type.startsWith('image/')) { ccToast('Pick an image'); return; }
+    setUpBusy(true);
+    try { const r = await uploadFeedImage(f); await createStory(r.url); ccToast('Story added'); const fresh = await listStories(); setGroups(fresh?.groups || []); }
+    catch { ccToast('Could not add the story'); }
+    finally { setUpBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+  const ring = (active) => ({ display: 'inline-flex', padding: 3, borderRadius: 999, background: active ? 'linear-gradient(45deg, #0A143F, #0ea5e9, #8b5cf6)' : 'var(--pill-bg)' });
+  const inner = { display: 'inline-flex', padding: 2, borderRadius: 999, background: 'var(--bg)' };
+  const mine = (groups || []).find((g) => g.isMe);
+  const others = (groups || []).filter((g) => !g.isMe);
+  return (
+    <div className="v2-stories flex gap-4 overflow-x-auto px-4 py-3" style={{ borderBottom: '.5px solid var(--border)' }}>
+      <button className="flex flex-col items-center gap-1 shrink-0" style={{ background: 'none', border: 'none' }}
+        onClick={() => (mine ? onOpen(groups.indexOf(mine), groups) : fileRef.current?.click())} aria-label={mine ? 'View your story' : 'Add a story'}>
+        <span className="relative">
+          <span style={ring(!!mine)}><span style={inner}><Avatar url={myAvatar} name={myName} size={54} /></span></span>
+          <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full flex items-center justify-center font-bold" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '2px solid var(--bg)', fontSize: 13, lineHeight: 1 }}
+            onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>+</span>
+        </span>
+        <span className="text-[10.5px] t-mid">{upBusy ? 'uploading…' : 'your story'}</span>
+      </button>
+      {(groups === null ? [0, 1, 2] : []).map((i) => (
+        <span key={i} className="flex flex-col items-center gap-1 shrink-0"><span className="v2-skel rounded-full" style={{ width: 64, height: 64 }} /><span className="v2-skel rounded" style={{ width: 44, height: 8 }} /></span>
+      ))}
+      {others.map((g) => (
+        <button key={g.handle} onClick={() => onOpen(groups.indexOf(g), groups)} className="flex flex-col items-center gap-1 shrink-0" style={{ background: 'none', border: 'none' }}>
+          <span style={ring(true)}><span style={inner}><Avatar url={g.avatarUrl} name={g.displayName || g.handle} size={54} /></span></span>
+          <span className="text-[10.5px] t-mid truncate" style={{ maxWidth: 64 }}>{g.displayName || ('@' + g.handle)}</span>
+        </button>
+      ))}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pick} />
+    </div>
+  );
+}
+function StoryViewer({ groups, start, onClose, onChanged }) {
+  const [gi, setGi] = useState(start);
+  const [si, setSi] = useState(0);
+  const g = groups[gi];
+  const s = g?.stories?.[si];
+  useEffect(() => { // auto-advance every 5s
+    if (!s) return;
+    const t = setTimeout(() => nextStory(), 5000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gi, si]);
+  useEffect(() => { if (!g || !s) onClose(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [g, s]);
+  if (!g || !s) return null;
+  const nextStory = () => {
+    if (si < g.stories.length - 1) setSi(si + 1);
+    else if (gi < groups.length - 1) { setGi(gi + 1); setSi(0); }
+    else onClose();
+  };
+  const prevStory = () => {
+    if (si > 0) setSi(si - 1);
+    else if (gi > 0) { setGi(gi - 1); setSi(groups[gi - 1].stories.length - 1); }
+  };
+  const removeStory = async () => {
+    try { await deleteStory(s.id); ccToast('Story deleted'); onChanged && onChanged(); }
+    catch { ccToast('Could not delete'); }
+  };
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center" style={{ background: '#000' }}>
+      <div className="relative w-full h-full" style={{ maxWidth: 480, margin: '0 auto' }}>
+        {/* progress segments */}
+        <div className="absolute top-2 left-2 right-2 z-10 flex gap-1">
+          {g.stories.map((x, i) => (
+            <div key={x.id} className="flex-1 rounded-full overflow-hidden" style={{ height: 2.5, background: 'rgba(255,255,255,.3)' }}>
+              {i < si ? <div style={{ width: '100%', height: '100%', background: '#fff' }} />
+                : i === si ? <div key={`${gi}-${si}`} style={{ height: '100%', background: '#fff', animation: 'v2storybar 5s linear forwards' }} /> : null}
+            </div>
+          ))}
+        </div>
+        {/* header */}
+        <div className="absolute top-5 left-3 right-3 z-10 flex items-center gap-2.5">
+          <Avatar url={g.avatarUrl} name={g.displayName || g.handle} size={34} />
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold truncate" style={{ color: '#fff' }}>{g.displayName || ('@' + g.handle)}</p>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,.7)' }}>{timeAgo(s.createdAt)}</p>
+          </div>
+          {g.isMe && <button className="p-1.5" style={{ color: 'rgba(255,255,255,.85)', background: 'none', border: 'none' }} onClick={removeStory} aria-label="Delete story"><Trash2 size={18} /></button>}
+          <button className="p-1.5 text-[20px] leading-none" style={{ color: '#fff', background: 'none', border: 'none' }} onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        {/* image + tap zones */}
+        <img src={s.imageUrl} alt="" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'contain' }} draggable={false} />
+        <button className="absolute left-0 top-0 bottom-0 z-[5]" style={{ width: '33%', background: 'none', border: 'none' }} onClick={prevStory} aria-label="Previous" />
+        <button className="absolute right-0 top-0 bottom-0 z-[5]" style={{ width: '67%', background: 'none', border: 'none' }} onClick={nextStory} aria-label="Next" />
+      </div>
     </div>
   );
 }
@@ -1505,6 +1614,7 @@ function FeedOnboard({ onDone }) {
 }
 function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage, onEdit, onOpenPosts }) {
   const h = (handle || '').replace('@', '');
+  const { topSpaces } = useV2();
   const [prof, setProf] = useState(null);
   const [posts, setPosts] = useState(null);
   const [err, setErr] = useState('');
@@ -1516,6 +1626,17 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
     getUserPosts(h).then((r) => { if (on) setPosts(r?.posts || []); }).catch(() => { if (on) setPosts([]); });
     return () => { on = false; };
   }, [h]);
+  useEffect(() => { // auto-adopt the user's academic institute (school/college/university — never coaching), once
+    if (!prof?.isMe || prof?.institute) return;
+    let done = false; try { done = localStorage.getItem('cc_inst_adopted') === '1'; } catch { /* ignore */ }
+    if (done) return;
+    const elig = (topSpaces() || []).filter((s) => s.type === 'institute' && s.system?.env !== 'coaching');
+    if (!elig.length) return;
+    updateMyProfile({ handle: prof.handle, institute: elig[0].name })
+      .then(() => { setProf((c) => (c ? { ...c, institute: elig[0].name } : c)); try { localStorage.setItem('cc_inst_adopted', '1'); } catch { /* ignore */ } })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prof]);
   const toggleFollow = async () => {
     if (fBusy) return; setFBusy(true); const next = !following; setFollowing(next);
     try { next ? await followUser(h) : await unfollowUser(h); } catch { setFollowing(!next); } finally { setFBusy(false); }
@@ -1542,6 +1663,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
       <div className="px-4 mb-3">
         <p className="font-semibold t-hi text-[14px] leading-tight">{prof?.displayName || ('@' + h)}</p>
         {prof?.displayName && <p className="text-[12px] t-lo">@{h}</p>}
+        {prof?.institute && <p className="text-[12.5px] t-mid mt-0.5">🎓 {prof.institute}</p>}
         {prof?.bio && <p className="text-[13px] t-hi mt-1" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{prof.bio}</p>}
         {prof?.isMe && !prof?.bio && <button className="text-[13px] t-accent mt-1 font-medium" onClick={onEdit}>+ Add a bio</button>}
       </div>
@@ -1588,16 +1710,21 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
   );
 }
 function EditProfilePage({ myHandle, onBack, onSaved }) {
+  const { topSpaces } = useV2();
   const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [institute, setInstitute] = useState('');
   const [busy, setBusy] = useState(false);
   const [upBusy, setUpBusy] = useState(false);
   const fileRef = useRef(null);
+  // academic institutes only — school/college/university; coaching never qualifies
+  const eligible = (topSpaces() || []).filter((s) => s.type === 'institute' && s.system?.env !== 'coaching').map((s) => s.name);
+  const options = institute && !eligible.includes(institute) ? [institute, ...eligible] : eligible;
   useEffect(() => {
     let on = true;
-    getFeedProfile(myHandle).then((r) => { if (on) { setName(r?.displayName || ''); setBio(r?.bio || ''); setAvatar(r?.avatarUrl || ''); setLoaded(true); } })
+    getFeedProfile(myHandle).then((r) => { if (on) { setName(r?.displayName || ''); setBio(r?.bio || ''); setAvatar(r?.avatarUrl || ''); setInstitute(r?.institute || ''); setLoaded(true); } })
       .catch(() => { if (on) setLoaded(true); });
     return () => { on = false; };
   }, [myHandle]);
@@ -1609,8 +1736,11 @@ function EditProfilePage({ myHandle, onBack, onSaved }) {
   };
   const save = async () => {
     if (busy) return; setBusy(true);
-    try { const r = await updateMyProfile({ handle: myHandle, displayName: name.trim(), bio: bio.trim(), avatarUrl: avatar }); ccToast('Profile updated'); onSaved && onSaved(r?.profile); }
-    catch (x) { ccToast(x.message || 'Could not save'); } finally { setBusy(false); }
+    try {
+      const r = await updateMyProfile({ handle: myHandle, displayName: name.trim(), bio: bio.trim(), avatarUrl: avatar, institute });
+      try { localStorage.setItem('cc_inst_adopted', '1'); } catch { /* ignore */ } // manual save wins — stop auto-adopting
+      ccToast('Profile updated'); onSaved && onSaved(r?.profile);
+    } catch (x) { ccToast(x.message || 'Could not save'); } finally { setBusy(false); }
   };
   return (
     <div>
@@ -1636,6 +1766,16 @@ function EditProfilePage({ myHandle, onBack, onSaved }) {
           <div className="flex items-baseline justify-between"><label className="text-[11px] uppercase tracking-wide t-lo">Bio</label><span className="text-[11px] t-lo">{bio.length}/200</span></div>
           <textarea className="field mt-1" rows={4} placeholder="say something about you…" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} style={{ resize: 'none' }} />
         </div>
+        {(options.length > 0) && (
+          <div>
+            <label className="text-[11px] uppercase tracking-wide t-lo">Institute</label>
+            <select className="field mt-1" value={institute} onChange={(e) => setInstitute(e.target.value)}>
+              <option value="">none</option>
+              {options.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <p className="text-[11px] t-lo mt-1">from your ClassCost institutes — schools, colleges & universities only.</p>
+          </div>
+        )}
         <div>
           <label className="text-[11px] uppercase tracking-wide t-lo">Handle</label>
           <div className="field mt-1 t-mid" style={{ cursor: 'default', userSelect: 'none' }}>@{myHandle}</div>
@@ -1981,21 +2121,31 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
     if (atBottomRef.current) setShowJump(false);
   };
   const jumpDown = () => { const el = scrollRef.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); setShowJump(false); };
-  const send = async (override, ridOverride) => {
-    const t = (override !== undefined ? override : text).trim(); if (!t || busy) return; setBusy(true);
+  const send = async (override, ridOverride, imageUrl) => {
+    const t = (override !== undefined ? override : text).trim(); if ((!t && !imageUrl) || busy) return; setBusy(true);
     haptics.light?.();
     atBottomRef.current = true; // sending always snaps you to the bottom
     const rid = ridOverride !== undefined ? ridOverride : (replyTo?.id && !String(replyTo.id).startsWith('tmp-') ? replyTo.id : null);
     setReplyTo(null);
-    const tmp = { id: 'tmp-' + Date.now(), text: t, mine: true, createdAt: new Date().toISOString(), pending: true, replyToId: rid };
+    const tmp = { id: 'tmp-' + Date.now(), text: t, imageUrl: imageUrl || null, mine: true, createdAt: new Date().toISOString(), pending: true, replyToId: rid };
     setSt((s) => ({ ...s, msgs: [...s.msgs, tmp] })); if (override === undefined) setText('');
-    try { const r = await sendDm(h, t, rid); setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? r.message : m)), err: false })); onSent && onSent(); }
+    try { const r = await sendDm(h, t, rid, imageUrl); setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? r.message : m)), err: false })); onSent && onSent(); }
     catch (x) {
       if (import.meta.env.DEV) { /* keep the bubble locally so DMs are demoable offline */ }
       else { setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? { ...m, pending: false, failed: true } : m)) })); ccToast(x.message || 'Could not send'); }
     } finally { setBusy(false); }
   };
-  const retry = (m) => { setSt((s) => ({ ...s, msgs: s.msgs.filter((x) => x.id !== m.id) })); send(m.text, m.replyToId || null); };
+  const retry = (m) => { setSt((s) => ({ ...s, msgs: s.msgs.filter((x) => x.id !== m.id) })); send(m.text, m.replyToId || null, m.imageUrl || undefined); };
+  const [upBusy, setUpBusy] = useState(false);
+  const fileRef = useRef(null);
+  const pickImage = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (!f.type.startsWith('image/')) { ccToast('Pick an image'); return; }
+    setUpBusy(true);
+    try { const r = await uploadFeedImage(f); await send(undefined, undefined, r.url); }
+    catch { ccToast('Could not send the photo'); }
+    finally { setUpBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
   const startReply = (m) => { if (m.pending || m.failed) return; setReplyTo(m); haptics.light?.(); inputRef.current?.focus(); };
   const jumpToMsg = (id) => {
     const el = msgRefs.current[id]; if (!el) return;
@@ -2082,9 +2232,10 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
                       <button onClick={(e) => { e.stopPropagation(); if (orig) jumpToMsg(orig.id); }} className="block w-full text-left mb-1.5 px-2 py-1 rounded-md"
                         style={{ background: 'rgba(127,127,127,.16)', border: 'none', borderLeft: `2px solid ${m.mine ? 'var(--accent-text)' : 'var(--accent)'}`, color: 'inherit', cursor: orig ? 'pointer' : 'default' }}>
                         <span className="block font-semibold" style={{ fontSize: 10.5, opacity: 0.85 }}>{orig ? (orig.mine ? 'You' : name) : 'earlier message'}</span>
-                        <span className="block truncate" style={{ fontSize: 11.5, opacity: 0.8 }}>{orig ? orig.text : '…'}</span>
+                        <span className="block truncate" style={{ fontSize: 11.5, opacity: 0.8 }}>{orig ? (orig.text || '📷 photo') : '…'}</span>
                       </button>
                     )}
+                    {m.imageUrl && <img src={m.imageUrl} alt="" className="block rounded-lg" style={{ maxWidth: '100%', maxHeight: 300, marginBottom: m.text ? 6 : 0 }} draggable={false} />}
                     {m.text}
                   </motion.div>
                   {!m.mine && replyBtn}
@@ -2113,12 +2264,19 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             </div>
           )}
           <div className="px-3 py-2.5 flex items-center gap-2">
-          <input ref={inputRef} className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder={replyTo ? 'reply…' : 'message…'} autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
-          <motion.button whileTap={{ scale: 0.8 }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: typed ? 'var(--accent)' : 'var(--pill-bg)', color: typed ? 'var(--accent-text)' : '#ef4444', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}
-            disabled={busy} onClick={() => (typed ? send() : send('❤️'))} aria-label={typed ? 'Send' : 'Send a heart'}>
-            {typed ? <Send size={17} /> : <Heart size={18} style={{ fill: '#ef4444' }} />}
-          </motion.button>
+          <button className="t-mid p-1 shrink-0" style={{ background: 'none', border: 'none', opacity: upBusy ? 0.5 : 1 }} disabled={upBusy} onClick={() => fileRef.current?.click()} aria-label="Send a photo">
+            <ImageIcon size={24} strokeWidth={2} />
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickImage} />
+          <input ref={inputRef} className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder={upBusy ? 'sending photo…' : (replyTo ? 'reply…' : 'message…')} autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
+          {typed ? (
+            <motion.button whileTap={{ scale: 0.8 }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '.5px solid var(--border)' }}
+              disabled={busy} onClick={() => send()} aria-label="Send"><Send size={17} /></motion.button>
+          ) : (
+            <motion.button whileTap={{ scale: 0.75 }} className="p-1 shrink-0" style={{ background: 'none', border: 'none', color: '#ef4444' }}
+              disabled={busy} onClick={() => send('❤️')} aria-label="Send a heart"><Heart size={27} strokeWidth={2} style={{ fill: '#ef4444' }} /></motion.button>
+          )}
           </div>
         </div>
       </div>

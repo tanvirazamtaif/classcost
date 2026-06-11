@@ -80,6 +80,7 @@ model FeedProfile {
   handle      String   @unique
   displayName String?
   bio         String?
+  institute   String? // academic institute shown on the profile (school/college/university — not coaching)
   avatarUrl   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -168,10 +169,21 @@ model DmMessage {
   thread    DmThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   senderId  String // userId of the sender
   text      String
+  imageUrl  String? // photo message
   replyToId String? // id of the DmMessage this one replies to (same thread)
   createdAt DateTime @default(now())
 
   @@index([threadId, createdAt])
+}
+
+model FeedStory {
+  id        String   @id @default(cuid())
+  authorId  String // FeedProfile.userId
+  imageUrl  String
+  createdAt DateTime @default(now())
+
+  @@index([authorId, createdAt])
+  @@index([createdAt])
 }
 
 model FeedNotification {

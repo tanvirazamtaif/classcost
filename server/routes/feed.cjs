@@ -62,6 +62,7 @@ router.post('/profile', async (req, res) => {
     const set = {};
     if (req.body.displayName !== undefined) set.displayName = String(req.body.displayName).slice(0, 60).trim() || null;
     if (req.body.bio !== undefined) set.bio = String(req.body.bio).slice(0, 200).trim() || null;
+    if (req.body.institute !== undefined) set.institute = String(req.body.institute).slice(0, 80).trim() || null;
     if (req.body.avatarUrl !== undefined) set.avatarUrl = req.body.avatarUrl || null;
     const profile = await prisma.feedProfile.upsert({
       where: { userId },
@@ -145,6 +146,49 @@ router.post('/notifications/read', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
   try { await prisma.feedNotification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } }); res.json({ ok: true }); }
   catch (err) { console.error('notifications read:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── stories (24h, image only) ──
+router.get('/stories', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const since = new Date(Date.now() - 24 * 3600 * 1000);
+    const stories = await prisma.feedStory.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'asc' }, take: 400 });
+    const ids = [...new Set(stories.map((s) => s.authorId))];
+    const profiles = ids.length ? await prisma.feedProfile.findMany({ where: { userId: { in: ids } } }) : [];
+    const byU = Object.fromEntries(profiles.map((p) => [p.userId, p]));
+    const groups = [];
+    for (const s of stories) {
+      const p = byU[s.authorId]; if (!p) continue;
+      let g = groups.find((x) => x.handle === p.handle);
+      if (!g) { g = { handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, isMe: s.authorId === userId, stories: [] }; groups.push(g); }
+      g.stories.push({ id: s.id, imageUrl: s.imageUrl, createdAt: s.createdAt });
+    }
+    groups.sort((a, b) => ((b.isMe ? 1 : 0) - (a.isMe ? 1 : 0)) || (new Date(b.stories[b.stories.length - 1].createdAt) - new Date(a.stories[a.stories.length - 1].createdAt)));
+    res.json({ groups });
+  } catch (err) { console.error('stories:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.post('/stories', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  let imageUrl = req.body.imageUrl ? String(req.body.imageUrl).slice(0, 500) : null;
+  if (imageUrl && !(imageUrl.startsWith('/uploads/') || imageUrl.startsWith('http'))) imageUrl = null;
+  if (!imageUrl) return res.status(400).json({ error: 'Pick a photo first' });
+  try {
+    const profile = await prisma.feedProfile.findUnique({ where: { userId } });
+    if (!profile) return res.status(400).json({ error: 'Claim a handle first' });
+    const s = await prisma.feedStory.create({ data: { authorId: userId, imageUrl } });
+    res.json({ story: { id: s.id, imageUrl: s.imageUrl, createdAt: s.createdAt } });
+  } catch (err) { console.error('story add:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.delete('/stories/:id', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const s = await prisma.feedStory.findUnique({ where: { id: req.params.id } });
+    if (!s) return res.status(404).json({ error: 'Story not found' });
+    if (s.authorId !== userId) return res.status(403).json({ error: 'Not your story' });
+    await prisma.feedStory.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) { console.error('story delete:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
 // ── likes ──
@@ -272,7 +316,7 @@ router.get('/profile/u/:handle', async (req, res) => {
       prisma.feedFollow.count({ where: { followerId: profile.userId } }),
       prisma.feedFollow.findFirst({ where: { followerId: userId, followingId: profile.userId } }),
     ]);
-    res.json({ handle: profile.handle, displayName: profile.displayName, bio: profile.bio, avatarUrl: profile.avatarUrl, counts: { posts, followers, following }, isFollowing: !!isF, isMe: profile.userId === userId });
+    res.json({ handle: profile.handle, displayName: profile.displayName, bio: profile.bio, institute: profile.institute, avatarUrl: profile.avatarUrl, counts: { posts, followers, following }, isFollowing: !!isF, isMe: profile.userId === userId });
   } catch (err) { console.error('profile:', err); res.status(500).json({ error: 'Failed' }); }
 });
 router.get('/profile/u/:handle/posts', async (req, res) => {
@@ -342,7 +386,7 @@ router.get('/dm', async (req, res) => {
         handle: p.handle,
         displayName: p.displayName,
         avatarUrl: p.avatarUrl,
-        lastText: last ? last.text : '',
+        lastText: last ? (last.text || (last.imageUrl ? '📷 photo' : '')) : '',
         lastAt: last ? last.createdAt : t.lastAt,
         mine: last ? last.senderId === userId : false,
       });
@@ -369,7 +413,7 @@ router.get('/dm/:handle', async (req, res) => {
     res.json({
       threadId: thread.id,
       other: { handle: other.handle, displayName: other.displayName, avatarUrl: other.avatarUrl },
-      messages: messages.map((m) => ({ id: m.id, text: m.text, mine: m.senderId === userId, createdAt: m.createdAt, replyToId: m.replyToId || null })),
+      messages: messages.map((m) => ({ id: m.id, text: m.text, imageUrl: m.imageUrl || null, mine: m.senderId === userId, createdAt: m.createdAt, replyToId: m.replyToId || null })),
     });
   } catch (err) { console.error('dm open:', err); res.status(500).json({ error: 'Failed to open conversation' }); }
 });
@@ -379,7 +423,9 @@ router.post('/dm/:handle', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
   const handle = normHandle(req.params.handle);
   const text = String(req.body.text || '').trim();
-  if (!text) return res.status(400).json({ error: 'Message is empty' });
+  let imageUrl = req.body.imageUrl ? String(req.body.imageUrl).slice(0, 500) : null;
+  if (imageUrl && !(imageUrl.startsWith('/uploads/') || imageUrl.startsWith('http'))) imageUrl = null;
+  if (!text && !imageUrl) return res.status(400).json({ error: 'Message is empty' });
   if (text.length > 2000) return res.status(400).json({ error: 'Message too long' });
   try {
     const other = await prisma.feedProfile.findUnique({ where: { handle } });
@@ -396,10 +442,10 @@ router.post('/dm/:handle', async (req, res) => {
       const orig = await prisma.dmMessage.findUnique({ where: { id: String(req.body.replyToId) } });
       if (orig && orig.threadId === thread.id) replyToId = orig.id; // silently drop invalid/foreign reply targets
     }
-    const msg = await prisma.dmMessage.create({ data: { threadId: thread.id, senderId: userId, text, replyToId } });
+    const msg = await prisma.dmMessage.create({ data: { threadId: thread.id, senderId: userId, text, imageUrl, replyToId } });
     await prisma.dmThread.update({ where: { id: thread.id }, data: { lastAt: msg.createdAt } });
-    res.json({ message: { id: msg.id, text: msg.text, mine: true, createdAt: msg.createdAt, replyToId } });
-    notify(other.userId, userId, 'dm', null, text.slice(0, 120));
+    res.json({ message: { id: msg.id, text: msg.text, imageUrl: msg.imageUrl, mine: true, createdAt: msg.createdAt, replyToId } });
+    notify(other.userId, userId, 'dm', null, text.slice(0, 120) || '📷 photo');
   } catch (err) { console.error('dm send:', err); res.status(500).json({ error: 'Failed to send' }); }
 });
 
