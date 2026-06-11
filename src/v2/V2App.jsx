@@ -1290,7 +1290,7 @@ function FeedScreen({ nav, back, params }) {
               <button onClick={() => goSub('messages')} className="relative rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Messages"
                 style={{ width: 38, height: 38, background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
                 <Send size={18} strokeWidth={2} />
-                {unread.dm > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444', animation: 'v2blink 1.2s ease-in-out infinite' }}>{unread.dm > 9 ? '9+' : unread.dm}</span>}
+                {unread.dm > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.dm > 9 ? '9+' : unread.dm}</span>}
               </button>
             </>
           ) : (
