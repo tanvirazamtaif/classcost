@@ -14,7 +14,26 @@ import { interpret } from './leeboonBrain';
 const SPRITE_W = 52;
 const SPRITE_H = Math.round((SPRITE_W * 30) / 28);
 const TOP_MIN = 96;
+const EDGE = 18;       // consistent gap from every viewport edge
+const PANEL = 240;     // desktop sidebar/rail width — keep the mascot clear of them
+const BOTTOM_GAP = 96; // clearance above the bottom nav / footer
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+// keep the mascot fully on-screen — and within the content band (clear of the side rails) on desktop
+const bounds = () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  const pad = w >= 1024 ? PANEL : 0;
+  return {
+    w, h,
+    minLeft: pad + EDGE,
+    maxLeft: Math.max(pad + EDGE, w - SPRITE_W - pad - EDGE),
+    minTop: TOP_MIN,
+    maxTop: Math.max(TOP_MIN, h - SPRITE_H - BOTTOM_GAP),
+  };
+};
+const clampPos = ({ top, left }) => {
+  const b = bounds();
+  return { top: clamp(top, b.minTop, b.maxTop), left: clamp(left, b.minLeft, b.maxLeft) };
+};
 
 // Map the server's (v1-shaped) tool proposals onto v2 store actions. Returns {text, confirm?}.
 const SRV_CAT = { canteen: ['Food', '🍔'], transport: ['Transport', '🚌'], books: ['Books', '📚'], education: ['Education', '🎓'], hostel: ['Rent', '🏠'], uniform: ['Uniform', '👕'], health: ['Health', '💊'], other: ['Others', '📦'] };
@@ -68,10 +87,11 @@ export function Leeboon({ nav, d }) {
   const ignoreTimers = useRef([]);
   const tapRef = useRef({ n: 0, ts: 0, openT: null, recoverT: null });
   const spinRef = useRef({ vmax: 0 });
-  const posRef = useRef({
-    top: typeof window !== 'undefined' ? window.innerHeight - 200 : 520,
-    left: typeof window !== 'undefined' ? window.innerWidth - SPRITE_W - 14 : 320,
-  });
+  const posRef = useRef(
+    typeof window !== 'undefined'
+      ? clampPos({ top: window.innerHeight - 200, left: window.innerWidth - SPRITE_W - EDGE })
+      : { top: 520, left: 320 },
+  );
   const [pos, setPosState] = useState(posRef.current);
   const [dragging, setDragging] = useState(false);
   const [facing, setFacing] = useState('left');
@@ -146,8 +166,9 @@ export function Leeboon({ nav, d }) {
     if (open) return;
     const roam = () => {
       if (wanderPaused.current || dragging) return;
-      const w = window.innerWidth, h = window.innerHeight, m = 12;
-      goTo(clamp(TOP_MIN + Math.random() * (h - SPRITE_H - TOP_MIN - 110), TOP_MIN, h - SPRITE_H - 90), Math.random() < 0.5 ? m : w - SPRITE_W - m);
+      const b = bounds();
+      const p = clampPos({ top: b.minTop + Math.random() * (b.maxTop - b.minTop), left: Math.random() < 0.5 ? b.minLeft : b.maxLeft });
+      goTo(p.top, p.left);
     };
     const id = setInterval(roam, 20000);
     return () => clearInterval(id);
@@ -162,6 +183,12 @@ export function Leeboon({ nav, d }) {
   }, [open]);
   useEffect(() => { interact(); return () => { [sadTimer, angryTimer, moveTimer, waveTimer, fxTimer].forEach((t) => clearTimeout(t.current)); ignoreTimers.current.forEach(clearTimeout); }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, thinking, open]);
+  // re-clamp into the viewport on resize / orientation change so the mascot never ends up off-screen or over a rail
+  useEffect(() => {
+    const onResize = () => setPos(clampPos(posRef.current));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // ── drag (legs run/swim with direction) + fling→dizzy ──
   const onPointerDown = (e) => {
@@ -179,12 +206,12 @@ export function Leeboon({ nav, d }) {
     if (Math.abs(ddx) > 2 || Math.abs(ddy) > 2) { if (Math.abs(ddx) >= Math.abs(ddy)) { setFacing(ddx < 0 ? 'left' : 'right'); setMove('horizontal'); } else setMove('vertical'); interact(); }
     di.lx = e.clientX; di.ly = e.clientY;
     const w = window.innerWidth, h = window.innerHeight;
-    setPos({ left: clamp(e.clientX - di.ox, 4, w - SPRITE_W - 4), top: clamp(e.clientY - di.oy, 4, h - SPRITE_H - 4) });
+    setPos({ left: clamp(e.clientX - di.ox, EDGE, w - SPRITE_W - EDGE), top: clamp(e.clientY - di.oy, EDGE, h - SPRITE_H - EDGE) });
   };
   const onPointerUp = () => {
     if (!dragging) return;
     setDragging(false); wanderPaused.current = false; setMove('none');
-    if (dragInfo.current.moved) { const w = window.innerWidth, h = window.innerHeight, m = 12, p = posRef.current; setPos({ left: (p.left + SPRITE_W / 2) < w / 2 ? m : w - SPRITE_W - m, top: clamp(p.top, TOP_MIN, h - SPRITE_H - 80) }); }
+    if (dragInfo.current.moved) { const b = bounds(), p = posRef.current; setPos(clampPos({ left: (p.left + SPRITE_W / 2) < b.w / 2 ? b.minLeft : b.maxLeft, top: p.top })); }
     const v = spinRef.current.vmax; spinRef.current.vmax = 0;
     if (dragInfo.current.moved && v > 60) dizzy(true);
     else if (dragInfo.current.moved && v > 32) dizzy(false);
@@ -251,8 +278,8 @@ export function Leeboon({ nav, d }) {
                   key={hover?.bubble || fx?.bubble || 'hi'}
                   initial={{ opacity: 0, y: 8, scale: 0.7 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.7 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                  className={`absolute ${helloRight ? 'right-0' : 'left-0'} px-2.5 py-1 rounded-2xl text-[12px] font-bold whitespace-nowrap pointer-events-none shadow-md`}
-                  style={{ bottom: 'calc(100% + 7px)', background: d ? '#1e1e2e' : '#fffaf0', color: d ? '#fde68a' : '#7a4a1e', border: `1px solid ${d ? '#33334a' : '#fde9c8'}` }}
+                  className={`absolute ${helloRight ? 'right-0' : 'left-0'} px-2.5 py-1 rounded-2xl text-[12px] font-bold pointer-events-none shadow-md`}
+                  style={{ bottom: 'calc(100% + 7px)', maxWidth: 'min(68vw, 240px)', textAlign: 'center', background: d ? '#1e1e2e' : '#fffaf0', color: d ? '#fde68a' : '#7a4a1e', border: `1px solid ${d ? '#33334a' : '#fde9c8'}` }}
                 >
                   {hover?.bubble || fx?.bubble || 'Hi there! 👋'}
                   <span className={`absolute -bottom-1 ${helloRight ? 'right-4' : 'left-4'} w-2.5 h-2.5 rotate-45`} style={{ background: d ? '#1e1e2e' : '#fffaf0' }} />
