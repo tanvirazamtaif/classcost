@@ -1188,6 +1188,12 @@ const timeAgo = (d) => {
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f97316', '#0ea5e9', '#8b5cf6', '#ef4444', '#14b8a6', '#f59e0b', '#10b981', '#d946ef', '#3b82f6', '#e11d48'];
 const avatarColor = (name) => { const s = (name || 'S').toString().toLowerCase(); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; };
 const fmtCount = (n) => { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K'; return String(n); };
+// emoji-only messages (❤️, 😂😂 …) render bare and big — no bubble around them
+const isEmojiOnly = (t) => {
+  const s = (t || '').trim();
+  if (!s || s.length > 16) return false;
+  try { return s.replace(/\p{Extended_Pictographic}|️|‍|[\u{1F3FB}-\u{1F3FF}]|\s/gu, '') === ''; } catch { return false; }
+};
 function Avatar({ url, name, size = 36, ring = false }) {
   const initial = (name || 'S').toString().trim().charAt(0).toUpperCase() || 'S';
   const base = { width: size, height: size }; // 'ring' is intentionally a no-op — profile pictures stay borderless
@@ -2298,6 +2304,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             const last = !next || dayOf(next.createdAt) !== dayOf(m.createdAt) || !near(m, next);
             const R = 16, S = 5;
             const orig = m.replyToId ? st.msgs.find((x) => x.id === m.replyToId) : null;
+            const bare = !m.imageUrl && !m.replyToId && isEmojiOnly(m.text); // ❤️ and friends float free — no bubble
             const replyBtn = !m.pending && !m.failed && (
               <button className="dm-reply-btn shrink-0 t-lo p-1" aria-label="Reply" onClick={() => startReply(m)} style={{ background: 'none', border: 'none' }}>
                 <Reply size={15} />
@@ -2316,8 +2323,11 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
                     onClick={m.failed ? () => retry(m) : undefined}
                     onPointerDown={(e) => { dragRef.current = { x: e.clientX, id: m.id }; }}
                     onPointerUp={(e) => { if (dragRef.current.id === m.id && e.clientX - dragRef.current.x > 48) startReply(m); dragRef.current = { x: 0, id: null }; }}
-                    className="max-w-[76%] px-3.5 py-2 text-[13.5px]"
-                    style={{
+                    className={`max-w-[76%] ${bare ? '' : 'px-3.5 py-2'} text-[13.5px]`}
+                    style={bare ? {
+                      background: 'none', border: 'none', fontSize: 40, lineHeight: 1.1,
+                      opacity: m.pending ? 0.55 : 1, cursor: m.failed ? 'pointer' : 'default', touchAction: 'pan-y',
+                    } : {
                       background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)',
                       border: m.failed ? '1px solid #ef4444' : (m.mine ? 'none' : '.5px solid var(--border)'),
                       borderRadius: R,
@@ -2615,7 +2625,7 @@ function Shell() {
       <aside className="v2-desk v2-sidebar">
         <div className="flex items-center gap-2.5 px-1 mb-6"><Logo size={30} /><span className="text-[18px] font-bold t-hi t-serif">ClassCost</span></div>
         {navItems.map(([v, Icon, label]) => (
-          <button key={v} className={`v2-deskitem ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={18} />{label}</button>
+          <button key={v} {...(v === 'feed' ? { 'data-cc-feedtab': '1' } : {})} className={`v2-deskitem ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={18} />{label}</button>
         ))}
         <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => nav('create')}>+ New cost</button>
         <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
@@ -2649,7 +2659,7 @@ function Shell() {
       <nav className="v2-nav">
         <div className="v2-navrow">
           {navItems.map(([v, Icon, label]) => (
-            <button key={v} className={`v2-navbtn ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={20} />{label}</button>
+            <button key={v} {...(v === 'feed' ? { 'data-cc-feedtab': '1' } : {})} className={`v2-navbtn ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={20} />{label}</button>
           ))}
         </div>
       </nav>

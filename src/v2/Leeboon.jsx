@@ -194,20 +194,30 @@ export function Leeboon({ nav, d, news, inFeed }) {
     const NEWS_LINES = { dm: 'you got a message!! ✉️', like: 'someone liked your post!! ❤️', comment: 'new comment on your post!! 💬', follow: 'new follower!! 🎉', follow_post: 'fresh post from your people!! ✨' };
     const excite = () => {
       const w = window.innerWidth, hh = window.innerHeight;
-      const p = w >= 1024
-        ? { top: 218, left: 244 } // beside the sidebar Feed item, arm toward it
-        : { top: hh - 52 - SPRITE_H + 2, left: Math.round(w / 2 + 24) }; // beside the Feed tab (to its right), left arm pointing at it
-      goTo(clamp(p.top, TOP_MIN, hh - SPRITE_H - 8), clamp(p.left, 8, w - SPRITE_W - 8));
+      // anchor to the REAL Feed tab: stand in the footer right beside it, arm toward the icon
+      let p = null;
+      try {
+        const el = Array.from(document.querySelectorAll('[data-cc-feedtab]')).find((t) => t.getBoundingClientRect().width > 0);
+        if (el) {
+          const r = el.getBoundingClientRect();
+          p = { top: r.top + r.height / 2 - SPRITE_H / 2, left: r.right - 6 };
+          if (p.left + SPRITE_W > w - 4) p.left = r.left - SPRITE_W + 6; // no room on the right → stand on the left
+        }
+      } catch { /* fall back below */ }
+      if (!p) p = w >= 1024 ? { top: 218, left: 244 } : { top: hh - 52 - SPRITE_H + 2, left: Math.round(w / 2 + 24) };
+      goTo(clamp(p.top, 8, hh - SPRITE_H - 2), clamp(p.left, 8, w - SPRITE_W - 8));
       setFacing('left');
       applyMood('excited');
       const main = NEWS_LINES[news?.latest?.type] || 'something happened in the feed!!';
       setHype(hypeTick.current % 2 === 0 ? main : 'tap the Feed!!');
       hypeTick.current += 1;
-      setWaving(true); clearTimeout(waveTimer.current); waveTimer.current = setTimeout(() => setWaving(false), 2300); // the arm does the pointing
     };
     excite();
     const id = setInterval(excite, 8000);
-    return () => { clearInterval(id); setHype(null); wanderPaused.current = false; };
+    // the arm points nonstop — re-trigger the wave so it keeps moving
+    const arm = setInterval(() => { setWaving(true); clearTimeout(waveTimer.current); waveTimer.current = setTimeout(() => setWaving(false), 2200); }, 2600);
+    setWaving(true); clearTimeout(waveTimer.current); waveTimer.current = setTimeout(() => setWaving(false), 2200);
+    return () => { clearInterval(id); clearInterval(arm); setWaving(false); setHype(null); wanderPaused.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newsCount, inFeed, open, news?.latest?.type]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, thinking, open]);
