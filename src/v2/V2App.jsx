@@ -1376,14 +1376,14 @@ function SuggestionsRow({ onOpenUser, onSeeAll, title = 'Suggested for you' }) {
       <div className="v2-stories flex gap-2.5 overflow-x-auto px-4 py-3">
         {users.map((u, i) => (
           <motion.div key={u.handle} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.05, type: 'spring', stiffness: 380, damping: 28 }}
-            className="relative flex flex-col items-center shrink-0 px-3 pt-6 pb-3" style={{ width: 152, border: '.5px solid var(--border)', borderRadius: 8, background: 'var(--pill-bg)' }}>
-            <button className="absolute top-1.5 right-2 t-lo text-[14px] leading-none p-1" style={{ background: 'none', border: 'none' }} onClick={() => dismiss(u.handle)} aria-label="Dismiss">✕</button>
+            className="relative flex flex-col items-center shrink-0 px-3 pt-6 pb-3" style={{ width: 152, border: '.5px solid var(--border)', borderRadius: 8, background: '#0A143F' }}>
+            <button className="absolute top-1.5 right-2 text-[14px] leading-none p-1" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.65)' }} onClick={() => dismiss(u.handle)} aria-label="Dismiss">✕</button>
             <button onClick={() => onOpenUser(u.handle)} style={{ background: 'none', border: 'none' }} aria-label={`Open @${u.handle}`}>
               <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={72} />
             </button>
-            <p className="text-[13px] font-semibold t-hi truncate mt-2.5" style={{ maxWidth: 126 }}>{u.displayName || ('@' + u.handle)}</p>
-            <p className="text-[11px] t-lo truncate mt-0.5" style={{ maxWidth: 126 }}>{suggestionSub(u)}</p>
-            <button className={`minibtn mt-2.5 ${u.isFollowing ? 'btn-ghost' : 'btn-primary'}`} style={{ width: '100%', padding: '.5rem 0' }} onClick={() => !u.isFollowing && follow(u.handle)}>
+            <p className="text-[13px] font-semibold truncate mt-2.5" style={{ maxWidth: 126, color: '#FFFFFF' }}>{u.displayName || ('@' + u.handle)}</p>
+            <p className="text-[11px] truncate mt-0.5" style={{ maxWidth: 126, color: 'rgba(255,255,255,.65)' }}>{suggestionSub(u)}</p>
+            <button className="minibtn mt-2.5" style={{ width: '100%', padding: '.5rem 0', background: u.isFollowing ? 'rgba(255,255,255,.18)' : '#FFFFFF', color: u.isFollowing ? '#FFFFFF' : '#0A143F', border: 'none', borderRadius: 8, fontWeight: 700 }} onClick={() => !u.isFollowing && follow(u.handle)}>
               {u.isFollowing ? 'Following' : 'Follow'}
             </button>
           </motion.div>
