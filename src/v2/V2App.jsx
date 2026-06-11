@@ -426,7 +426,7 @@ function Institute({ nav, back, params }) {
   const startX = useRef(0);
   const s = spaceById(params.spaceId);
   if (!s) return <Stub title="Not found" emoji="🤔" msg="That space is gone." />;
-  const go = (p) => setPane(Math.max(0, Math.min(3, p)));
+  const go = (p) => { setPane(Math.max(0, Math.min(3, p))); try { window.scrollTo(0, 0); } catch { /* noop */ } };
   const sems = s.blocks.filter((b) => b.kind === 'semester');
   const costs = s.blocks.filter((b) => b.kind === 'cost');
   const linked = (s.linkedSpaceIds || []).map(spaceById).filter(Boolean);
@@ -1238,7 +1238,7 @@ function FeedScreen() {
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
   const myHandle = handle.replace('@', '');
   const initial = (user?.name || myHandle || 'S').trim().charAt(0).toUpperCase();
-  const go = (p) => setPane(Math.max(0, Math.min(2, p)));
+  const go = (p) => { setPane(Math.max(0, Math.min(2, p))); try { window.scrollTo(0, 0); } catch { /* noop */ } };
   const onComment = (p) => setCommentsFor(p);
   const onAuthor = (h) => setViewHandle(h);
   const openSearch = (mode) => { setSearchMode(mode); setSearchOpen(true); };
