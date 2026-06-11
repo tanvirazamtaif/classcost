@@ -1575,6 +1575,7 @@ function NotificationsPane({ onSeen, onOpenUser, onOpenThread, onOpenPost }) {
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [expanded, setExpanded] = useState(false);
   const LABEL = { like: 'liked your post', comment: 'commented', dm: 'sent you a message', follow_post: 'shared a new post', follow: 'started following you' };
   const open = (n) => {
     if (!n.handle) return;
@@ -1582,6 +1583,13 @@ function NotificationsPane({ onSeen, onOpenUser, onOpenThread, onOpenPost }) {
     else if (n.postId) onOpenPost(n.postId);
     else onOpenUser(n.handle);
   };
+  const dayBucket = (d) => {
+    const ds = new Date(d).toDateString();
+    const now = new Date(); if (ds === now.toDateString()) return 'Today';
+    const y = new Date(now); y.setDate(now.getDate() - 1); if (ds === y.toDateString()) return 'Yesterday';
+    return new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+  const visible = expanded ? st.items : st.items.slice(0, 5);
   return (
     <div className="px-4 py-2">
       {st.loading ? (
@@ -1592,22 +1600,34 @@ function NotificationsPane({ onSeen, onOpenUser, onOpenThread, onOpenPost }) {
           <p className="font-semibold t-hi mb-1">nothing yet</p>
           <p className="text-[13px] t-mid">likes, comments, messages and new posts land here.</p>
         </div>
-      ) : st.items.map((n, i) => (
-        <motion.button key={n.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 10) * 0.035, type: 'spring', stiffness: 380, damping: 28 }} whileTap={{ scale: 0.98 }}
-          className="w-full text-left flex items-center gap-3 py-2.5" style={{ background: 'none', border: 'none' }} onClick={() => open(n)}>
-          <span className="relative shrink-0">
-            <Avatar url={n.avatarUrl} name={n.displayName || n.handle} size={42} ring />
-            {!n.read && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444', border: '2px solid var(--bg)' }} />}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] t-hi" style={{ lineHeight: 1.35 }}>
-              <span className="font-semibold">{n.displayName || ('@' + (n.handle || 'someone'))}</span> {LABEL[n.type] || 'did something'}
-              {n.text ? <span className="t-mid">{': '}&ldquo;{n.text}&rdquo;</span> : ''}
-            </p>
-            <p className="text-[11px] t-lo mt-0.5">{timeAgo(n.createdAt)}</p>
-          </div>
-        </motion.button>
-      ))}
+      ) : (
+        <>
+          {visible.map((n, i) => (
+            <div key={n.id}>
+              {(i === 0 || dayBucket(visible[i - 1].createdAt) !== dayBucket(n.createdAt)) && (
+                <p className="text-[12px] font-bold t-hi pt-3 pb-1">{dayBucket(n.createdAt)}</p>
+              )}
+              <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 10) * 0.035, type: 'spring', stiffness: 380, damping: 28 }} whileTap={{ scale: 0.98 }}
+                className="w-full text-left flex items-center gap-3 py-2.5" style={{ background: 'none', border: 'none' }} onClick={() => open(n)}>
+                <span className="relative shrink-0">
+                  <Avatar url={n.avatarUrl} name={n.displayName || n.handle} size={42} ring />
+                  {!n.read && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444', border: '2px solid var(--bg)' }} />}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] t-hi" style={{ lineHeight: 1.35 }}>
+                    <span className="font-semibold">{n.displayName || ('@' + (n.handle || 'someone'))}</span> {LABEL[n.type] || 'did something'}
+                    {n.text ? <span className="t-mid">{': '}&ldquo;{n.text}&rdquo;</span> : ''}
+                  </p>
+                  <p className="text-[11px] t-lo mt-0.5">{timeAgo(n.createdAt)}</p>
+                </div>
+              </motion.button>
+            </div>
+          ))}
+          {!expanded && st.items.length > 5 && (
+            <button className="btn btn-ghost mt-3" onClick={() => setExpanded(true)}>See all ({st.items.length})</button>
+          )}
+        </>
+      )}
     </div>
   );
 }
