@@ -1555,7 +1555,7 @@ function FeedComments({ post, onClose, onAuthor }) {
                 <Avatar url={post.avatarUrl} name={post.displayName || post.handle} size={30} />
                 <span className="text-[12px] font-semibold t-hi">{post.displayName || ('@' + post.handle)}</span>
               </button>
-              {post.imageUrl && <img src={post.imageUrl} alt="" className="block w-full rounded-md mb-2" style={{ maxHeight: 380, objectFit: 'cover' }} draggable={false} />}
+              {post.imageUrl && <img src={post.imageUrl} alt="" className="block w-full rounded-md mb-2" style={{ height: 'auto' }} draggable={false} />}
               {post.text && <p className="text-[13px] t-hi" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.text}</p>}
             </div>
           )}
@@ -1643,8 +1643,8 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
       </div>
       {p.text && !p.imageUrl && <p className="px-4 text-[15px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.45 }}>{p.text}</p>}
       {p.imageUrl && (
-        <div className="relative overflow-hidden select-none" style={{ aspectRatio: '1 / 1' }} onClick={onImageTap}>
-          <img src={p.imageUrl} alt="" loading="lazy" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
+        <div className="relative overflow-hidden select-none" onClick={onImageTap}>
+          <img src={p.imageUrl} alt="" loading="lazy" className="block" style={{ width: '100%', height: 'auto' }} draggable={false} />
           {pop && <span className="feed-heartpop" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}><Heart size={88} style={{ fill: '#fff', color: '#fff', filter: 'drop-shadow(0 2px 10px rgba(0,0,0,.5))' }} /></span>}
         </div>
       )}
