@@ -195,8 +195,8 @@ export function Leeboon({ nav, d, news, inFeed }) {
     const excite = () => {
       const w = window.innerWidth, hh = window.innerHeight;
       const p = w >= 1024
-        ? { top: 218, left: 244 } // hugging the sidebar Feed item
-        : { top: hh - 52 - SPRITE_H - 4, left: Math.round(w / 2 - SPRITE_W / 2) }; // perched on the Feed tab
+        ? { top: 218, left: 244 } // beside the sidebar Feed item, arm toward it
+        : { top: hh - 52 - SPRITE_H + 2, left: Math.round(w / 2 + 24) }; // beside the Feed tab (to its right), left arm pointing at it
       goTo(clamp(p.top, TOP_MIN, hh - SPRITE_H - 8), clamp(p.left, 8, w - SPRITE_W - 8));
       setFacing('left');
       applyMood('excited');
