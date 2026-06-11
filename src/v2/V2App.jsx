@@ -488,7 +488,7 @@ function Institute({ nav, back, params }) {
           </div>
         </motion.div>
       </div>
-      <div className="fixed left-0 right-0 z-[41]" style={{ bottom: 52, maxWidth: 480, margin: '0 auto' }}>
+      <div className="v2-feedfooter">
         <div className="flex" style={{ background: 'var(--sheet-bg)', borderTop: '.5px solid var(--border)', borderBottom: '.5px solid var(--border)' }}>
           {TABS.map(({ i, label, Icon }) => (
             <button key={i} onClick={() => go(i)} className="flex-1 flex flex-col items-center gap-0.5 py-2" style={{ background: pane === i ? 'var(--accent)' : 'transparent', color: pane === i ? 'var(--accent-text)' : 'var(--text2)', borderLeft: i ? '.5px solid var(--border)' : undefined, transition: 'background .15s' }}>
@@ -1257,7 +1257,7 @@ function FeedScreen() {
       </div>
 
       {/* secondary footer — feed page switcher (replaces the dots) */}
-      <div className="fixed left-0 right-0 z-[41]" style={{ bottom: 52, maxWidth: 480, margin: '0 auto' }}>
+      <div className="v2-feedfooter">
         <div className="flex" style={{ background: 'var(--sheet-bg)', borderTop: '.5px solid var(--border)', borderBottom: '.5px solid var(--border)' }}>
           {TABS.map(({ i, label, Icon }) => (
             <button key={i} onClick={() => go(i)} className="flex-1 flex flex-col items-center gap-0.5 py-2" style={{ background: pane === i ? 'var(--accent)' : 'transparent', color: pane === i ? 'var(--accent-text)' : 'var(--text2)', borderLeft: i ? '.5px solid var(--border)' : undefined, transition: 'background .15s' }}>

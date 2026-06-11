@@ -81,6 +81,10 @@
 /* ── the content column (centered); on mobile it's the whole app ── */
 .v2-main { max-width: 480px; margin: 0 auto; position: relative; }
 
+/* secondary feed footer (Profile/Feed/Messages): sits above the mobile nav, flush to the bottom on desktop where the nav is hidden */
+.v2-feedfooter { position: fixed; left: 0; right: 0; bottom: 52px; max-width: 480px; margin: 0 auto; z-index: 41; }
+@media (min-width: 1024px) { .v2-feedfooter { bottom: 0; } }
+
 /* ── desktop (≥1024px): left sidebar + centered column + right rail ── */
 .v2-desk { display: none; }
 @media (min-width: 1024px) {
