@@ -8,10 +8,10 @@ import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, sta
 // ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
 // neutrals + one accent that inverts per mode (navy-on-cream / cream-on-navy) + muted gold.
 const v2Palette = (d) => d ? {
-  bg: '#0C0A1A', card: '#151421', border: '#FFFFFF',
+  bg: '#0C0A1A', card: '#151421', border: 'rgba(255,255,255,.55)',
   accent: '#F2EFE6', accentText: '#0A143F', accentLight: 'rgba(242,239,230,.12)', gold: '#F2EFE6',
   text1: '#F2EFE6', text2: '#A6ABC6', text3: '#6E7596',
-  heroBg: '#151421', heroBorder: '#FFFFFF',
+  heroBg: '#151421', heroBorder: 'rgba(255,255,255,.55)',
   pillBg: '#201E30', navBg: 'rgba(12,10,26,.92)', sheetBg: '#151421', cardShadow: 'none',
 } : {
   bg: '#F5F4F0', card: '#FFFFFF', border: '#16181F',
@@ -1268,7 +1268,7 @@ function FeedScreen({ nav, back, params }) {
   const goEdit = () => nav('feed', { sub: 'edit-profile' });
   const openPost = async (pid) => { try { const r = await getFeedPost(pid); if (r?.post) setCommentsFor(r.post); } catch { ccToast('Post unavailable'); } };
   const openPosts = (hh, pid) => nav('feed', { sub: 'posts', pof: (hh || '').replace('@', ''), pid });
-  const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications', posts: 'Posts' };
+  const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications', posts: 'Posts', discover: 'Discover people' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
   const HeadIcon = ({ s, Icon, label, active }) => (
     <button onClick={() => goSub(s)} className="rounded-full flex items-center justify-center shrink-0" aria-label={label}
@@ -1305,11 +1305,12 @@ function FeedScreen({ nav, back, params }) {
       {sub === 'home' && (
         <>
           <StoriesRail key={storiesKey} myAvatar={myAvatar} myName={user?.name || myHandle} onOpen={(gi, groups) => setStoryView({ groups, gi })} />
-          <SuggestionsRow onOpenUser={onAuthor} />
+          <SuggestionsRow onOpenUser={onAuthor} onSeeAll={() => goSub('discover')} />
           <FeedListPane reloadKey={reloadKey} onCompose={() => goSub('compose')} onComment={onComment} onAuthor={onAuthor} />
         </>
       )}
       {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
+      {sub === 'discover' && <DiscoverPane onOpenUser={onAuthor} />}
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
       {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
       {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread((u) => ({ ...u, other: 0 }))} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
@@ -1344,7 +1345,7 @@ function FeedScreen({ nav, back, params }) {
     </div>
   );
 }
-function SuggestionsRow({ onOpenUser }) {
+function SuggestionsRow({ onOpenUser, onSeeAll }) {
   const [users, setUsers] = useState(null);
   useEffect(() => {
     let on = true;
@@ -1355,25 +1356,62 @@ function SuggestionsRow({ onOpenUser }) {
     setUsers((us) => (us || []).map((u) => (u.handle === h ? { ...u, isFollowing: true } : u)));
     try { await followUser(h); } catch { setUsers((us) => (us || []).map((u) => (u.handle === h ? { ...u, isFollowing: false } : u))); }
   };
+  const dismiss = (h) => setUsers((us) => (us || []).filter((u) => u.handle !== h));
   if (!users || users.length === 0) return null;
   return (
     <div style={{ borderBottom: '.5px solid var(--border)' }}>
-      <p className="px-4 pt-3 text-[11px] uppercase tracking-wide t-lo font-semibold">suggested for you</p>
-      <div className="v2-stories flex gap-3 overflow-x-auto px-4 py-3">
+      <div className="px-4 pt-3 flex items-baseline">
+        <p className="text-[12.5px] font-semibold t-hi flex-1">Suggested for you</p>
+        <button className="text-[12.5px] font-semibold t-accent" style={{ background: 'none', border: 'none' }} onClick={onSeeAll}>See all</button>
+      </div>
+      <div className="v2-stories flex gap-2.5 overflow-x-auto px-4 py-3">
         {users.map((u, i) => (
           <motion.div key={u.handle} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.05, type: 'spring', stiffness: 380, damping: 28 }}
-            className="flex flex-col items-center shrink-0 px-3 py-3" style={{ width: 132, border: '.5px solid var(--border)', borderRadius: 6, background: 'var(--card)' }}>
+            className="relative flex flex-col items-center shrink-0 px-3 pt-6 pb-3" style={{ width: 152, border: '.5px solid var(--border)', borderRadius: 8, background: 'var(--card)' }}>
+            <button className="absolute top-1.5 right-2 t-lo text-[14px] leading-none p-1" style={{ background: 'none', border: 'none' }} onClick={() => dismiss(u.handle)} aria-label="Dismiss">✕</button>
             <button onClick={() => onOpenUser(u.handle)} style={{ background: 'none', border: 'none' }} aria-label={`Open @${u.handle}`}>
-              <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={56} />
+              <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={72} />
             </button>
-            <p className="text-[12.5px] font-semibold t-hi truncate mt-2" style={{ maxWidth: 110 }}>{u.displayName || ('@' + u.handle)}</p>
-            <p className="text-[10.5px] t-lo truncate" style={{ maxWidth: 110 }}>{u.institute ? `🎓 ${u.institute}` : '@' + u.handle}</p>
-            <button className={`minibtn mt-2 ${u.isFollowing ? 'btn-ghost' : 'btn-primary'}`} style={{ width: '100%', padding: '.42rem 0' }} onClick={() => !u.isFollowing && follow(u.handle)}>
+            <p className="text-[13px] font-semibold t-hi truncate mt-2.5" style={{ maxWidth: 126 }}>{u.displayName || ('@' + u.handle)}</p>
+            <p className="text-[11px] t-lo truncate mt-0.5" style={{ maxWidth: 126 }}>{u.institute ? `🎓 ${u.institute}` : '@' + u.handle}</p>
+            <button className={`minibtn mt-2.5 ${u.isFollowing ? 'btn-ghost' : 'btn-primary'}`} style={{ width: '100%', padding: '.5rem 0' }} onClick={() => !u.isFollowing && follow(u.handle)}>
               {u.isFollowing ? 'Following' : 'Follow'}
             </button>
           </motion.div>
         ))}
       </div>
+    </div>
+  );
+}
+function DiscoverPane({ onOpenUser }) {
+  const [users, setUsers] = useState(null);
+  useEffect(() => {
+    let on = true;
+    getSuggestions(50).then((r) => { if (on) setUsers(r?.users || []); }).catch(() => { if (on) setUsers([]); });
+    return () => { on = false; };
+  }, []);
+  const follow = async (h) => {
+    setUsers((us) => (us || []).map((u) => (u.handle === h ? { ...u, isFollowing: true } : u)));
+    try { await followUser(h); } catch { setUsers((us) => (us || []).map((u) => (u.handle === h ? { ...u, isFollowing: false } : u))); }
+  };
+  return (
+    <div className="px-4 py-2">
+      {users === null
+        ? <div className="space-y-1 pt-2">{[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 py-2"><div className="v2-skel rounded-full shrink-0" style={{ width: 48, height: 48 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '45%', marginBottom: 6 }} /><div className="v2-skel rounded" style={{ height: 8, width: '30%' }} /></div></div>)}</div>
+        : users.length === 0
+          ? <div className="py-16 text-center"><div className="text-4xl mb-2">🫂</div><p className="font-semibold t-hi mb-1">no one new right now</p><p className="text-[13px] t-mid">you already follow everyone here — nice.</p></div>
+          : users.map((u, i) => (
+            <motion.div key={u.handle} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 10) * 0.035, type: 'spring', stiffness: 380, damping: 28 }} className="flex items-center gap-3 py-2.5">
+              <button onClick={() => onOpenUser(u.handle)} className="shrink-0" style={{ background: 'none', border: 'none' }}><Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={48} /></button>
+              <button onClick={() => onOpenUser(u.handle)} className="flex-1 min-w-0 text-left" style={{ background: 'none', border: 'none' }}>
+                <p className="text-[13.5px] font-semibold t-hi truncate">{u.displayName || ('@' + u.handle)}</p>
+                <p className="text-[11.5px] t-lo truncate">{u.institute ? `🎓 ${u.institute}` : '@' + u.handle}</p>
+              </button>
+              <button className={`minibtn shrink-0 ${u.isFollowing ? 'btn-ghost' : 'btn-primary'}`} style={{ width: 'auto', padding: '.45rem 1rem' }} onClick={() => !u.isFollowing && follow(u.handle)}>
+                {u.isFollowing ? 'Following' : 'Follow'}
+              </button>
+            </motion.div>
+          ))}
     </div>
   );
 }

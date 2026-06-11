@@ -204,7 +204,8 @@ router.get('/suggestions', async (req, res) => {
   try {
     const following = await prisma.feedFollow.findMany({ where: { followerId: userId }, select: { followingId: true } });
     const exclude = [userId, ...following.map((f) => f.followingId)];
-    const profiles = await prisma.feedProfile.findMany({ where: { userId: { notIn: exclude } }, orderBy: { createdAt: 'desc' }, take: 12 });
+    const take = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
+    const profiles = await prisma.feedProfile.findMany({ where: { userId: { notIn: exclude } }, orderBy: { createdAt: 'desc' }, take });
     res.json({ users: profiles.map((p) => ({ handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, institute: p.institute, isFollowing: false, isMe: false })) });
   } catch (err) { console.error('suggestions:', err); res.status(500).json({ error: 'Failed' }); }
 });

@@ -241,7 +241,7 @@ export async function deleteStory(id) { return request(`/api/feed/stories/${enco
 // Notifications
 export async function getFeedNotifications() { return request('/api/feed/notifications'); }
 export async function markNotificationsRead(types, fromHandle) { return request('/api/feed/notifications/read', { method: 'POST', body: JSON.stringify({ ...(types && types.length ? { types } : {}), ...(fromHandle ? { fromHandle: String(fromHandle).replace('@', '') } : {}) }) }); }
-export async function getSuggestions() { return request('/api/feed/suggestions'); }
+export async function getSuggestions(limit) { return request(`/api/feed/suggestions${limit ? `?limit=${limit}` : ''}`); }
 export async function getFollowers(handle) { return request(`/api/feed/profile/u/${encodeURIComponent(String(handle).replace('@', ''))}/followers`); }
 export async function getFollowing(handle) { return request(`/api/feed/profile/u/${encodeURIComponent(String(handle).replace('@', ''))}/following`); }
 export async function getFeedPost(id) { return request(`/api/feed/posts/${encodeURIComponent(id)}`); }
