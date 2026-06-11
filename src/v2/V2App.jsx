@@ -1,7 +1,8 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { haptics } from '../lib/haptics';
 import { V2Provider, useV2 } from './store';
 import { fmt, MN, MNS, WD, split, iso, parse, today, inMonth, paidOf, remOf, statusOf, detectInstitute, monthlyDates } from './engine';
 // ClassCost v2 palette — derived from the logo (ink #0F1537 + cream). Notion-calm: warm
@@ -1814,40 +1815,63 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
   const [st, setSt] = useState({ loading: true, msgs: [], other: { handle: h }, err: false });
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showJump, setShowJump] = useState(false);
   const scrollRef = useRef(null);
+  const atBottomRef = useRef(true);
   useEffect(() => {
     let on = true;
     const load = (silent) => {
       if (!silent) setSt((s) => ({ ...s, loading: true }));
-      getThread(h).then((r) => { if (on) setSt({ loading: false, msgs: r?.messages || [], other: r?.other || { handle: h }, err: false }); })
-        .catch(() => { if (on) setSt((s) => ({ ...s, loading: false, err: true })); });
+      getThread(h).then((r) => {
+        if (!on) return;
+        // keep locally pending/failed bubbles across polls (the server doesn't know them yet)
+        setSt((s) => ({ loading: false, msgs: [...(r?.messages || []), ...s.msgs.filter((m) => m.pending || m.failed)], other: r?.other || { handle: h }, err: false }));
+      }).catch(() => { if (on) setSt((s) => ({ ...s, loading: false, err: true })); });
     };
     load(false);
-    const id = setInterval(() => load(true), 5000);
+    const id = setInterval(() => load(true), 3000);
     return () => { on = false; clearInterval(id); };
   }, [h]);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [st.msgs.length]);
+  useEffect(() => {
+    const el = scrollRef.current; if (!el) return;
+    if (atBottomRef.current) el.scrollTop = el.scrollHeight;
+    else setShowJump(true);
+  }, [st.msgs.length]);
+  const onScroll = () => {
+    const el = scrollRef.current; if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (atBottomRef.current) setShowJump(false);
+  };
+  const jumpDown = () => { const el = scrollRef.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); setShowJump(false); };
   const send = async (override) => {
     const t = (override !== undefined ? override : text).trim(); if (!t || busy) return; setBusy(true);
+    haptics.light?.();
+    atBottomRef.current = true; // sending always snaps you to the bottom
     const tmp = { id: 'tmp-' + Date.now(), text: t, mine: true, createdAt: new Date().toISOString(), pending: true };
     setSt((s) => ({ ...s, msgs: [...s.msgs, tmp] })); if (override === undefined) setText('');
     try { const r = await sendDm(h, t); setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? r.message : m)), err: false })); onSent && onSent(); }
     catch (x) {
       if (import.meta.env.DEV) { /* keep the bubble locally so DMs are demoable offline */ }
-      else { setSt((s) => ({ ...s, msgs: s.msgs.filter((m) => m.id !== tmp.id) })); ccToast(x.message || 'Could not send'); }
+      else { setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? { ...m, pending: false, failed: true } : m)) })); ccToast(x.message || 'Could not send'); }
     } finally { setBusy(false); }
   };
+  const retry = (m) => { setSt((s) => ({ ...s, msgs: s.msgs.filter((x) => x.id !== m.id) })); send(m.text); };
   const other = st.other || { handle: h };
   const name = other.displayName || ('@' + (other.handle || h));
   const GAP = 5 * 60 * 1000;
   const near = (a, b) => a && b && a.mine === b.mine && Math.abs(new Date(a.createdAt) - new Date(b.createdAt)) < GAP;
   const dayOf = (d) => new Date(d).toDateString();
-  const fmtDay = (d) => new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const dayLabel = (d) => {
+    const ds = dayOf(d), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
+    if (ds === now.toDateString()) return 'today';
+    if (ds === y.toDateString()) return 'yesterday';
+    return new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
   const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const canSend = !!text.trim() && !busy;
+  const typed = !!text.trim();
   return (
     <div className="fixed z-[46] flex flex-col" style={{ inset: 0, background: 'var(--bg)' }}>
-      <div className="flex flex-col" style={{ maxWidth: 480, margin: '0 auto', width: '100%', height: '100%' }}>
+      <div className="flex flex-col relative" style={{ maxWidth: 480, margin: '0 auto', width: '100%', height: '100%' }}>
         {/* chat header — identity, tappable to open the profile */}
         <div className="px-3 py-2.5 flex items-center gap-1.5" style={{ borderBottom: '.5px solid var(--border)', background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
           <button onClick={onClose} className="p-1.5 t-mid" aria-label="Back"><ChevronLeft size={20} /></button>
@@ -1859,7 +1883,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             </div>
           </button>
         </div>
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3">
+        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-3 py-3" style={{ backgroundImage: 'radial-gradient(rgba(120,124,150,.15) 1px, transparent 1.4px)', backgroundSize: '18px 18px' }}>
           {st.loading ? (
             <div className="space-y-2 pt-2">
               <div className="v2-skel rounded-2xl" style={{ height: 36, width: '55%' }} />
@@ -1882,34 +1906,45 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             const R = 16, S = 5;
             return (
               <div key={m.id}>
-                {newDay && <p className="text-center text-[10.5px] t-lo font-medium uppercase tracking-wide py-3">{fmtDay(m.createdAt)}</p>}
+                {newDay && <p className="text-center text-[10.5px] t-lo font-medium uppercase tracking-wide py-3">{dayLabel(m.createdAt)}</p>}
                 <div className={`flex items-end gap-1.5 ${m.mine ? 'justify-end' : 'justify-start'}`} style={{ marginTop: first && !newDay ? 12 : 2 }}>
                   {!m.mine && (last
                     ? <span className="shrink-0"><Avatar url={other.avatarUrl} name={other.displayName || other.handle || h} size={24} /></span>
                     : <span className="shrink-0" style={{ width: 24 }} />)}
                   <motion.div initial={{ opacity: 0, y: 6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 480, damping: 30 }}
+                    onClick={m.failed ? () => retry(m) : undefined}
                     className="max-w-[76%] px-3.5 py-2 text-[13.5px]"
                     style={{
                       background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)',
-                      border: m.mine ? 'none' : '.5px solid var(--border)',
+                      border: m.failed ? '1px solid #ef4444' : (m.mine ? 'none' : '.5px solid var(--border)'),
                       borderRadius: R,
                       borderTopRightRadius: m.mine && !first ? S : R, borderBottomRightRadius: m.mine && !last ? S : (m.mine ? 4 : R),
                       borderTopLeftRadius: !m.mine && !first ? S : R, borderBottomLeftRadius: !m.mine && !last ? S : (!m.mine ? 4 : R),
-                      opacity: m.pending ? 0.55 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4,
+                      opacity: m.pending ? 0.55 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4, cursor: m.failed ? 'pointer' : 'default',
                     }}>
                     {m.text}
                   </motion.div>
                 </div>
-                {last && <p className={`text-[10px] t-lo mt-1 ${m.mine ? 'text-right pr-1' : 'pl-9'}`}>{m.pending ? 'sending…' : fmtTime(m.createdAt)}</p>}
+                {last && (m.failed
+                  ? <button className={`text-[10px] mt-1 block ${m.mine ? 'text-right pr-1 ml-auto' : 'pl-9'}`} style={{ color: '#ef4444' }} onClick={() => retry(m)}>failed — tap to retry</button>
+                  : <p className={`text-[10px] t-lo mt-1 ${m.mine ? 'text-right pr-1' : 'pl-9'}`}>{m.pending ? 'sending…' : fmtTime(m.createdAt)}</p>)}
               </div>
             );
           })}
         </div>
+        {showJump && (
+          <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="absolute z-10 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-semibold"
+            style={{ right: 14, bottom: 76, background: 'var(--accent)', color: 'var(--accent-text)', boxShadow: '0 6px 18px rgba(0,0,0,.3)' }} onClick={jumpDown}>
+            <ChevronDown size={13} /> new
+          </motion.button>
+        )}
         <div className="px-3 py-2.5 flex items-center gap-2" style={{ borderTop: '.5px solid var(--border)', background: 'var(--sheet-bg)' }}>
-          <input className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder="message…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
-          <motion.button whileTap={{ scale: 0.85 }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: canSend ? 'var(--accent)' : 'var(--pill-bg)', color: canSend ? 'var(--accent-text)' : 'var(--text3)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}
-            disabled={!canSend} onClick={() => send()} aria-label="Send"><Send size={17} /></motion.button>
+          <input className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder="message…" autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
+          <motion.button whileTap={{ scale: 0.8 }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: typed ? 'var(--accent)' : 'var(--pill-bg)', color: typed ? 'var(--accent-text)' : '#ef4444', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}
+            disabled={busy} onClick={() => (typed ? send() : send('❤️'))} aria-label={typed ? 'Send' : 'Send a heart'}>
+            {typed ? <Send size={17} /> : <Heart size={18} style={{ fill: '#ef4444' }} />}
+          </motion.button>
         </div>
       </div>
     </div>
