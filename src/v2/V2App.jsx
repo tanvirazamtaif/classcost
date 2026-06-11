@@ -1258,9 +1258,9 @@ function FeedScreen({ nav, back, params }) {
   const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications', posts: 'Posts' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
   const HeadIcon = ({ s, Icon, label, active }) => (
-    <button onClick={() => goSub(s)} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label={label}
-      style={{ background: active ? 'var(--accent)' : 'var(--pill-bg)', color: active ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
-      <Icon size={17} />
+    <button onClick={() => goSub(s)} className="rounded-full flex items-center justify-center shrink-0" aria-label={label}
+      style={{ width: 38, height: 38, background: active ? 'var(--accent)' : 'var(--pill-bg)', color: active ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
+      <Icon size={19} strokeWidth={2} />
     </button>
   );
   return (
@@ -1274,9 +1274,9 @@ function FeedScreen({ nav, back, params }) {
                 <Logo size={24} />
                 <span className="text-[15px] t-serif truncate"><span className="t-mid">classcost</span><span className="t-lo"> › </span><span className="font-bold t-hi">feed</span></span>
               </span>
-              <button onClick={() => goSub('messages')} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Messages"
-                style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
-                <Send size={17} />
+              <button onClick={() => goSub('messages')} className="rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Messages"
+                style={{ width: 38, height: 38, background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
+                <Send size={18} strokeWidth={2} />
               </button>
             </>
           ) : (
@@ -1303,15 +1303,15 @@ function FeedScreen({ nav, back, params }) {
           <div className="flex items-center justify-center gap-8 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
             <HeadIcon s="home" Icon={HomeIcon} label="Feed home" active={sub === 'home'} />
             <HeadIcon s="explore" Icon={Compass} label="Explore" active={sub === 'explore'} />
-            <HeadIcon s="compose" Icon={PenSquare} label="New post" />
-            <button onClick={() => goSub('notifications')} className="relative w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label="Notifications"
-              style={{ background: sub === 'notifications' ? 'var(--accent)' : 'var(--pill-bg)', color: sub === 'notifications' ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
-              <Bell size={17} />
+            <HeadIcon s="compose" Icon={Plus} label="New post" />
+            <button onClick={() => goSub('notifications')} className="relative rounded-full flex items-center justify-center shrink-0" aria-label="Notifications"
+              style={{ width: 38, height: 38, background: sub === 'notifications' ? 'var(--accent)' : 'var(--pill-bg)', color: sub === 'notifications' ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
+              <Heart size={19} strokeWidth={2} />
               {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread > 9 ? '9+' : unread}</span>}
             </button>
             <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
               style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
-              <Avatar url={myAvatar} name={user?.name || myHandle} size={30} />
+              <Avatar url={myAvatar} name={user?.name || myHandle} size={32} />
             </button>
           </div>
         </div>
@@ -1769,10 +1769,10 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
       )}
       <div className="px-4 flex items-center gap-4 pt-2">
         <motion.button whileTap={{ scale: 1.3 }} transition={{ type: 'spring', stiffness: 500, damping: 14 }} className="p-0" onClick={() => doLike()} aria-label="Like" style={{ color: liked ? '#ef4444' : 'var(--text1)', background: 'none', border: 'none' }}>
-          <Heart size={23} strokeWidth={1.8} style={liked ? { fill: '#ef4444' } : undefined} />
+          <Heart size={24} strokeWidth={2} style={liked ? { fill: '#ef4444' } : undefined} />
         </motion.button>
-        <button className="t-hi p-0" onClick={() => onComment && onComment(p)} aria-label="Comments" style={{ background: 'none', border: 'none' }}><MessageCircle size={22} strokeWidth={1.8} /></button>
-        <button className="t-hi p-0" onClick={share} aria-label="Share" style={{ background: 'none', border: 'none' }}><Share2 size={21} strokeWidth={1.8} /></button>
+        <button className="t-hi p-0" onClick={() => onComment && onComment(p)} aria-label="Comments" style={{ background: 'none', border: 'none' }}><MessageCircle size={23} strokeWidth={2} /></button>
+        <button className="t-hi p-0" onClick={share} aria-label="Share" style={{ background: 'none', border: 'none' }}><Send size={22} strokeWidth={2} /></button>
       </div>
       <div className="px-4 pt-1.5">
         {likes > 0 && <p className="text-[13px] font-semibold t-hi">{likes} like{likes === 1 ? '' : 's'}</p>}
