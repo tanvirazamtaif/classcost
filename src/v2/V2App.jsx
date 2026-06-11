@@ -1833,16 +1833,42 @@ function PasswordSheet({ onClose }) {
 /* ---------------- shell + router ---------------- */
 function Shell() {
   const { user } = useV2();
-  const [route, setRoute] = useState({ view: 'home', params: {} });
+  // restore the last route on reload — history.state survives a reload, sessionStorage is the fallback
+  const navInit = useRef(undefined);
+  if (navInit.current === undefined) {
+    let snap = null;
+    try { snap = (window.history.state && window.history.state.ccNav) || null; } catch { snap = null; }
+    if (!snap) { try { const s = sessionStorage.getItem('cc_v2_nav'); if (s) snap = JSON.parse(s); } catch { snap = null; } }
+    navInit.current = (snap && snap.route) ? snap : { route: { view: 'home', params: {} }, stack: [] };
+  }
+  const [route, setRoute] = useState(navInit.current.route);
   const [theme, setTheme] = useState(() => { try { return localStorage.getItem('cc_v2_theme') || 'light'; } catch { return 'light'; } });
   const [guest, setGuest] = useState(() => { try { return localStorage.getItem('cc_v2_guest') === '1'; } catch { return false; } });
-  const stack = useRef([]);
+  const stack = useRef(navInit.current.stack || []);
   const d = theme === 'dark';
   const c = v2Palette(d);
   const toggleTheme = () => setTheme((tm) => { const n = tm === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('cc_v2_theme', n); } catch { /* noop */ } return n; });
-  const nav = (view, params = {}) => { stack.current.push(route); setRoute({ view, params }); try { window.scrollTo(0, 0); } catch { /* noop */ } };
-  const back = () => { const p = stack.current.pop(); setRoute(p || { view: 'home', params: {} }); };
-  const tab = (view) => { stack.current = []; setRoute({ view, params: {} }); try { window.scrollTo(0, 0); } catch { /* noop */ } };
+  // mirror navigation into the browser History API: reload keeps the page, and the browser back button steps back one in-app screen instead of leaving the app
+  const persistNav = (r, st) => {
+    try { window.history.pushState({ ccNav: { route: r, stack: st } }, ''); } catch { /* noop */ }
+    try { sessionStorage.setItem('cc_v2_nav', JSON.stringify({ route: r, stack: st })); } catch { /* noop */ }
+  };
+  const nav = (view, params = {}) => { if (route.view === view && JSON.stringify(route.params) === JSON.stringify(params)) return; const next = { view, params }; const st = [...stack.current, route]; stack.current = st; setRoute(next); persistNav(next, st); try { window.scrollTo(0, 0); } catch { /* noop */ } };
+  const tab = (view) => { try { window.scrollTo(0, 0); } catch { /* noop */ } if (route.view === view) return; const next = { view, params: {} }; stack.current = []; setRoute(next); persistNav(next, []); };
+  const back = () => { if (stack.current.length) { try { window.history.back(); return; } catch { /* fall through */ } } const p = stack.current.pop(); setRoute(p || { view: 'home', params: {} }); };
+  useEffect(() => {
+    try { window.history.replaceState({ ...(window.history.state || {}), ccNav: { route, stack: stack.current } }, ''); } catch { /* noop */ }
+    const onPop = (e) => {
+      let nv = null; try { nv = (e.state && e.state.ccNav) || null; } catch { nv = null; }
+      const r = (nv && nv.route) ? nv.route : { view: 'home', params: {} };
+      stack.current = (nv && nv.stack) ? nv.stack : [];
+      setRoute(r);
+      try { sessionStorage.setItem('cc_v2_nav', JSON.stringify({ route: r, stack: stack.current })); } catch { /* noop */ }
+      try { window.scrollTo(0, 0); } catch { /* noop */ }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const { view, params } = route;
   const P = { nav, back, tab, params, d, toggleTheme };
   let screen;
