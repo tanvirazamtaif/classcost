@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { haptics } from '../lib/haptics';
 import { V2Provider, useV2 } from './store';
@@ -1949,8 +1949,13 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [showJump, setShowJump] = useState(false);
+  const [replyTo, setReplyTo] = useState(null); // message being replied to
+  const [flashId, setFlashId] = useState(null); // briefly highlight the jumped-to original
   const scrollRef = useRef(null);
   const atBottomRef = useRef(true);
+  const msgRefs = useRef({});
+  const dragRef = useRef({ x: 0, id: null });
+  const inputRef = useRef(null);
   useEffect(() => {
     let on = true;
     const load = (silent) => {
@@ -1976,19 +1981,27 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
     if (atBottomRef.current) setShowJump(false);
   };
   const jumpDown = () => { const el = scrollRef.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); setShowJump(false); };
-  const send = async (override) => {
+  const send = async (override, ridOverride) => {
     const t = (override !== undefined ? override : text).trim(); if (!t || busy) return; setBusy(true);
     haptics.light?.();
     atBottomRef.current = true; // sending always snaps you to the bottom
-    const tmp = { id: 'tmp-' + Date.now(), text: t, mine: true, createdAt: new Date().toISOString(), pending: true };
+    const rid = ridOverride !== undefined ? ridOverride : (replyTo?.id && !String(replyTo.id).startsWith('tmp-') ? replyTo.id : null);
+    setReplyTo(null);
+    const tmp = { id: 'tmp-' + Date.now(), text: t, mine: true, createdAt: new Date().toISOString(), pending: true, replyToId: rid };
     setSt((s) => ({ ...s, msgs: [...s.msgs, tmp] })); if (override === undefined) setText('');
-    try { const r = await sendDm(h, t); setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? r.message : m)), err: false })); onSent && onSent(); }
+    try { const r = await sendDm(h, t, rid); setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? r.message : m)), err: false })); onSent && onSent(); }
     catch (x) {
       if (import.meta.env.DEV) { /* keep the bubble locally so DMs are demoable offline */ }
       else { setSt((s) => ({ ...s, msgs: s.msgs.map((m) => (m.id === tmp.id ? { ...m, pending: false, failed: true } : m)) })); ccToast(x.message || 'Could not send'); }
     } finally { setBusy(false); }
   };
-  const retry = (m) => { setSt((s) => ({ ...s, msgs: s.msgs.filter((x) => x.id !== m.id) })); send(m.text); };
+  const retry = (m) => { setSt((s) => ({ ...s, msgs: s.msgs.filter((x) => x.id !== m.id) })); send(m.text, m.replyToId || null); };
+  const startReply = (m) => { if (m.pending || m.failed) return; setReplyTo(m); haptics.light?.(); inputRef.current?.focus(); };
+  const jumpToMsg = (id) => {
+    const el = msgRefs.current[id]; if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFlashId(id); setTimeout(() => setFlashId(null), 1100);
+  };
   const other = st.other || { handle: h };
   const name = other.displayName || ('@' + (other.handle || h));
   const GAP = 5 * 60 * 1000;
@@ -2037,15 +2050,25 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             const first = newDay || !near(prev, m);
             const last = !next || dayOf(next.createdAt) !== dayOf(m.createdAt) || !near(m, next);
             const R = 16, S = 5;
+            const orig = m.replyToId ? st.msgs.find((x) => x.id === m.replyToId) : null;
+            const replyBtn = !m.pending && !m.failed && (
+              <button className="dm-reply-btn shrink-0 t-lo p-1" aria-label="Reply" onClick={() => startReply(m)} style={{ background: 'none', border: 'none' }}>
+                <Reply size={15} />
+              </button>
+            );
             return (
-              <div key={m.id}>
+              <div key={m.id} ref={(el) => { msgRefs.current[m.id] = el; }}>
                 {newDay && <p className="text-center text-[10.5px] t-lo font-medium uppercase tracking-wide py-3">{dayLabel(m.createdAt)}</p>}
-                <div className={`flex items-end gap-1.5 ${m.mine ? 'justify-end' : 'justify-start'}`} style={{ marginTop: first && !newDay ? 12 : 2 }}>
+                <div className={`dm-row flex items-end gap-1.5 ${m.mine ? 'justify-end' : 'justify-start'}`}
+                  style={{ marginTop: first && !newDay ? 12 : 2, background: flashId === m.id ? 'var(--accent-light)' : 'transparent', borderRadius: 10, transition: 'background .4s' }}>
                   {!m.mine && (last
                     ? <span className="shrink-0"><Avatar url={other.avatarUrl} name={other.displayName || other.handle || h} size={24} /></span>
                     : <span className="shrink-0" style={{ width: 24 }} />)}
+                  {m.mine && replyBtn}
                   <motion.div initial={{ opacity: 0, y: 6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 480, damping: 30 }}
                     onClick={m.failed ? () => retry(m) : undefined}
+                    onPointerDown={(e) => { dragRef.current = { x: e.clientX, id: m.id }; }}
+                    onPointerUp={(e) => { if (dragRef.current.id === m.id && e.clientX - dragRef.current.x > 48) startReply(m); dragRef.current = { x: 0, id: null }; }}
                     className="max-w-[76%] px-3.5 py-2 text-[13.5px]"
                     style={{
                       background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)',
@@ -2053,10 +2076,18 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
                       borderRadius: R,
                       borderTopRightRadius: m.mine && !first ? S : R, borderBottomRightRadius: m.mine && !last ? S : (m.mine ? 4 : R),
                       borderTopLeftRadius: !m.mine && !first ? S : R, borderBottomLeftRadius: !m.mine && !last ? S : (!m.mine ? 4 : R),
-                      opacity: m.pending ? 0.55 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4, cursor: m.failed ? 'pointer' : 'default',
+                      opacity: m.pending ? 0.55 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4, cursor: m.failed ? 'pointer' : 'default', touchAction: 'pan-y',
                     }}>
+                    {m.replyToId && (
+                      <button onClick={(e) => { e.stopPropagation(); if (orig) jumpToMsg(orig.id); }} className="block w-full text-left mb-1.5 px-2 py-1 rounded-md"
+                        style={{ background: 'rgba(127,127,127,.16)', border: 'none', borderLeft: `2px solid ${m.mine ? 'var(--accent-text)' : 'var(--accent)'}`, color: 'inherit', cursor: orig ? 'pointer' : 'default' }}>
+                        <span className="block font-semibold" style={{ fontSize: 10.5, opacity: 0.85 }}>{orig ? (orig.mine ? 'You' : name) : 'earlier message'}</span>
+                        <span className="block truncate" style={{ fontSize: 11.5, opacity: 0.8 }}>{orig ? orig.text : '…'}</span>
+                      </button>
+                    )}
                     {m.text}
                   </motion.div>
+                  {!m.mine && replyBtn}
                 </div>
                 {last && (m.failed
                   ? <button className={`text-[10px] mt-1 block ${m.mine ? 'text-right pr-1 ml-auto' : 'pl-9'}`} style={{ color: '#ef4444' }} onClick={() => retry(m)}>failed — tap to retry</button>
@@ -2071,13 +2102,24 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             <ChevronDown size={13} /> new
           </motion.button>
         )}
-        <div className="px-3 py-2.5 flex items-center gap-2" style={{ borderTop: '.5px solid var(--border)', background: 'var(--sheet-bg)' }}>
-          <input className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder="message…" autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
+        <div style={{ borderTop: '.5px solid var(--border)', background: 'var(--sheet-bg)' }}>
+          {replyTo && (
+            <div className="px-3 pt-2 flex items-center gap-2">
+              <div className="flex-1 min-w-0 px-2.5 py-1.5 rounded-md" style={{ background: 'var(--pill-bg)', borderLeft: '2px solid var(--accent)' }}>
+                <p className="text-[10.5px] font-semibold t-accent">Replying to {replyTo.mine ? 'yourself' : name}</p>
+                <p className="text-[12px] t-mid truncate">{replyTo.text}</p>
+              </div>
+              <button className="t-lo p-1.5 shrink-0" onClick={() => setReplyTo(null)} aria-label="Cancel reply" style={{ background: 'none', border: 'none' }}>✕</button>
+            </div>
+          )}
+          <div className="px-3 py-2.5 flex items-center gap-2">
+          <input ref={inputRef} className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder={replyTo ? 'reply…' : 'message…'} autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
           <motion.button whileTap={{ scale: 0.8 }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
             style={{ background: typed ? 'var(--accent)' : 'var(--pill-bg)', color: typed ? 'var(--accent-text)' : '#ef4444', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}
             disabled={busy} onClick={() => (typed ? send() : send('❤️'))} aria-label={typed ? 'Send' : 'Send a heart'}>
             {typed ? <Send size={17} /> : <Heart size={18} style={{ fill: '#ef4444' }} />}
           </motion.button>
+          </div>
         </div>
       </div>
     </div>

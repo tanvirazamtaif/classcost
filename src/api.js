@@ -231,7 +231,7 @@ export async function reportContent(targetType, targetId, reason) { return reque
 // Direct messages
 export async function listConversations() { return request('/api/feed/dm'); }
 export async function getThread(handle) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`); }
-export async function sendDm(handle, text) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`, { method: 'POST', body: JSON.stringify({ text }) }); }
+export async function sendDm(handle, text, replyToId) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`, { method: 'POST', body: JSON.stringify({ text, ...(replyToId ? { replyToId } : {}) }) }); }
 
 // Notifications
 export async function getFeedNotifications() { return request('/api/feed/notifications'); }

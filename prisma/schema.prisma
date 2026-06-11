@@ -168,6 +168,7 @@ model DmMessage {
   thread    DmThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   senderId  String // userId of the sender
   text      String
+  replyToId String? // id of the DmMessage this one replies to (same thread)
   createdAt DateTime @default(now())
 
   @@index([threadId, createdAt])

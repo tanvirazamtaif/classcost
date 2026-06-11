@@ -369,7 +369,7 @@ router.get('/dm/:handle', async (req, res) => {
     res.json({
       threadId: thread.id,
       other: { handle: other.handle, displayName: other.displayName, avatarUrl: other.avatarUrl },
-      messages: messages.map((m) => ({ id: m.id, text: m.text, mine: m.senderId === userId, createdAt: m.createdAt })),
+      messages: messages.map((m) => ({ id: m.id, text: m.text, mine: m.senderId === userId, createdAt: m.createdAt, replyToId: m.replyToId || null })),
     });
   } catch (err) { console.error('dm open:', err); res.status(500).json({ error: 'Failed to open conversation' }); }
 });
@@ -391,9 +391,14 @@ router.post('/dm/:handle', async (req, res) => {
       update: {},
       create: { userAId: a, userBId: b },
     });
-    const msg = await prisma.dmMessage.create({ data: { threadId: thread.id, senderId: userId, text } });
+    let replyToId = null;
+    if (req.body.replyToId) {
+      const orig = await prisma.dmMessage.findUnique({ where: { id: String(req.body.replyToId) } });
+      if (orig && orig.threadId === thread.id) replyToId = orig.id; // silently drop invalid/foreign reply targets
+    }
+    const msg = await prisma.dmMessage.create({ data: { threadId: thread.id, senderId: userId, text, replyToId } });
     await prisma.dmThread.update({ where: { id: thread.id }, data: { lastAt: msg.createdAt } });
-    res.json({ message: { id: msg.id, text: msg.text, mine: true, createdAt: msg.createdAt } });
+    res.json({ message: { id: msg.id, text: msg.text, mine: true, createdAt: msg.createdAt, replyToId } });
     notify(other.userId, userId, 'dm', null, text.slice(0, 120));
   } catch (err) { console.error('dm send:', err); res.status(500).json({ error: 'Failed to send' }); }
 });

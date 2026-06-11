@@ -99,6 +99,10 @@
   .v2-deskitem.active { background: var(--accent); color: var(--accent-text); }
 }
 
+/* chat: reply button appears on hover (desktop); mobile uses swipe-right */
+.dm-reply-btn { opacity: 0; transition: opacity .15s; }
+@media (hover: hover) { .dm-row:hover .dm-reply-btn { opacity: 0.9; } }
+
 /* skeleton shimmer (feed loading) */
 .v2-skel { position: relative; overflow: hidden; background: var(--pill-bg); }
 .v2-skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); animation: v2shimmer 1.3s infinite; }
