@@ -114,7 +114,7 @@ function Home({ nav, tab, d }) {
           <Bell size={17} />
           {notifCount > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{notifCount > 9 ? '9+' : notifCount}</span>}
         </button>
-        <button onClick={() => nav('profile')} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: '#22c55e' }} aria-label="Profile">{initial}</button>
+        <button onClick={() => nav('profile')} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: avatarColor(user?.name) }} aria-label="Profile">{initial}</button>
       </header>
       <div className="px-4">
         {/* hero (matches v1 DashboardV3) */}
@@ -224,7 +224,7 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
 
         {/* profile — framed */}
         <button className="w-full text-left flex items-center gap-3 p-2.5 mb-5" onClick={() => go(() => nav('profile'))} style={{ border: '.5px solid var(--border)', borderRadius: 6, background: 'var(--card)' }}>
-          <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-base font-semibold shrink-0" style={{ background: '#22c55e', border: '.5px solid var(--border)' }}>{initial}</span>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-base font-semibold shrink-0" style={{ background: avatarColor(user?.name), border: '.5px solid var(--border)' }}>{initial}</span>
           <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{user?.name || 'Student'}</p><p className="text-[11px] t-mid truncate">{user?.email || 'View profile'}</p></div>
           <ChevronRight size={16} className="t-lo shrink-0" />
         </button>
@@ -1183,11 +1183,14 @@ const timeAgo = (d) => {
   if (s < 86400) return Math.floor(s / 3600) + 'h';
   return Math.floor(s / 86400) + 'd';
 };
+// deterministic per-user avatar color (hash of name/handle) so people are visually distinct — no more everyone-green
+const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f97316', '#0ea5e9', '#8b5cf6', '#ef4444', '#14b8a6', '#f59e0b', '#10b981', '#d946ef', '#3b82f6', '#e11d48'];
+const avatarColor = (name) => { const s = (name || 'S').toString().toLowerCase(); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; };
 function Avatar({ url, name, size = 36, ring = false }) {
   const initial = (name || 'S').toString().trim().charAt(0).toUpperCase() || 'S';
   const base = { width: size, height: size, ...(ring ? { border: `${Math.max(1.5, size * 0.04)}px solid var(--border)`, boxSizing: 'border-box' } : {}) };
   if (url) return <img src={url} alt="" className="rounded-full object-cover shrink-0 block" style={base} draggable={false} />;
-  return <span className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ ...base, background: '#22c55e', fontSize: Math.round(size * 0.4) }}>{initial}</span>;
+  return <span className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ ...base, background: avatarColor(name), fontSize: Math.round(size * 0.4) }}>{initial}</span>;
 }
 function ccToast(msg) {
   try {
@@ -1782,7 +1785,7 @@ function Profile({ back }) {
       <Header title="Profile" onBack={back} />
       <div className="px-4 py-5 space-y-4">
         <div className="card p-5 flex flex-col items-center text-center">
-          <span className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-3" style={{ background: '#22c55e' }}>{initial}</span>
+          <span className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mb-3" style={{ background: avatarColor(user?.name) }}>{initial}</span>
           {!edit ? (
             <>
               <p className="text-lg font-bold t-hi">{user?.name || 'Student'}</p>
@@ -1915,7 +1918,7 @@ function Shell() {
         <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => nav('create')}>+ New cost</button>
         <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
           <button className="v2-deskitem" style={{ border: '.5px solid var(--border)' }} onClick={() => nav('profile')}>
-            <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: '#22c55e' }}>{initial}</span>
+            <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] font-semibold shrink-0" style={{ background: avatarColor(user?.name) }}>{initial}</span>
             <span className="truncate">{user?.name || 'Student'}</span>
           </button>
           <button className="v2-deskitem" onClick={toggleTheme}>{d ? <Sun size={18} /> : <Moon size={18} />}{d ? 'Light mode' : 'Dark mode'}</button>
