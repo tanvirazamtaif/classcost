@@ -92,6 +92,8 @@
   .v2-desk { display: flex; flex-direction: column; overflow-y: auto; }
   .v2-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 240px; padding: 1.4rem 1rem; background: var(--sheet-bg); border-right: .5px solid var(--border); z-index: 35; }
   .v2-rail { position: fixed; top: 0; right: 0; bottom: 0; width: 240px; padding: 1.4rem 1rem; gap: 1rem; z-index: 30; }
+  /* frame the centered content column so it reads as the app (not the page) on desktop */
+  .v2-main { min-height: 100vh; border-left: .5px solid var(--border); border-right: .5px solid var(--border); }
   .v2-deskitem { display: flex; align-items: center; gap: .7rem; padding: .6rem .75rem; border-radius: .75rem; font-size: .88rem; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--text2); width: 100%; text-align: left; margin-bottom: 2px; transition: background .12s, color .12s; }
   .v2-deskitem:hover { background: var(--pill-bg); color: var(--text1); }
   .v2-deskitem.active { background: var(--accent); color: var(--accent-text); }
