@@ -1250,8 +1250,8 @@ function FeedScreen() {
       </header>
       <div onPointerDown={(e) => { startX.current = e.clientX; }} onPointerUp={(e) => { const dx = e.clientX - startX.current; if (dx < -55 && pane < 2) go(pane + 1); else if (dx > 55 && pane > 0) go(pane - 1); }} style={{ overflow: 'hidden' }}>
         <motion.div className="flex items-start" style={{ width: '300%' }} animate={{ x: `-${pane * (100 / 3)}%` }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}>
-          <div style={{ width: '33.3333%' }} className="px-2"><FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={(h) => setDmHandle(h)} /></div>
-          <div style={{ width: '33.3333%' }} className="px-4"><FeedListPane reloadKey={reloadKey} onCompose={() => setComposeOpen(true)} onComment={onComment} onAuthor={onAuthor} /></div>
+          <div style={{ width: '33.3333%' }}><FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={(h) => setDmHandle(h)} /></div>
+          <div style={{ width: '33.3333%' }}><FeedListPane reloadKey={reloadKey} onCompose={() => setComposeOpen(true)} onComment={onComment} onAuthor={onAuthor} /></div>
           <div style={{ width: '33.3333%' }} className="px-4"><DMPane active={pane === 2} reloadKey={reloadKey} onOpenThread={(h) => setDmHandle(h)} onFind={() => openSearch('dm')} /></div>
         </motion.div>
       </div>
@@ -1346,9 +1346,9 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
         )}
         {prof?.isMe && <button className="btn btn-ghost mt-4" style={{ maxWidth: 200 }} onClick={() => setEditOpen(true)}>Edit profile</button>}
       </div>
-      <div className="px-2 space-y-3">
-        {err && <div className="card p-6 text-center"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>}
-        {!err && posts && posts.length === 0 && <div className="card p-6 text-center text-[13px] t-mid">No posts yet.</div>}
+      <div>
+        {err && <div className="card p-6 text-center mx-4"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>}
+        {!err && posts && posts.length === 0 && <div className="card p-6 text-center text-[13px] t-mid mx-4">No posts yet.</div>}
         {posts && posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={(id) => setPosts((ps) => (ps || []).filter((x) => x.id !== id))} />)}
       </div>
       <div className="h-4" />
@@ -1515,7 +1515,7 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
     try { await deletePost(p.id); ccToast('Post deleted'); onDeleted && onDeleted(p.id); } catch { ccToast('Could not delete'); }
   };
   return (
-    <div className="card p-4">
+    <div className="px-4 py-4" style={{ borderBottom: '.5px solid var(--border)' }}>
       <div className="flex items-center gap-2 mb-2.5">
         <button className="flex items-center gap-2.5 flex-1 min-w-0 text-left" onClick={() => onAuthor && onAuthor(p.handle)}>
           <Avatar url={p.avatarUrl} name={p.displayName || p.handle} size={36} />
@@ -1577,10 +1577,10 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
   }, [st.posts.length]);
   const removePost = (id) => setSt((s) => ({ ...s, posts: s.posts.filter((p) => p.id !== id) }));
   if (st.loading) return <div className="py-12 text-center text-[13px] t-mid">Loading the feed…</div>;
-  if (st.error) return <div className="card p-6 text-center mt-2"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
-  if (!st.posts.length) return <div className="card p-6 text-center mt-2"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">Quiet in here</p><p className="text-[13px] t-mid mb-3">No posts yet — start the conversation.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>;
+  if (st.error) return <div className="card p-6 text-center mt-2 mx-4"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
+  if (!st.posts.length) return <div className="card p-6 text-center mt-2 mx-4"><div className="text-4xl mb-2">🐥</div><p className="font-semibold t-hi mb-1">Quiet in here</p><p className="text-[13px] t-mid mb-3">No posts yet — start the conversation.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>Write the first post</button></div>;
   return (
-    <div className="py-2 space-y-3">
+    <div>
       {st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={removePost} />)}
       {cursorRef.current && <div ref={sentinel} className="py-4 text-center text-[12px] t-lo">{more ? 'Loading more…' : ' '}</div>}
     </div>
