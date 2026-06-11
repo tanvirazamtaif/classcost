@@ -1256,8 +1256,8 @@ function FeedScreen({ nav, back, params }) {
   const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
   const HeadIcon = ({ s, Icon, label }) => (
-    <button onClick={() => goSub(s)} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label={label}
-      style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
+    <button onClick={() => goSub(s)} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label={label}
+      style={{ background: 'rgba(255,255,255,.12)', border: '.5px solid rgba(255,255,255,.45)', color: '#F2EFE6' }}>
       <Icon size={17} />
     </button>
   );
@@ -1297,7 +1297,7 @@ function FeedScreen({ nav, back, params }) {
       {/* secondary footer — round action icons on a slim blurred bar (feed home only) */}
       {sub === 'home' && (
         <div className="v2-feedfooter">
-          <div className="flex items-center justify-center gap-10 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)' }}>
+          <div className="flex items-center justify-center gap-10 py-2.5" style={{ background: '#0A143F', borderTop: '.5px solid var(--border)' }}>
             <HeadIcon s="explore" Icon={Compass} label="Explore" />
             <HeadIcon s="compose" Icon={PenSquare} label="New post" />
             <HeadIcon s="messages" Icon={Send} label="Messages" />
