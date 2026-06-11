@@ -1262,7 +1262,7 @@ function FeedScreen({ nav, back, params }) {
     </button>
   );
   return (
-    <div className="v2-scroll" style={{ overflowX: 'hidden' }}>
+    <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: sub === 'home' ? 156 : undefined }}>
       {/* sticky top bar — feed home shows the icon row; sub-pages show back + title */}
       {!ownHeader && (
         <header className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
@@ -1272,14 +1272,11 @@ function FeedScreen({ nav, back, params }) {
                 <Avatar url={myAvatar} name={user?.name || myHandle} size={32} ring />
               </button>
               <div className="flex-1" />
-              <HeadIcon s="explore" Icon={Compass} label="Explore" />
-              <HeadIcon s="compose" Icon={PenSquare} label="New post" />
               <button onClick={() => goSub('notifications')} className="relative w-9 h-9 rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Notifications"
                 style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
                 <Bell size={17} />
                 {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread > 9 ? '9+' : unread}</span>}
               </button>
-              <HeadIcon s="messages" Icon={Send} label="Messages" />
             </>
           ) : (
             <>
@@ -1297,6 +1294,17 @@ function FeedScreen({ nav, back, params }) {
       {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread(0)} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
       {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
+      {/* secondary footer — round action icons on a slim blurred bar (feed home only) */}
+      {sub === 'home' && (
+        <div className="v2-feedfooter">
+          <div className="flex items-center justify-center gap-10 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)' }}>
+            <HeadIcon s="explore" Icon={Compass} label="Explore" />
+            <HeadIcon s="compose" Icon={PenSquare} label="New post" />
+            <HeadIcon s="messages" Icon={Send} label="Messages" />
+          </div>
+        </div>
+      )}
+
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
       {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
