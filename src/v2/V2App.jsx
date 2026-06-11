@@ -1186,6 +1186,7 @@ const timeAgo = (d) => {
 // deterministic per-user avatar color (hash of name/handle) so people are visually distinct — no more everyone-green
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f97316', '#0ea5e9', '#8b5cf6', '#ef4444', '#14b8a6', '#f59e0b', '#10b981', '#d946ef', '#3b82f6', '#e11d48'];
 const avatarColor = (name) => { const s = (name || 'S').toString().toLowerCase(); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; };
+const fmtCount = (n) => { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K'; return String(n); };
 function Avatar({ url, name, size = 36, ring = false }) {
   const initial = (name || 'S').toString().trim().charAt(0).toUpperCase() || 'S';
   const base = { width: size, height: size, ...(ring ? { border: `${Math.max(1.5, size * 0.04)}px solid var(--border)`, boxSizing: 'border-box' } : {}) };
@@ -1326,34 +1327,60 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
     try { next ? await followUser(h) : await unfollowUser(h); } catch { setFollowing(!next); } finally { setFBusy(false); }
   };
   const initial = ((prof?.displayName || h || 'S').charAt(0) || 'S').toUpperCase();
+  const counts = prof?.counts || {};
+  const gridIcon = (active = true) => (
+    <span style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 4px)', gridAutoRows: '4px', gap: 2, opacity: active ? 1 : 0.4 }}>
+      {Array.from({ length: 9 }).map((_, i) => <span key={i} style={{ width: 4, height: 4, background: 'currentColor', borderRadius: 1 }} />)}
+    </span>
+  );
   const body = (
-    <div className="py-3">
-      <div className="flex flex-col items-center text-center mb-4 px-2">
-        <div className="mb-3"><Avatar url={prof?.avatarUrl} name={prof?.displayName || h} size={80} ring /></div>
-        <p className="text-lg font-bold t-hi">{prof?.displayName || ('@' + h)}</p>
-        <p className="text-[13px] t-accent">@{h}</p>
-        {prof?.bio && <p className="text-[12px] t-mid mt-1 max-w-[260px]">{prof.bio}</p>}
-        <div className="flex mt-4 w-full max-w-[280px]" style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-          {[[prof?.counts?.posts ?? 0, 'posts'], [prof?.counts?.followers ?? 0, 'followers'], [prof?.counts?.following ?? 0, 'following']].map(([n, l], i) => (
-            <div key={l} className="flex-1 py-2.5" style={i < 2 ? { borderRight: '.5px solid var(--border)' } : undefined}>
-              <p className="font-bold t-hi text-[16px]">{n}</p>
-              <p className="text-[10px] uppercase tracking-wide t-mid mt-0.5">{l}</p>
-            </div>
+    <div className="pt-3 pb-2">
+      {/* avatar + stats */}
+      <div className="px-4 flex items-center gap-5 mb-3">
+        <Avatar url={prof?.avatarUrl} name={prof?.displayName || h} size={86} ring />
+        <div className="flex-1 flex items-center justify-around text-center">
+          {[[counts.posts ?? 0, 'posts'], [counts.followers ?? 0, 'followers'], [counts.following ?? 0, 'following']].map(([n, l]) => (
+            <div key={l}><p className="font-bold t-hi text-[18px] leading-none">{fmtCount(n)}</p><p className="text-[12px] t-mid mt-1">{l}</p></div>
           ))}
         </div>
-        {prof && !prof.isMe && (
-          <div className="flex gap-2 mt-4 w-full max-w-[280px]">
-            <button className={`btn ${following ? 'btn-ghost' : 'btn-primary'}`} onClick={toggleFollow}>{following ? 'Following' : 'Follow'}</button>
-            {onMessage && <button className="btn btn-ghost flex items-center justify-center gap-1.5" onClick={() => onMessage('@' + h)}><MessageCircle size={15} /> Message</button>}
+      </div>
+      {/* name + bio */}
+      <div className="px-4 mb-3">
+        <p className="font-semibold t-hi text-[14px] leading-tight">{prof?.displayName || ('@' + h)}</p>
+        {prof?.displayName && <p className="text-[12px] t-lo">@{h}</p>}
+        {prof?.bio && <p className="text-[13px] t-hi mt-1" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{prof.bio}</p>}
+      </div>
+      {/* actions */}
+      {prof && (
+        <div className="px-4 flex gap-2 mb-4">
+          {prof.isMe
+            ? <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={() => setEditOpen(true)}>Edit profile</button>
+            : (<>
+                <button className={`btn flex-1 ${following ? 'btn-ghost' : 'btn-primary'}`} style={{ padding: '.5rem' }} onClick={toggleFollow}>{following ? 'Following' : 'Follow'}</button>
+                {onMessage && <button className="btn btn-ghost flex-1" style={{ padding: '.5rem' }} onClick={() => onMessage('@' + h)}>Message</button>}
+              </>)}
+        </div>
+      )}
+      {/* grid tab bar */}
+      <div className="flex items-center justify-center t-hi" style={{ borderTop: '.5px solid var(--border)' }}>
+        <div className="py-2.5" style={{ borderBottom: '1.5px solid var(--text1)' }}>{gridIcon(true)}</div>
+      </div>
+      {/* post grid */}
+      {err
+        ? <div className="card p-6 text-center mx-4 mt-3"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>
+        : !posts ? <div className="py-12 text-center text-[13px] t-mid">Loading…</div>
+        : posts.length === 0 ? <div className="py-14 text-center"><span className="inline-block t-lo mb-2">{gridIcon(true)}</span><p className="text-[13px] t-mid">No posts yet.</p></div>
+        : (
+          <div className="grid grid-cols-3" style={{ gap: 2 }}>
+            {posts.map((p) => (
+              <button key={p.id} onClick={() => onComment && onComment(p)} className="relative block overflow-hidden" style={{ aspectRatio: '1 / 1', background: 'var(--pill-bg)', padding: 0, border: 0 }}>
+                {p.imageUrl
+                  ? <img src={p.imageUrl} alt="" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
+                  : <span className="absolute inset-0 flex items-center justify-center text-center p-2 text-[11px] font-medium t-hi" style={{ lineHeight: 1.3, overflow: 'hidden' }}>{p.text}</span>}
+              </button>
+            ))}
           </div>
         )}
-        {prof?.isMe && <button className="btn btn-ghost mt-4" style={{ maxWidth: 200 }} onClick={() => setEditOpen(true)}>Edit profile</button>}
-      </div>
-      <div>
-        {err && <div className="card p-6 text-center mx-4"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>}
-        {!err && posts && posts.length === 0 && <div className="card p-6 text-center text-[13px] t-mid mx-4">No posts yet.</div>}
-        {posts && posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={(id) => setPosts((ps) => (ps || []).filter((x) => x.id !== id))} />)}
-      </div>
       <div className="h-4" />
       {editOpen && prof && <EditFeedProfile profile={prof} onClose={() => setEditOpen(false)} onSaved={(np) => setProf((cur) => ({ ...cur, ...np }))} />}
     </div>
@@ -1429,8 +1456,18 @@ function FeedComments({ post, onClose, onAuthor }) {
   return (
     <div className="v2-backdrop" onClick={onClose}>
       <div className="v2-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-        <div className="flex items-center gap-2 mb-1"><p className="font-semibold t-hi">Comments</p><button className="ml-auto text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <div className="flex items-center gap-2 mb-1"><p className="font-semibold t-hi">Post</p><button className="ml-auto text-[13px] t-mid" onClick={onClose}>Close</button></div>
         <div className="flex-1 overflow-y-auto space-y-3 py-2" style={{ minHeight: 120 }}>
+          {(post.imageUrl || post.text) && (
+            <div className="pb-3 mb-1" style={{ borderBottom: '.5px solid var(--border)' }}>
+              <button className="flex items-center gap-2 mb-2" onClick={() => onAuthor && post.handle && onAuthor(post.handle)}>
+                <Avatar url={post.avatarUrl} name={post.displayName || post.handle} size={30} />
+                <span className="text-[12px] font-semibold t-hi">{post.displayName || ('@' + post.handle)}</span>
+              </button>
+              {post.imageUrl && <img src={post.imageUrl} alt="" className="block w-full rounded-md mb-2" style={{ maxHeight: 380, objectFit: 'cover' }} draggable={false} />}
+              {post.text && <p className="text-[13px] t-hi" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.text}</p>}
+            </div>
+          )}
           {st.loading ? <p className="text-[13px] t-mid text-center py-6">Loading…</p>
             : st.list.length === 0 ? <p className="text-[13px] t-mid text-center py-6">No comments yet — say something.</p>
               : st.list.map((c) => (
