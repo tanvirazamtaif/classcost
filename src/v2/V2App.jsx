@@ -23,7 +23,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions, getFollowers, getFollowing } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions, getFollowers, getFollowing, getNotes, setNote } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -1312,7 +1312,7 @@ function FeedScreen({ nav, back, params }) {
       {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
       {sub === 'discover' && <DiscoverPane onOpenUser={onAuthor} />}
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
-      {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
+      {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} myAvatar={myAvatar} myName={user?.name || myHandle} />}
       {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread((u) => ({ ...u, other: 0 }))} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
       {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} onDiscover={() => goSub('discover')} />}
       {sub === 'posts' && <UserPostsPage handle={params?.pof || myHandle} focusId={params?.pid} onComment={onComment} onAuthor={onAuthor} />}
@@ -2171,7 +2171,56 @@ function ComposePage({ handle, myAvatar, userName, onBack, onPosted }) {
 }
 
 /* ---------------- direct messages ---------------- */
-function DMPane({ active, reloadKey, onOpenThread }) {
+function NotesRail({ myAvatar, myName, onOpenThread }) {
+  const [notes, setNotes] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = () => getNotes().then((r) => setNotes(r?.notes || [])).catch(() => setNotes((n) => n || []));
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  const mine = (notes || []).find((n) => n.isMe);
+  const others = (notes || []).filter((n) => !n.isMe);
+  const apply = async (text, doneMsg) => {
+    if (busy) return; setBusy(true);
+    try { await setNote(text); setEditOpen(false); await load(); ccToast(doneMsg); }
+    catch { ccToast('Could not save the note'); } finally { setBusy(false); }
+  };
+  const bubble = (text, dashed) => (
+    <span className="px-2.5 py-1.5 rounded-2xl text-[10.5px] leading-tight text-center" style={{ background: 'var(--pill-bg)', border: dashed ? '1px dashed var(--border)' : '.5px solid var(--border)', color: 'var(--text2)', maxWidth: 94, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{text}</span>
+  );
+  return (
+    <>
+      <div className="v2-stories flex items-end gap-4 overflow-x-auto pb-3 mb-2 -mx-4 px-4" style={{ borderBottom: '.5px solid var(--border)' }}>
+        <button className="flex flex-col items-center gap-1.5 shrink-0" style={{ background: 'none', border: 'none', maxWidth: 96 }} onClick={() => { setDraft(mine?.text || ''); setEditOpen(true); }}>
+          {bubble(mine?.text || 'share a note…', !mine)}
+          <Avatar url={myAvatar} name={myName} size={56} />
+          <span className="text-[10.5px] t-mid">your note</span>
+        </button>
+        {others.map((n) => (
+          <button key={n.handle} className="flex flex-col items-center gap-1.5 shrink-0" style={{ background: 'none', border: 'none', maxWidth: 96 }} onClick={() => onOpenThread('@' + n.handle)}>
+            {bubble(n.text, false)}
+            <Avatar url={n.avatarUrl} name={n.displayName || n.handle} size={56} />
+            <span className="text-[10.5px] t-mid truncate" style={{ maxWidth: 88 }}>{n.displayName || ('@' + n.handle)}</span>
+          </button>
+        ))}
+      </div>
+      {editOpen && (
+        <div className="v2-backdrop" onClick={() => setEditOpen(false)}>
+          <div className="v2-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3"><p className="font-bold t-hi flex-1">Your note</p><button className="text-[13px] t-mid" style={{ background: 'none', border: 'none' }} onClick={() => setEditOpen(false)}>Close</button></div>
+            <input className="field" placeholder="share a thought… (lasts 24h)" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={60} autoFocus onKeyDown={(e) => { if (e.key === 'Enter' && draft.trim()) apply(draft, 'Note shared'); }} />
+            <p className="text-[11px] t-lo mt-1 text-right">{draft.length}/60</p>
+            <div className="flex gap-2 mt-3">
+              {mine && <button className="btn btn-ghost" style={{ color: '#ef4444' }} disabled={busy} onClick={() => apply('', 'Note removed')}>Delete</button>}
+              <button className="btn btn-primary" disabled={busy || !draft.trim()} onClick={() => apply(draft, 'Note shared')}>{busy ? 'Saving…' : 'Share'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+function DMPane({ active, reloadKey, onOpenThread, myAvatar, myName }) {
   const [st, setSt] = useState({ loading: true, convos: [], err: false });
   const [q, setQ] = useState('');
   const [found, setFound] = useState([]);
@@ -2196,6 +2245,7 @@ function DMPane({ active, reloadKey, onOpenThread }) {
   const extra = ql ? found.filter((u) => !st.convos.some((c) => c.handle === u.handle)) : [];
   return (
     <div className="px-4 py-3">
+      <NotesRail myAvatar={myAvatar} myName={myName} onOpenThread={onOpenThread} />
       <div className="flex items-center gap-2 mb-2" style={{ padding: '.6rem .9rem', borderRadius: 999, border: '.5px solid var(--border)', background: 'var(--card)' }}>
         <Search size={15} className="t-lo shrink-0" />
         <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="search chats & people…" className="flex-1 min-w-0 text-[14px]" style={{ border: 'none', outline: 'none', background: 'transparent', color: 'var(--text1)' }} />

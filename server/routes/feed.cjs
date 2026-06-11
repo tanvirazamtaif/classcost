@@ -261,6 +261,33 @@ router.delete('/stories/:id', async (req, res) => {
   } catch (err) { console.error('story delete:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
+// ── notes (24h, IG-style, shown atop Messages) ──
+router.get('/notes', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const since = new Date(Date.now() - 24 * 3600 * 1000);
+    const follows = await prisma.feedFollow.findMany({ where: { followerId: userId }, select: { followingId: true } });
+    const ids = [userId, ...follows.map((f) => f.followingId)];
+    const notes = await prisma.feedNote.findMany({ where: { userId: { in: ids }, createdAt: { gte: since } } });
+    const profiles = notes.length ? await prisma.feedProfile.findMany({ where: { userId: { in: notes.map((n) => n.userId) } } }) : [];
+    const byU = Object.fromEntries(profiles.map((p) => [p.userId, p]));
+    const list = notes.filter((n) => byU[n.userId]).map((n) => ({ handle: byU[n.userId].handle, displayName: byU[n.userId].displayName, avatarUrl: byU[n.userId].avatarUrl, text: n.text, createdAt: n.createdAt, isMe: n.userId === userId }));
+    list.sort((a, b) => ((b.isMe ? 1 : 0) - (a.isMe ? 1 : 0)) || (new Date(b.createdAt) - new Date(a.createdAt)));
+    res.json({ notes: list });
+  } catch (err) { console.error('notes:', err); res.status(500).json({ error: 'Failed' }); }
+});
+router.post('/notes', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  const text = String(req.body.text || '').trim().slice(0, 60);
+  try {
+    if (!text) { await prisma.feedNote.deleteMany({ where: { userId } }); return res.json({ ok: true, note: null }); }
+    const profile = await prisma.feedProfile.findUnique({ where: { userId } });
+    if (!profile) return res.status(400).json({ error: 'Claim a handle first' });
+    const n = await prisma.feedNote.upsert({ where: { userId }, update: { text, createdAt: new Date() }, create: { userId, text } });
+    res.json({ ok: true, note: { text: n.text, createdAt: n.createdAt } });
+  } catch (err) { console.error('note set:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
 // ── likes ──
 router.post('/posts/:id/like', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;

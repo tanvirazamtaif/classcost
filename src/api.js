@@ -233,6 +233,10 @@ export async function listConversations() { return request('/api/feed/dm'); }
 export async function getThread(handle) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`); }
 export async function sendDm(handle, text, replyToId, imageUrl) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`, { method: 'POST', body: JSON.stringify({ text, ...(replyToId ? { replyToId } : {}), ...(imageUrl ? { imageUrl } : {}) }) }); }
 
+// Notes (24h, atop Messages)
+export async function getNotes() { return request('/api/feed/notes'); }
+export async function setNote(text) { return request('/api/feed/notes', { method: 'POST', body: JSON.stringify({ text }) }); }
+
 // Stories (24h)
 export async function listStories() { return request('/api/feed/stories'); }
 export async function createStory(imageUrl) { return request('/api/feed/stories', { method: 'POST', body: JSON.stringify({ imageUrl }) }); }

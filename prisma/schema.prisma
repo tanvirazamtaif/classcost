@@ -186,6 +186,13 @@ model FeedStory {
   @@index([createdAt])
 }
 
+model FeedNote {
+  id        String   @id @default(cuid())
+  userId    String   @unique // one active note per user
+  text      String // ≤60 chars, IG-notes style
+  createdAt DateTime @default(now())
+}
+
 model FeedNotification {
   id        String    @id @default(cuid())
   userId    String // recipient User.id
