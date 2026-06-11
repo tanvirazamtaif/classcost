@@ -99,6 +99,9 @@
   .v2-deskitem.active { background: var(--accent); color: var(--accent-text); }
 }
 
+/* unread DM blink */
+@keyframes v2blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
 /* stories */
 .v2-stories { scrollbar-width: none; }
 .v2-stories::-webkit-scrollbar { display: none; }

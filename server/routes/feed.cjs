@@ -144,8 +144,22 @@ router.get('/notifications', async (req, res) => {
 });
 router.post('/notifications/read', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
-  try { await prisma.feedNotification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } }); res.json({ ok: true }); }
-  catch (err) { console.error('notifications read:', err); res.status(500).json({ error: 'Failed' }); }
+  try {
+    const types = Array.isArray(req.body?.types) && req.body.types.length ? { type: { in: req.body.types.map(String) } } : {};
+    await prisma.feedNotification.updateMany({ where: { userId, readAt: null, ...types }, data: { readAt: new Date() } });
+    res.json({ ok: true });
+  } catch (err) { console.error('notifications read:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
+// GET /api/feed/suggestions — people you don't follow yet (newest profiles first)
+router.get('/suggestions', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const following = await prisma.feedFollow.findMany({ where: { followerId: userId }, select: { followingId: true } });
+    const exclude = [userId, ...following.map((f) => f.followingId)];
+    const profiles = await prisma.feedProfile.findMany({ where: { userId: { notIn: exclude } }, orderBy: { createdAt: 'desc' }, take: 12 });
+    res.json({ users: profiles.map((p) => ({ handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, institute: p.institute, isFollowing: false, isMe: false })) });
+  } catch (err) { console.error('suggestions:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
 // ── stories (24h, image only) ──

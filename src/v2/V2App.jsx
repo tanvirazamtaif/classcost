@@ -23,7 +23,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -1226,7 +1226,7 @@ function FeedScreen({ nav, back, params }) {
   const [myAvatar, setMyAvatar] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [commentsFor, setCommentsFor] = useState(null);
-  const [unread, setUnread] = useState(0);
+  const [unread, setUnread] = useState({ dm: 0, other: 0 });
   const [storyView, setStoryView] = useState(null); // { groups, gi }
   const [storiesKey, setStoriesKey] = useState(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
@@ -1234,12 +1234,17 @@ function FeedScreen({ nav, back, params }) {
     getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
     return () => { on = false; };
   }, []);
-  useEffect(() => { // unread badge — refresh on mount and every 45s
+  useEffect(() => { // unread badges — social (heart) vs texts (paper plane), refreshed every 45s
     let on = true;
-    const pull = () => getFeedNotifications().then((r) => { if (on && typeof r?.unread === 'number') setUnread(r.unread); }).catch(() => {});
+    const pull = () => getFeedNotifications().then((r) => {
+      if (!on) return;
+      const fresh = (r?.notifications || []).filter((n) => !n.read);
+      setUnread({ dm: fresh.filter((n) => n.type === 'dm').length, other: fresh.filter((n) => n.type !== 'dm').length });
+    }).catch(() => {});
     pull();
     const id = setInterval(pull, 45000);
-    return () => { on = false; clearInterval(id); };
+    window.addEventListener('cc-news-refresh', pull);
+    return () => { on = false; clearInterval(id); window.removeEventListener('cc-news-refresh', pull); };
   }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
   const myHandle = handle.replace('@', '');
@@ -1276,9 +1281,10 @@ function FeedScreen({ nav, back, params }) {
                 <Logo size={24} />
                 <span className="text-[15px] t-serif truncate"><span className="t-mid">classcost</span><span className="t-lo"> › </span><span className="font-bold t-hi">feed</span></span>
               </span>
-              <button onClick={() => goSub('messages')} className="rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Messages"
+              <button onClick={() => goSub('messages')} className="relative rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Messages"
                 style={{ width: 38, height: 38, background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
                 <Send size={18} strokeWidth={2} />
+                {unread.dm > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444', animation: 'v2blink 1.2s ease-in-out infinite' }}>{unread.dm > 9 ? '9+' : unread.dm}</span>}
               </button>
             </>
           ) : (
@@ -1293,13 +1299,14 @@ function FeedScreen({ nav, back, params }) {
       {sub === 'home' && (
         <>
           <StoriesRail key={storiesKey} myAvatar={myAvatar} myName={user?.name || myHandle} onOpen={(gi, groups) => setStoryView({ groups, gi })} />
+          <SuggestionsRow onOpenUser={onAuthor} />
           <FeedListPane reloadKey={reloadKey} onCompose={() => goSub('compose')} onComment={onComment} onAuthor={onAuthor} />
         </>
       )}
       {sub === 'explore' && <ExplorePane onOpenPost={onComment} onOpenUser={onAuthor} />}
       {sub === 'compose' && <ComposePage handle={handle} myAvatar={myAvatar} userName={user?.name || myHandle} onBack={back} onPosted={() => { setReloadKey((k) => k + 1); nav('feed', {}); }} />}
       {sub === 'messages' && <DMPane active reloadKey={reloadKey} onOpenThread={openThread} />}
-      {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread(0)} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
+      {sub === 'notifications' && <NotificationsPane onSeen={() => setUnread((u) => ({ ...u, other: 0 }))} onOpenUser={onAuthor} onOpenThread={openThread} onOpenPost={openPost} />}
       {sub === 'profile' && <FeedProfileView handle={myHandle} embedded onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} />}
       {sub === 'posts' && <UserPostsPage handle={params?.pof || myHandle} focusId={params?.pid} onComment={onComment} onAuthor={onAuthor} />}
       {sub === 'edit-profile' && <EditProfilePage myHandle={myHandle} onBack={back} onSaved={(p) => { setMyAvatar(p?.avatarUrl || ''); back(); }} />}
@@ -1314,7 +1321,7 @@ function FeedScreen({ nav, back, params }) {
             <button onClick={() => goSub('notifications')} className="relative rounded-full flex items-center justify-center shrink-0" aria-label="Notifications"
               style={{ width: 38, height: 38, background: sub === 'notifications' ? 'var(--accent)' : 'var(--pill-bg)', color: sub === 'notifications' ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
               <Heart size={19} strokeWidth={2} />
-              {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread > 9 ? '9+' : unread}</span>}
+              {unread.other > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.other > 9 ? '9+' : unread.other}</span>}
             </button>
             <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
               style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
@@ -1328,6 +1335,39 @@ function FeedScreen({ nav, back, params }) {
       {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
       {storyView && <StoryViewer groups={storyView.groups} start={storyView.gi} onClose={() => setStoryView(null)} onChanged={() => { setStoryView(null); setStoriesKey((k) => k + 1); }} />}
+    </div>
+  );
+}
+function SuggestionsRow({ onOpenUser }) {
+  const [users, setUsers] = useState(null);
+  useEffect(() => {
+    let on = true;
+    getSuggestions().then((r) => { if (on) setUsers(r?.users || []); }).catch(() => { if (on) setUsers([]); });
+    return () => { on = false; };
+  }, []);
+  const follow = async (h) => {
+    setUsers((us) => (us || []).map((u) => (u.handle === h ? { ...u, isFollowing: true } : u)));
+    try { await followUser(h); } catch { setUsers((us) => (us || []).map((u) => (u.handle === h ? { ...u, isFollowing: false } : u))); }
+  };
+  if (!users || users.length === 0) return null;
+  return (
+    <div style={{ borderBottom: '.5px solid var(--border)' }}>
+      <p className="px-4 pt-3 text-[11px] uppercase tracking-wide t-lo font-semibold">suggested for you</p>
+      <div className="v2-stories flex gap-3 overflow-x-auto px-4 py-3">
+        {users.map((u, i) => (
+          <motion.div key={u.handle} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.05, type: 'spring', stiffness: 380, damping: 28 }}
+            className="flex flex-col items-center shrink-0 px-3 py-3" style={{ width: 132, border: '.5px solid var(--border)', borderRadius: 6, background: 'var(--card)' }}>
+            <button onClick={() => onOpenUser(u.handle)} style={{ background: 'none', border: 'none' }} aria-label={`Open @${u.handle}`}>
+              <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={56} />
+            </button>
+            <p className="text-[12.5px] font-semibold t-hi truncate mt-2" style={{ maxWidth: 110 }}>{u.displayName || ('@' + u.handle)}</p>
+            <p className="text-[10.5px] t-lo truncate" style={{ maxWidth: 110 }}>{u.institute ? `🎓 ${u.institute}` : '@' + u.handle}</p>
+            <button className={`minibtn mt-2 ${u.isFollowing ? 'btn-ghost' : 'btn-primary'}`} style={{ width: '100%', padding: '.42rem 0' }} onClick={() => !u.isFollowing && follow(u.handle)}>
+              {u.isFollowing ? 'Following' : 'Follow'}
+            </button>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1438,8 +1478,8 @@ function NotificationsPane({ onSeen, onOpenUser, onOpenThread, onOpenPost }) {
     let on = true;
     getFeedNotifications()
       .then((r) => {
-        if (on) setSt({ loading: false, items: r?.notifications || [] });
-        markNotificationsRead().then(() => onSeen && onSeen()).catch(() => {});
+        if (on) setSt({ loading: false, items: (r?.notifications || []).filter((n) => n.type !== 'dm') }); // texts blink on the paper plane instead
+        markNotificationsRead(['like', 'comment', 'follow', 'follow_post']).then(() => { onSeen && onSeen(); try { window.dispatchEvent(new CustomEvent('cc-news-refresh')); } catch { /* noop */ } }).catch(() => {});
       })
       .catch(() => { if (on) setSt({ loading: false, items: [] }); });
     return () => { on = false; };
@@ -1744,7 +1784,7 @@ function EditProfilePage({ myHandle, onBack, onSaved }) {
   };
   return (
     <div>
-      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '.5px solid var(--border)' }}>
+      <div className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
         <button onClick={onBack} className="t-mid p-1 -ml-1" aria-label="Back"><ChevronLeft size={20} /></button>
         <p className="font-bold t-hi flex-1">Edit profile</p>
         <button className="minibtn btn-primary" style={{ padding: '.45rem 1rem' }} disabled={busy || upBusy || !loaded} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
@@ -1780,6 +1820,7 @@ function EditProfilePage({ myHandle, onBack, onSaved }) {
           <label className="text-[11px] uppercase tracking-wide t-lo">Handle</label>
           <div className="field mt-1 t-mid" style={{ cursor: 'default', userSelect: 'none' }}>@{myHandle}</div>
         </div>
+        <button className="btn btn-primary" disabled={busy || upBusy || !loaded} onClick={save}>{busy ? 'Saving…' : 'Save changes'}</button>
       </div>
     </div>
   );
@@ -2028,6 +2069,7 @@ function DMPane({ active, reloadKey, onOpenThread }) {
   useEffect(() => {
     let on = true; setSt((s) => ({ ...s, loading: true }));
     listConversations().then((r) => { if (on) setSt({ loading: false, convos: r?.conversations || [], err: false }); }).catch(() => { if (on) setSt({ loading: false, convos: [], err: true }); });
+    markNotificationsRead(['dm']).then(() => { try { window.dispatchEvent(new CustomEvent('cc-news-refresh')); } catch { /* noop */ } }).catch(() => {});
     return () => { on = false; };
   }, [reloadKey, active]);
   useEffect(() => { // people search beyond existing chats (debounced)
@@ -2445,6 +2487,23 @@ function Shell() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+  // feed news (likes/comments/follows vs texts) — powers the Feed-tab dot and Leeboon's excitement
+  const [news, setNews] = useState({ dm: 0, other: 0, latest: null });
+  const authedNow = !!user?.id || guest;
+  useEffect(() => {
+    if (!authedNow) return undefined;
+    let on = true;
+    const pull = () => getFeedNotifications().then((r) => {
+      if (!on) return;
+      const items = r?.notifications || [];
+      const fresh = items.filter((n) => !n.read);
+      setNews({ dm: fresh.filter((n) => n.type === 'dm').length, other: fresh.filter((n) => n.type !== 'dm').length, latest: fresh[0] || null });
+    }).catch(() => {});
+    pull();
+    const id = setInterval(pull, 30000);
+    window.addEventListener('cc-news-refresh', pull);
+    return () => { on = false; clearInterval(id); window.removeEventListener('cc-news-refresh', pull); };
+  }, [authedNow]);
   const { view, params } = route;
   const P = { nav, back, tab, params, d, toggleTheme };
   let screen;
@@ -2480,13 +2539,28 @@ function Shell() {
   const navItems = [['home', HomeIcon, 'Home'], ['calendar', CalendarDays, 'Calendar'], ['feed', Newspaper, 'Feed'], ['reports', BarChart3, 'Reports'], ['settings', SettingsIcon, 'Settings']];
   const firstName = (user?.name || 'there').trim().split(' ')[0];
   const initial = (user?.name || 'S').trim().charAt(0).toUpperCase();
+  const hasNews = news.dm + news.other > 0;
+  const NavIcon = ({ v, Icon, size }) => (
+    <span className="relative inline-flex shrink-0">
+      <Icon size={size} strokeWidth={2} style={v === 'feed' ? { stroke: 'url(#ccInsta)' } : undefined} />
+      {v === 'feed' && hasNews && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444', border: '2px solid var(--bg)' }} />}
+    </span>
+  );
   return (
     <div className="v2-app" style={vars}>
+      {/* instagram-palette gradient for the feed icon (document-wide paint server) */}
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+        <defs>
+          <linearGradient id="ccInsta" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f09433" /><stop offset="25%" stopColor="#e6683c" /><stop offset="50%" stopColor="#dc2743" /><stop offset="75%" stopColor="#cc2366" /><stop offset="100%" stopColor="#bc1888" />
+          </linearGradient>
+        </defs>
+      </svg>
       {/* desktop left sidebar */}
       <aside className="v2-desk v2-sidebar">
         <div className="flex items-center gap-2.5 px-1 mb-6"><Logo size={30} /><span className="text-[18px] font-bold t-hi t-serif">ClassCost</span></div>
         {navItems.map(([v, Icon, label]) => (
-          <button key={v} className={`v2-deskitem ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><Icon size={18} />{label}</button>
+          <button key={v} className={`v2-deskitem ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={18} />{label}</button>
         ))}
         <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => nav('create')}>+ New cost</button>
         <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
@@ -2500,7 +2574,7 @@ function Shell() {
 
       {/* centered content column */}
       <div className="v2-main">{screen}</div>
-      <Leeboon nav={nav} d={d} />
+      <Leeboon nav={nav} d={d} news={news} inFeed={view === 'feed'} />
 
       {/* desktop right rail */}
       <aside className="v2-desk v2-rail">
@@ -2520,7 +2594,7 @@ function Shell() {
       <nav className="v2-nav">
         <div className="v2-navrow">
           {navItems.map(([v, Icon, label]) => (
-            <button key={v} className={`v2-navbtn ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><Icon size={20} strokeWidth={2} />{label}</button>
+            <button key={v} className={`v2-navbtn ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={20} />{label}</button>
           ))}
         </div>
       </nav>

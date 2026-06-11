@@ -66,7 +66,7 @@ async function serverBrain(text, priorMsgs, store, ctx) {
   throw new Error('unrecognized response');
 }
 
-export function Leeboon({ nav, d }) {
+export function Leeboon({ nav, d, news, inFeed }) {
   const store = useV2();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
@@ -182,6 +182,31 @@ export function Leeboon({ nav, d }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   useEffect(() => { interact(); return () => { [sadTimer, angryTimer, moveTimer, waveTimer, fxTimer].forEach((t) => clearTimeout(t.current)); ignoreTimers.current.forEach(clearTimeout); }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  // ── feed news → full hype mode: run to the Feed tab, point at it, and keep cheering ──
+  const newsCount = (news?.dm || 0) + (news?.other || 0);
+  const hypeTick = useRef(0);
+  useEffect(() => {
+    if (open) return undefined;
+    if (!newsCount || inFeed) { wanderPaused.current = false; return undefined; }
+    wanderPaused.current = true;
+    const NEWS_LINES = { dm: 'you got a message!! ✉️', like: 'someone liked your post!! ❤️', comment: 'new comment on your post!! 💬', follow: 'new follower!! 🎉', follow_post: 'fresh post from your people!! ✨' };
+    const excite = () => {
+      const w = window.innerWidth, hh = window.innerHeight;
+      const p = w >= 1024 ? { top: 252, left: 252 } : { top: hh - SPRITE_H - 96, left: Math.min(w - SPRITE_W - 18, Math.round(w / 2) + 30) };
+      goTo(clamp(p.top, TOP_MIN, hh - SPRITE_H - 18), clamp(p.left, 18, w - SPRITE_W - 18));
+      setFacing('left'); // the Feed tab sits to his left (sidebar on desktop, bottom-nav centre on mobile)
+      applyMood('excited');
+      const main = NEWS_LINES[news?.latest?.type] || 'something happened in the feed!! 👀';
+      const line = hypeTick.current % 2 === 0 ? main : 'tap the Feed!! 👉';
+      hypeTick.current += 1;
+      react({ mood: 'excited', effect: 'hearts', bubble: line }, 3600);
+    };
+    excite();
+    const id = setInterval(excite, 8000);
+    return () => { clearInterval(id); wanderPaused.current = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newsCount, inFeed, open, news?.latest?.type]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, pending, thinking, open]);
   // re-clamp into the viewport on resize / orientation change so the mascot never ends up off-screen or over a rail
   useEffect(() => {
@@ -240,7 +265,17 @@ export function Leeboon({ nav, d }) {
     nav: (v, p) => { nav(v, p); setOpen(false); },
     logDaily: store.logDaily, createInstitute: store.createInstitute, addRecurring: store.addRecurring,
   };
-  const openChat = () => { setOpen(true); if (msgs.length === 0) setMsgs([{ who: 'bot', text: "Hiii, I'm Leeboon 🐥 — tell me what you spent, what to create, or where to go." }]); };
+  const openChat = () => {
+    setOpen(true);
+    if (msgs.length === 0) setMsgs([{ who: 'bot', text: "Hiii, I'm Leeboon 🐥 — tell me what you spent, what to create, or where to go." }]);
+    if ((news?.dm || 0) + (news?.other || 0) > 0) {
+      const actions = [
+        ...(news.dm > 0 ? [{ label: `💬 ${news.dm} new message${news.dm > 1 ? 's' : ''} — open chats`, go: () => ctx.nav('feed', { sub: 'messages' }) }] : []),
+        ...(news.other > 0 ? [{ label: `❤️ ${news.other} like${news.other > 1 ? 's' : ''}/comment${news.other > 1 ? 's' : ''} & more — see them`, go: () => ctx.nav('feed', { sub: 'notifications' }) }] : []),
+      ];
+      setMsgs((m) => (m[m.length - 1]?.actions ? m : [...m, { who: 'bot', text: 'AAAH big news!! 🎉 look look:', actions }]));
+    }
+  };
   const send = async () => {
     const text = input.trim(); if (!text) return;
     const prior = msgs;
@@ -305,8 +340,15 @@ export function Leeboon({ nav, d }) {
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 py-2" style={{ minHeight: 180 }}>
               {msgs.map((m, i) => (
-                <div key={i} className={`flex ${m.who === 'me' ? 'justify-end' : 'justify-start'}`}>
+                <div key={i} className={`flex flex-col ${m.who === 'me' ? 'items-end' : 'items-start'}`}>
                   <div className="max-w-[82%] px-3 py-2 rounded-2xl text-[13px] leading-snug" style={m.who === 'me' ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--pill-bg)', color: 'var(--text1)', border: '.5px solid var(--border)' }}>{m.text}</div>
+                  {m.actions && (
+                    <div className="flex flex-col gap-1.5 mt-1.5 w-full max-w-[82%]">
+                      {m.actions.map((a, j) => (
+                        <button key={j} className="text-left text-[13px] font-semibold px-3 py-2.5 rounded-xl" style={{ background: 'var(--accent-light)', color: 'var(--accent)', border: '.5px solid var(--border)' }} onClick={a.go}>{a.label}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {pending && (
