@@ -1537,8 +1537,8 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
       </div>
       {p.text && <p className="text-[14px] t-hi mb-2" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{p.text}</p>}
       {p.imageUrl && (
-        <div className="relative mb-2 overflow-hidden rounded-xl select-none" style={{ border: '.5px solid var(--border)' }} onClick={onImageTap}>
-          <img src={p.imageUrl} alt="" className="w-full block" style={{ maxHeight: 540, objectFit: 'cover' }} draggable={false} />
+        <div className="relative -mx-4 mb-2 overflow-hidden select-none" style={{ aspectRatio: '1 / 1' }} onClick={onImageTap}>
+          <img src={p.imageUrl} alt="" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
           {pop && <span className="feed-heartpop" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}><Heart size={88} style={{ fill: '#fff', color: '#fff', filter: 'drop-shadow(0 2px 10px rgba(0,0,0,.5))' }} /></span>}
         </div>
       )}
