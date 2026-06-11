@@ -118,7 +118,7 @@ function Home({ nav, tab, d }) {
       </header>
       <div className="px-4">
         {/* hero (matches v1 DashboardV3) */}
-        <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
+        <div className="rounded-md p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
           <div className="grid grid-cols-2 gap-4">
             <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
             <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
@@ -144,7 +144,7 @@ function Home({ nav, tab, d }) {
 
         {/* spaces — one big box */}
         <h2 className="text-sm font-semibold t-hi mb-2">Your spaces</h2>
-        <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
+        <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: '6px', boxShadow: 'var(--card-shadow)' }}>
           {tops.map((s, i) => {
             const mo = monthTotal(spaceDues(s));
             return (
@@ -223,7 +223,7 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
         <div className="flex items-center gap-2.5 pb-3 mb-4 px-0.5" style={{ borderBottom: '.5px solid var(--border)' }}><Logo size={30} /><span className="text-[17px] font-bold t-hi t-serif">ClassCost</span></div>
 
         {/* profile — framed */}
-        <button className="w-full text-left flex items-center gap-3 p-2.5 mb-5" onClick={() => go(() => nav('profile'))} style={{ border: '.5px solid var(--border)', borderRadius: 12, background: 'var(--card)' }}>
+        <button className="w-full text-left flex items-center gap-3 p-2.5 mb-5" onClick={() => go(() => nav('profile'))} style={{ border: '.5px solid var(--border)', borderRadius: 6, background: 'var(--card)' }}>
           <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-base font-semibold shrink-0" style={{ background: '#22c55e', border: '.5px solid var(--border)' }}>{initial}</span>
           <div className="flex-1 min-w-0"><p className="font-semibold t-hi truncate">{user?.name || 'Student'}</p><p className="text-[11px] t-mid truncate">{user?.email || 'View profile'}</p></div>
           <ChevronRight size={16} className="t-lo shrink-0" />
@@ -231,7 +231,7 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
 
         {/* spaces — framed group */}
         <p className="text-[10px] uppercase tracking-[0.14em] font-bold t-mid mb-2 px-0.5">Spaces</p>
-        <div className="mb-5" style={{ border: '.5px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="mb-5" style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
           {spaces.length === 0 && <p className="text-[12px] t-mid px-3 py-3">No spaces yet.</p>}
           {SPACE_GROUPS.flatMap((g) => spaces.filter((s) => g.types.includes(s.type)).map((s) => {
             const linkedInst = s.linkedInstituteId ? spaces.find((x) => x.id === s.linkedInstituteId) : null;
@@ -250,7 +250,7 @@ function Drawer({ onClose, nav, tab, spaces, user }) {
 
         {/* go to — framed group */}
         <p className="text-[10px] uppercase tracking-[0.14em] font-bold t-mid mb-2 px-0.5">Go to</p>
-        <div style={{ border: '.5px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
           {sections.map(({ v, label, Icon }, i) => (
             <button key={v} className="w-full text-left flex items-center gap-3 px-3 py-2.5 t-hi" style={i < sections.length - 1 ? { borderBottom: '.5px solid var(--border)' } : undefined} onClick={() => go(() => tab(v))}>
               <Icon size={18} className="t-mid" /><span className="text-[13px] font-semibold">{label}</span>
@@ -336,7 +336,7 @@ function NewSimple({ nav, back, params }) {
 /* ---------------- INSTITUTE + SEMESTER ---------------- */
 function InstituteHero({ sm }) {
   return (
-    <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
+    <div className="rounded-md p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
       <div className="grid grid-cols-2 gap-4">
         <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
         <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
@@ -384,7 +384,7 @@ function CostsBox({ costs, onOpen, onAdd }) {
           <div className="flex flex-wrap gap-1.5">{tags.map((t) => (<button key={t} className={`chipbtn ${tag === t ? 'active' : ''}`} style={{ width: 'auto', padding: '.3rem .6rem', fontSize: '.72rem' }} onClick={() => setTag(t)}>{t}</button>))}</div>
         </div>
       )}
-      <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: '1rem', boxShadow: 'var(--card-shadow)' }}>
+      <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: '6px', boxShadow: 'var(--card-shadow)' }}>
         <button className="w-full text-left px-4 py-3.5 flex items-center gap-3" onClick={onAdd}>
           <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)' }}><Plus size={18} className="t-accent" /></span>
           <span className="text-sm font-medium t-accent">Add cost</span>
@@ -434,7 +434,7 @@ function Institute({ nav, back, params }) {
   const residences = linked.filter((sp) => sp.type === 'residence');
   const TABS = [{ i: 0, label: 'Main', Icon: HomeIcon }, { i: 1, label: 'Semesters', Icon: GraduationCap }, { i: 2, label: 'Club', Icon: Users }, { i: 3, label: 'Residence', Icon: Building2 }];
   const spaceList = (items, type) => (
-    <div style={{ border: '.5px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+    <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
       {items.map((sp, i) => (
         <div key={sp.id} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '.5px solid var(--border)' } : undefined}>
           <button className="flex items-center gap-3 flex-1 min-w-0 text-left" onClick={() => nav(sp.type, { spaceId: sp.id })}>
@@ -675,7 +675,7 @@ function CategoryHistory({ back, params }) {
         <div className="card px-4 py-3"><p className="text-[10px] uppercase tracking-wide t-lo">Total · {cat}</p><p className="text-2xl font-bold t-accent">{fmt(total)}</p></div>
         {rows.length === 0
           ? <div className="card p-6 text-center text-[13px] t-mid">No {cat} entries yet.</div>
-          : <div style={{ border: '.5px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>{rows.map((dd, i) => { const dt = parse(dd.date); return (
+          : <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>{rows.map((dd, i) => { const dt = parse(dd.date); return (
               <div key={dd.id || i} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '.5px solid var(--border)' } : undefined}>
                 <div className="flex-1 min-w-0"><p className="text-[13px] t-hi truncate">{dd.label}</p><p className="text-[11px] t-lo">{dt.getDate()} {MNS[dt.getMonth()]} {dt.getFullYear()}{dd.spaceName !== s.name ? ' · ' + dd.spaceName : ''}</p></div>
                 <p className="text-[13px] font-semibold t-hi">{fmt(dd.amount)}</p>
@@ -713,7 +713,7 @@ function LinkSpaceSheet({ instituteId, onClose }) {
         <p className="text-[12px] t-mid mb-3">Tagged spaces roll their costs into this institute's totals — they stay independent.</p>
         {cands.length === 0
           ? <p className="text-[13px] t-mid text-center py-6">No residence or club spaces yet. Create one from Home first.</p>
-          : <div style={{ border: '.5px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>{cands.map((sp, i) => {
+          : <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>{cands.map((sp, i) => {
               const linked = sp.linkedInstituteId === instituteId;
               return (
                 <div key={sp.id} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '.5px solid var(--border)' } : undefined}>
@@ -930,7 +930,7 @@ function SpaceDetailV2({ nav, back, params }) {
           <h2 className="text-sm font-semibold t-hi mb-2">Costs</h2>
           {trackRows.length === 0
             ? <div className="card p-5 text-center text-[13px] t-mid">No costs tracked yet.</div>
-            : <div style={{ border: '.5px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>{trackRows.slice(0, 80).map(({ d, from }, i) => { const dt = parse(d.date); const fromBal = (d.fromBalance || 0) > 0; const isEng = from.kind === 'rentengine'; return (
+            : <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>{trackRows.slice(0, 80).map(({ d, from }, i) => { const dt = parse(d.date); const fromBal = (d.fromBalance || 0) > 0; const isEng = from.kind === 'rentengine'; return (
                 <div key={d.id} className="flex items-center gap-3 px-3 py-3" style={i > 0 ? { borderTop: '.5px solid var(--border)' } : undefined}>
                   <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: 'var(--accent-light)' }}>{from.icon}</span>
                   <div className="flex-1 min-w-0"><p className="text-[13px] t-hi truncate">{d.label}</p><p className="text-[11px] t-lo">{dt.getDate()} {MNS[dt.getMonth()]} {dt.getFullYear()}{fromBal ? ' · from ' + (from.balanceLabel || 'balance').split(' ')[0].toLowerCase() : ''}</p></div>
@@ -1080,7 +1080,7 @@ function ReportsScreen() {
                 <ResponsiveContainer>
                   <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--text2)' }} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: 'var(--pill-bg)' }} contentStyle={{ background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text1)' }} formatter={(v) => [fmt(v), 'Spent']} labelStyle={{ color: 'var(--text2)' }} />
+                    <Tooltip cursor={{ fill: 'var(--pill-bg)' }} contentStyle={{ background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: 6, fontSize: 12, color: 'var(--text1)' }} formatter={(v) => [fmt(v), 'Spent']} labelStyle={{ color: 'var(--text2)' }} />
                     <Bar dataKey="total" radius={[5, 5, 0, 0]} fill="var(--accent)" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1330,7 +1330,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
         <p className="text-lg font-bold t-hi">{prof?.displayName || ('@' + h)}</p>
         <p className="text-[13px] t-accent">@{h}</p>
         {prof?.bio && <p className="text-[12px] t-mid mt-1 max-w-[260px]">{prof.bio}</p>}
-        <div className="flex mt-4 w-full max-w-[280px]" style={{ border: '.5px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="flex mt-4 w-full max-w-[280px]" style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
           {[[prof?.counts?.posts ?? 0, 'posts'], [prof?.counts?.followers ?? 0, 'followers'], [prof?.counts?.following ?? 0, 'following']].map(([n, l], i) => (
             <div key={l} className="flex-1 py-2.5" style={i < 2 ? { borderRight: '.5px solid var(--border)' } : undefined}>
               <p className="font-bold t-hi text-[16px]">{n}</p>
@@ -1641,7 +1641,7 @@ function DMPane({ active, reloadKey, onOpenThread, onFind }) {
       {st.loading ? <div className="card p-6 text-center text-[13px] t-mid">Loading…</div>
         : st.err ? <div className="card p-6 text-center"><div className="text-3xl mb-2">✉️</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Messages work once the server is live.' : "Couldn't load messages — try again in a moment."}</p></div>
           : st.convos.length === 0 ? <div className="card p-8 text-center"><div className="text-4xl mb-2">💬</div><p className="font-semibold t-hi mb-1">No messages yet</p><p className="text-[13px] t-mid mb-3">Reach anyone on ClassCost by their @handle.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onFind}>Find someone</button></div>
-            : <div style={{ border: '.5px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+            : <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
                 {st.convos.map((c, i) => (
                   <button key={c.threadId} className="w-full text-left flex items-center gap-3 px-3 py-3" style={i < st.convos.length - 1 ? { borderBottom: '.5px solid var(--border)' } : undefined} onClick={() => onOpenThread('@' + c.handle)}>
                     <Avatar url={c.avatarUrl} name={c.displayName || c.handle} size={40} ring />
@@ -1695,7 +1695,7 @@ function DMThread({ handle, onClose, onSent }) {
             : st.msgs.length === 0 ? <div className="text-center py-12"><div className="text-4xl mb-2">👋</div><p className="text-[13px] t-mid">Say hi to {other.displayName || title}.</p>{import.meta.env.DEV && <p className="text-[11px] t-lo mt-2">Messages persist once the server is live.</p>}</div>
               : st.msgs.map((m) => (
                 <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
-                  <div className="max-w-[78%] px-3 py-2 text-[13px]" style={{ background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)', border: '.5px solid var(--border)', borderRadius: 14, borderBottomRightRadius: m.mine ? 4 : 14, borderBottomLeftRadius: m.mine ? 14 : 4, opacity: m.pending ? 0.6 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.text}</div>
+                  <div className="max-w-[78%] px-3 py-2 text-[13px]" style={{ background: m.mine ? 'var(--accent)' : 'var(--card)', color: m.mine ? 'var(--accent-text)' : 'var(--text1)', border: '.5px solid var(--border)', borderRadius: 6, borderBottomRightRadius: m.mine ? 4 : 14, borderBottomLeftRadius: m.mine ? 14 : 4, opacity: m.pending ? 0.6 : 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.text}</div>
                 </div>
               ))}
         </div>

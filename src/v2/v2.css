@@ -22,7 +22,7 @@
 /* semi-retro (Notion-calm): serif display for headings + key figures */
 .v2-app h1, .v2-app h2, .v2-app .t-serif { font-family: 'Fraunces', Georgia, 'Times New Roman', serif; letter-spacing: -0.015em; }
 
-.v2-app .card { background: var(--card); border: .5px solid var(--border); border-radius: 1rem; box-shadow: var(--card-shadow); }
+.v2-app .card { background: var(--card); border: .5px solid var(--border); border-radius: 6px; box-shadow: var(--card-shadow); }
 
 .v2-app .btn { padding: .85rem; border-radius: .8rem; font-weight: 600; font-size: .9rem; cursor: pointer; border: none; width: 100%; transition: all .15s; }
 .v2-app .btn-primary { background: var(--accent); color: var(--accent-text); }
@@ -46,7 +46,7 @@
 .v2-app .st-overdue { background: rgba(239,68,68,.16); color: #ef4444; }
 .v2-app .st-parked { background: rgba(59,130,246,.16); color: #3b82f6; }
 
-.v2-app .ctile { background: var(--card); border: .5px solid var(--border); border-radius: .85rem; padding: .8rem; cursor: pointer; text-align: left; }
+.v2-app .ctile { background: var(--card); border: .5px solid var(--border); border-radius: 6px; padding: .8rem; cursor: pointer; text-align: left; }
 .v2-app .bar { height: 2px; border-radius: 999px; background: rgba(120,124,150,.22); overflow: hidden; }
 
 .v2-nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; z-index: 40; border-top: .5px solid var(--border); background: var(--nav-bg); backdrop-filter: blur(10px); }
