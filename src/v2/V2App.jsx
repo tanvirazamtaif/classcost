@@ -1229,11 +1229,10 @@ function FeedScreen() {
   const [searchMode, setSearchMode] = useState('browse'); // browse | dm
   const [composeOpen, setComposeOpen] = useState(false);
   const [dmHandle, setDmHandle] = useState(null);
-  const [myAvatar, setMyAvatar] = useState('');
   const startX = useRef(0);
   useEffect(() => { // pull the server handle (covers other-device claims); silent if offline
     let on = true;
-    getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); setMyAvatar(r.profile.avatarUrl || ''); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
+    getMyFeedProfile().then((r) => { if (on && r?.profile?.handle) { const hh = '@' + r.profile.handle; setHandle(hh); try { localStorage.setItem(FEED_KEY, hh); } catch { /* ignore */ } } }).catch(() => {});
     return () => { on = false; };
   }, []);
   if (!handle) return <FeedOnboard onDone={(h) => { try { localStorage.setItem(FEED_KEY, h); } catch { /* ignore */ } setHandle(h); }} />;
@@ -1247,7 +1246,7 @@ function FeedScreen() {
   return (
     <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: 124 }}>
       <header className="px-4 pt-5 pb-3 flex items-center gap-2.5">
-        <button onClick={() => go(0)} className="shrink-0" aria-label="Your profile"><Avatar url={myAvatar} name={user?.name || myHandle} size={36} ring /></button>
+        <span className="shrink-0 w-9" aria-hidden="true" />
         <button onClick={() => go(1)} className="flex-1 flex items-center justify-center gap-2"><Logo size={22} /><span className="font-bold t-hi">Feed</span></button>
         <button onClick={() => setComposeOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="New post"><PenSquare size={17} /></button>
         <button onClick={() => openSearch('browse')} className="w-9 h-9 rounded-full flex items-center justify-center t-mid shrink-0" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }} aria-label="Search people"><Search size={17} /></button>
