@@ -1441,7 +1441,7 @@ function StoriesRail({ myAvatar, myName, onOpen }) {
     catch { ccToast('Could not add the story'); }
     finally { setUpBusy(false); if (fileRef.current) fileRef.current.value = ''; }
   };
-  const ring = (active) => ({ display: 'inline-flex', padding: 3, borderRadius: 999, background: active ? 'linear-gradient(45deg, #0A143F, #0ea5e9, #8b5cf6)' : 'var(--pill-bg)' });
+  const ring = (active) => ({ display: 'inline-flex', padding: 3, borderRadius: 999, background: active ? 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' : 'var(--pill-bg)' });
   const inner = { display: 'inline-flex', padding: 2, borderRadius: 999, background: 'var(--bg)' };
   const mine = (groups || []).find((g) => g.isMe);
   const others = (groups || []).filter((g) => !g.isMe);
