@@ -1198,6 +1198,9 @@ const dmDisplay = (text, mine) => {
   return { story: false, label: null, text };
 };
 const hiddenPosts = () => { try { return new Set(JSON.parse(localStorage.getItem('cc_hidden_posts') || '[]')); } catch { return new Set(); } };
+// watched stories — rings go gray once every story in the group has been seen
+const seenStories = () => { try { return new Set(JSON.parse(localStorage.getItem('cc_seen_stories') || '[]')); } catch { return new Set(); } };
+const markStorySeen = (id) => { try { const a = JSON.parse(localStorage.getItem('cc_seen_stories') || '[]'); if (!a.includes(id)) a.push(id); localStorage.setItem('cc_seen_stories', JSON.stringify(a.slice(-500))); } catch { /* ignore */ } };
 const hidePostId = (id) => { try { const a = JSON.parse(localStorage.getItem('cc_hidden_posts') || '[]'); if (!a.includes(id)) a.push(id); localStorage.setItem('cc_hidden_posts', JSON.stringify(a.slice(-300))); } catch { /* ignore */ } };
 const fmtCount = (n) => { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K'; return String(n); };
 // emoji-only messages (❤️, 😂😂 …) render bare and big — no bubble around them
@@ -1356,7 +1359,7 @@ function FeedScreen({ nav, back, params }) {
       {commentsFor && <FeedComments post={commentsFor} onClose={() => setCommentsFor(null)} onAuthor={onAuthor} />}
       {viewUser && <FeedProfileView handle={viewUser} onClose={back} onComment={onComment} onAuthor={onAuthor} onMessage={openThread} onEdit={goEdit} onOpenPosts={openPosts} onDiscover={() => goSub('discover')} />}
       {dmOpen && <DMThread handle={dmOpen} onClose={back} onSent={() => setReloadKey((k) => k + 1)} onProfile={threadToProfile} />}
-      {storyView && <StoryViewer groups={storyView.groups} start={storyView.gi} onClose={() => setStoryView(null)} onChanged={() => { setStoryView(null); setStoriesKey((k) => k + 1); }} />}
+      {storyView && <StoryViewer groups={storyView.groups} start={storyView.gi} onClose={() => { setStoryView(null); setStoriesKey((k) => k + 1); }} onChanged={() => { setStoryView(null); setStoriesKey((k) => k + 1); }} />}
     </div>
   );
 }
@@ -1453,7 +1456,9 @@ function StoriesRail({ myAvatar, myName, onOpen }) {
     catch { ccToast('Could not add the story'); }
     finally { setUpBusy(false); if (fileRef.current) fileRef.current.value = ''; }
   };
-  const ring = (active) => ({ display: 'inline-flex', padding: 3, borderRadius: 999, background: active ? 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' : 'var(--pill-bg)' });
+  const ring = (active) => ({ display: 'inline-flex', padding: 3, borderRadius: 999, background: active ? 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' : 'rgba(127,134,158,.45)' });
+  const seen = seenStories();
+  const hasUnseen = (g) => (g?.stories || []).some((x) => !seen.has(x.id));
   const inner = { display: 'inline-flex', padding: 2, borderRadius: 999, background: 'var(--bg)' };
   const mine = (groups || []).find((g) => g.isMe);
   const others = (groups || []).filter((g) => !g.isMe);
@@ -1462,7 +1467,7 @@ function StoriesRail({ myAvatar, myName, onOpen }) {
       <button className="flex flex-col items-center gap-1 shrink-0" style={{ background: 'none', border: 'none' }}
         onClick={() => (mine ? onOpen(groups.indexOf(mine), groups) : fileRef.current?.click())} aria-label={mine ? 'View your story' : 'Add a story'}>
         <span className="relative">
-          <span style={ring(!!mine)}><span style={inner}><Avatar url={myAvatar} name={myName} size={54} /></span></span>
+          <span style={ring(!!mine && hasUnseen(mine))}><span style={inner}><Avatar url={myAvatar} name={myName} size={54} /></span></span>
           <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full flex items-center justify-center font-bold" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '2px solid var(--bg)', fontSize: 13, lineHeight: 1 }}
             onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>+</span>
         </span>
@@ -1473,7 +1478,7 @@ function StoriesRail({ myAvatar, myName, onOpen }) {
       ))}
       {others.map((g) => (
         <button key={g.handle} onClick={() => onOpen(groups.indexOf(g), groups)} className="flex flex-col items-center gap-1 shrink-0" style={{ background: 'none', border: 'none' }}>
-          <span style={ring(true)}><span style={inner}><Avatar url={g.avatarUrl} name={g.displayName || g.handle} size={54} /></span></span>
+          <span style={ring(hasUnseen(g))}><span style={inner}><Avatar url={g.avatarUrl} name={g.displayName || g.handle} size={54} /></span></span>
           <span className="text-[10.5px] t-mid truncate" style={{ maxWidth: 64 }}>{g.displayName || ('@' + g.handle)}</span>
         </button>
       ))}
@@ -1493,7 +1498,7 @@ function StoryViewer({ groups, start, onClose, onChanged }) {
   const elapsedRef = useRef(0);
   const g = groups[gi];
   const s = g?.stories?.[si];
-  useEffect(() => { setLoaded(false); setLiked(false); elapsedRef.current = 0; }, [gi, si]);
+  useEffect(() => { setLoaded(false); setLiked(false); elapsedRef.current = 0; const sid = groups[gi]?.stories?.[si]?.id; if (sid) markStorySeen(sid); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [gi, si]);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
   useEffect(() => { // pause-aware, load-gated auto-advance
     if (!s || !loaded) return undefined;
@@ -2589,7 +2594,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
         <div style={{ borderTop: '.5px solid var(--border)', background: 'var(--sheet-bg)' }}>
           {emojiOpen && (
             <div className="flex flex-wrap gap-0.5 px-3 pt-2" style={{ borderBottom: '.5px solid var(--border)', paddingBottom: 8 }}>
-              {['😀','😂','🥰','😍','😊','😉','😎','🤩','😅','🙃','😢','😭','😤','😡','🥺','🤔','🙄','😴','🤗','🤭','👍','👎','👏','🙏','🔥','💯','🎉','❤️','💔','✨','😈','🫶'].map((e) => (
+              {['✨','🌸','🤍','🫶','🥹','😭','💀','😂','😌','🥰','🦋','🌷','🌙','☁️','🌊','🍓','🍃','🌻','💗','💌','🎀','🧸','🕊️','⭐','🔥','👀','🙈','🫰','🤌','🥲','😎','❤️‍🔥'].map((e) => (
                 <button key={e} className="text-[22px] leading-none p-1" style={{ background: 'none', border: 'none' }} onClick={() => { setText((t) => t + e); inputRef.current?.focus(); }}>{e}</button>
               ))}
             </div>
