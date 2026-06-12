@@ -1461,7 +1461,8 @@ function StoriesRail({ myAvatar, myName, onOpen }) {
   const hasUnseen = (g) => (g?.stories || []).some((x) => !seen.has(x.id));
   const inner = { display: 'inline-flex', padding: 2, borderRadius: 999, background: 'var(--bg)' };
   const mine = (groups || []).find((g) => g.isMe);
-  const others = (groups || []).filter((g) => !g.isMe);
+  // unseen stories lead the rail; fully-watched (gray) groups settle at the end
+  const others = (groups || []).filter((g) => !g.isMe).sort((a, b) => (hasUnseen(b) ? 1 : 0) - (hasUnseen(a) ? 1 : 0));
   return (
     <div className="v2-stories flex gap-4 overflow-x-auto px-4 py-3" style={{ borderBottom: '.5px solid var(--border)' }}>
       <button className="flex flex-col items-center gap-1 shrink-0" style={{ background: 'none', border: 'none' }}
