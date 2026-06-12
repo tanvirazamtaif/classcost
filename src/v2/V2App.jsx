@@ -110,16 +110,16 @@ function Home({ nav, tab, d }) {
       <header className="px-4 pt-5 pb-3 flex items-center gap-3">
         <button onClick={() => setDrawer(true)} className="w-9 h-9 -ml-1.5 rounded-lg flex items-center justify-center t-hi" aria-label="Menu"><Menu size={22} /></button>
         <Logo size={26} className="shrink-0" />
-        <p className="flex-1 text-[13px] t-mid truncate">{greeting}, <span className="t-hi font-semibold">{user?.name || 'Student'}</span> 👋</p>
+        <p className="flex-1 text-[13px] t-mid truncate">{greeting}, <span className="t-hi font-semibold">{user?.name || 'Student'}</span></p>
         <button onClick={() => setNotifOpen(true)} className="relative w-9 h-9 rounded-full flex items-center justify-center t-mid" aria-label="Notifications" style={{ background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
           <Bell size={17} />
           {notifCount > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{notifCount > 9 ? '9+' : notifCount}</span>}
         </button>
         <button onClick={() => nav('profile')} className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[14px] font-semibold shrink-0" style={{ background: avatarColor(user?.name) }} aria-label="Profile">{initial}</button>
       </header>
-      <div className="px-4">
+      <div className="px-2.5">
         {/* hero (matches v1 DashboardV3) */}
-        <div className="rounded-md p-4 mb-4" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
+        <div className="rounded-md p-4 mb-2.5" style={{ background: 'var(--hero-bg)', border: '.5px solid var(--hero-border)' }}>
           <div className="grid grid-cols-2 gap-4">
             <div><p className="text-[10px] font-medium t-gold">Lifetime</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.life)}</p></div>
             <div className="text-right"><p className="text-[10px] font-medium t-gold">This month</p><p className="text-[22px] font-medium mt-0.5 t-hi t-serif">{fmt(sm.month)}</p></div>
@@ -129,7 +129,7 @@ function Home({ nav, tab, d }) {
         </div>
 
         {/* daily category tiles */}
-        <div className="grid grid-cols-3 gap-2.5 mb-5">
+        <div className="grid grid-cols-3 gap-2 mb-2.5">
           {DAILY.map(({ cat, emoji, Icon, color }) => {
             const total = cats[cat]?.total || 0, pct = Math.min(100, total / maxDaily * 100);
             return (
@@ -144,7 +144,7 @@ function Home({ nav, tab, d }) {
         </div>
 
         {/* spaces — one big box */}
-        <h2 className="text-sm font-semibold t-hi mb-2">Your spaces</h2>
+        <h2 className="text-sm font-semibold t-hi mb-1.5 mt-1">Your spaces</h2>
         <div className="overflow-hidden" style={{ minHeight: 320, background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: '6px', boxShadow: 'var(--card-shadow)' }}>
           {tops.map((s, i) => {
             const mo = monthTotal(spaceDues(s));
@@ -1292,7 +1292,7 @@ function FeedScreen({ nav, back, params }) {
               </span>
               <button onClick={() => goSub('notifications')} className="relative rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Notifications"
                 style={{ width: 38, height: 38, background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
-                <Heart size={18} strokeWidth={2} />
+                <Bell size={18} strokeWidth={2} />
                 {unread.other > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.other > 9 ? '9+' : unread.other}</span>}
               </button>
             </>
@@ -1351,7 +1351,7 @@ function FeedScreen({ nav, back, params }) {
 // subtitle for suggestion cards/rows — mutuals beat institute; never repeat the @handle shown as the title
 const suggestionSub = (u) => {
   if (u.mutuals > 0) return `${u.mutuals} mutual friend${u.mutuals > 1 ? 's' : ''}`;
-  if (u.institute) return `🎓 ${u.institute}`;
+  if (u.institute) return u.institute;
   return u.displayName ? '@' + u.handle : 'new on classcost';
 };
 function SuggestionsRow({ onOpenUser, onSeeAll, title = 'Suggested for you' }) {
@@ -1376,7 +1376,7 @@ function SuggestionsRow({ onOpenUser, onSeeAll, title = 'Suggested for you' }) {
       <div className="v2-stories flex gap-2.5 overflow-x-auto px-4 py-3">
         {users.map((u, i) => (
           <motion.div key={u.handle} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.05, type: 'spring', stiffness: 380, damping: 28 }}
-            className="relative flex flex-col items-center shrink-0 px-3 pt-6 pb-3" style={{ width: 152, border: '.5px solid var(--border)', borderRadius: 8, background: '#0A143F' }}>
+            className="relative flex flex-col items-center shrink-0 px-3 pt-6 pb-3" style={{ width: 152, border: '.5px solid rgba(150,155,175,.5)', borderRadius: 8, background: '#0A143F' }}>
             <button className="absolute top-1.5 right-2 text-[14px] leading-none p-1" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.65)' }} onClick={() => dismiss(u.handle)} aria-label="Dismiss">✕</button>
             <button onClick={() => onOpenUser(u.handle)} style={{ background: 'none', border: 'none' }} aria-label={`Open @${u.handle}`}>
               <Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={72} />
@@ -1408,7 +1408,7 @@ function DiscoverPane({ onOpenUser }) {
       {users === null
         ? <div className="space-y-1 pt-2">{[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 py-2"><div className="v2-skel rounded-full shrink-0" style={{ width: 48, height: 48 }} /><div className="flex-1"><div className="v2-skel rounded" style={{ height: 10, width: '45%', marginBottom: 6 }} /><div className="v2-skel rounded" style={{ height: 8, width: '30%' }} /></div></div>)}</div>
         : users.length === 0
-          ? <div className="py-16 text-center"><div className="text-4xl mb-2">🫂</div><p className="font-semibold t-hi mb-1">no one new right now</p><p className="text-[13px] t-mid">you already follow everyone here — nice.</p></div>
+          ? <div className="py-16 text-center"><p className="font-semibold t-hi mb-1">no one new right now</p><p className="text-[13px] t-mid">you already follow everyone here — nice.</p></div>
           : users.map((u, i) => (
             <motion.div key={u.handle} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 10) * 0.035, type: 'spring', stiffness: 380, damping: 28 }} className="flex items-center gap-3 py-2.5">
               <button onClick={() => onOpenUser(u.handle)} className="shrink-0" style={{ background: 'none', border: 'none' }}><Avatar url={u.avatarUrl} name={u.displayName || u.handle} size={48} /></button>
@@ -1717,7 +1717,7 @@ function ExplorePane({ onOpenPost, onOpenUser }) {
           {Array.from({ length: 9 }).map((_, i) => <div key={i} className="v2-skel" style={{ aspectRatio: '1 / 1' }} />)}
         </div>
       ) : tiles.length === 0 ? (
-        <div className="py-16 text-center"><div className="text-4xl mb-2">🧭</div><p className="font-semibold t-hi mb-1">{st.posts.length ? 'no photos yet' : 'nothing to explore yet'}</p><p className="text-[13px] t-mid">{st.posts.length ? 'text posts live on the feed — photos show up here.' : 'photos people post will show up here.'}</p></div>
+        <div className="py-16 text-center"><p className="font-semibold t-hi mb-1">{st.posts.length ? 'no photos yet' : 'nothing to explore yet'}</p><p className="text-[13px] t-mid">{st.posts.length ? 'text posts live on the feed — photos show up here.' : 'photos people post will show up here.'}</p></div>
       ) : (
         <>
           <div className="grid grid-cols-3" style={{ gap: 2 }}>
@@ -1824,7 +1824,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
       <div className="px-4 mb-3">
         <p className="font-semibold t-hi text-[14px] leading-tight">{prof?.displayName || ('@' + h)}</p>
         {prof?.displayName && <p className="text-[12px] t-lo">@{h}</p>}
-        {prof?.institute && <p className="text-[12.5px] t-mid mt-0.5">🎓 {prof.institute}</p>}
+        {prof?.institute && <p className="text-[12.5px] t-mid mt-0.5">{prof.institute}</p>}
         {prof?.bio && <p className="text-[13px] t-hi mt-1" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{prof.bio}</p>}
         {prof?.isMe && !prof?.bio && <button className="text-[13px] t-accent mt-1 font-medium" onClick={onEdit}>+ Add a bio</button>}
       </div>
@@ -1852,7 +1852,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
       <div style={{ borderTop: '.5px solid var(--border)' }} />
       {/* post grid */}
       {err
-        ? <div className="card p-6 text-center mx-4 mt-3"><div className="text-3xl mb-2">🐣</div><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>
+        ? <div className="card p-6 text-center mx-4 mt-3"><p className="text-[13px] t-mid">{import.meta.env.DEV ? 'Your feed profile lives on the server — it fills in once the backend is connected.' : "Couldn't load posts right now — try again in a moment."}</p></div>
         : !posts ? <div className="py-12 text-center text-[13px] t-mid">Loading…</div>
         : posts.length === 0 ? <div className="py-14 text-center"><span className="inline-block t-lo mb-2">{gridIcon(true)}</span><p className="text-[13px] t-mid">No posts yet.</p></div>
         : (
@@ -2028,18 +2028,8 @@ function FeedComments({ post, onClose, onAuthor }) {
         <div className="pt-2 pb-1" style={{ cursor: 'grab', touchAction: 'none' }} onPointerDown={(ev) => dragControls.start(ev)}>
           <span className="block mx-auto rounded-full" style={{ width: 40, height: 4.5, background: 'var(--text3)', opacity: 0.5 }} />
         </div>
-        <div className="flex items-center gap-2 mb-1" style={{ cursor: 'grab', touchAction: 'none' }} onPointerDown={(ev) => dragControls.start(ev)}><p className="font-semibold t-hi">Post</p><button className="ml-auto text-[13px] t-mid" onClick={onClose}>Close</button></div>
+        <div className="flex items-center gap-2 mb-1" style={{ cursor: 'grab', touchAction: 'none' }} onPointerDown={(ev) => dragControls.start(ev)}><p className="font-semibold t-hi">Comments</p><button className="ml-auto text-[13px] t-mid" onClick={onClose}>Close</button></div>
         <div className="flex-1 overflow-y-auto space-y-3 py-2" style={{ minHeight: 120 }}>
-          {(post.imageUrl || post.text) && (
-            <div className="pb-3 mb-1" style={{ borderBottom: '.5px solid var(--border)' }}>
-              <button className="flex items-center gap-2 mb-2" onClick={() => onAuthor && post.handle && onAuthor(post.handle)}>
-                <Avatar url={post.avatarUrl} name={post.displayName || post.handle} size={30} />
-                <span className="text-[12px] font-semibold t-hi">{post.displayName || ('@' + post.handle)}</span>
-              </button>
-              {post.imageUrl && <img src={post.imageUrl} alt="" className="block w-full rounded-md mb-2" style={{ height: 'auto' }} draggable={false} />}
-              {post.text && <p className="text-[13px] t-hi" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.text}</p>}
-            </div>
-          )}
           {st.loading ? <p className="text-[13px] t-mid text-center py-6">Loading…</p>
             : st.list.length === 0 ? <p className="text-[13px] t-mid text-center py-6">No comments yet — say something.</p>
               : st.list.map((c) => (
@@ -2183,8 +2173,8 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
       ))}
     </div>
   );
-  if (st.error) return <div className="card p-6 text-center mt-3 mx-4"><div className="text-3xl mb-2">📡</div><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
-  if (!st.posts.length) return <div className="py-16 px-6 text-center"><div className="text-4xl mb-2">🌱</div><p className="font-semibold t-hi mb-1">quiet in here</p><p className="text-[13px] t-mid mb-4">be the first — say what's on your mind.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>write something</button></div>;
+  if (st.error) return <div className="card p-6 text-center mt-3 mx-4"><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
+  if (!st.posts.length) return <div className="py-16 px-6 text-center"><p className="font-semibold t-hi mb-1">quiet in here</p><p className="text-[13px] t-mid mb-4">be the first — say what's on your mind.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>write something</button></div>;
   return (
     <div>
       {st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={removePost} />)}
@@ -2262,10 +2252,9 @@ function NotesRail({ myAvatar, myName, onOpenThread }) {
   return (
     <>
       <div className="v2-stories flex items-end gap-4 overflow-x-auto pb-3 mb-2 -mx-4 px-4" style={{ borderBottom: '.5px solid var(--border)' }}>
-        <button className="flex flex-col items-center gap-1.5 shrink-0" style={{ background: 'none', border: 'none', maxWidth: 96 }} onClick={() => { setDraft(mine?.text || ''); setEditOpen(true); }}>
-          {bubble(mine?.text || 'share a note…', !mine)}
+        <button className="flex flex-col items-center justify-end gap-1.5 shrink-0" style={{ background: 'none', border: 'none', maxWidth: 96 }} onClick={() => { setDraft(mine?.text || ''); setEditOpen(true); }}>
           <Avatar url={myAvatar} name={myName} size={56} />
-          <span className="text-[10.5px] t-mid">your note</span>
+          <span className={`text-[10.5px] ${mine ? 't-hi' : 't-mid'} text-center`} style={{ maxWidth: 88, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.25 }}>{mine?.text || 'share a note'}</span>
         </button>
         {others.map((n) => (
           <button key={n.handle} className="flex flex-col items-center gap-1.5 shrink-0" style={{ background: 'none', border: 'none', maxWidth: 96 }} onClick={() => onOpenThread('@' + n.handle)}>
@@ -2344,7 +2333,7 @@ function DMPane({ active, reloadKey, onOpenThread, myAvatar, myName }) {
                       <p className={`text-[14px] t-hi truncate ${c.unread ? 'font-bold' : 'font-semibold'}`}>{c.displayName || ('@' + c.handle)}</p>
                       {c.lastAt && <span className={`text-[11px] shrink-0 ml-auto ${c.unread ? 'font-bold' : 't-lo'}`} style={c.unread ? { color: '#ef4444' } : undefined}>{timeAgo(c.lastAt)}</span>}
                     </div>
-                    <p className={`text-[12.5px] truncate mt-0.5 ${c.unread ? 't-hi font-semibold' : 't-mid'}`}>{c.mine ? 'you: ' : ''}{c.lastText || 'say hi 👋'}</p>
+                    <p className={`text-[12.5px] truncate mt-0.5 ${c.unread ? 't-hi font-semibold' : 't-mid'}`}>{c.mine ? 'you: ' : ''}{c.lastText || 'say hi'}</p>
                   </div>
                   {c.unread && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />}
                 </motion.button>
@@ -2473,7 +2462,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
               <Avatar url={other.avatarUrl} name={other.displayName || other.handle || h} size={76} ring />
               <p className="font-semibold t-hi mt-3">{name}</p>
               <p className="text-[12px] t-lo mb-4">@{other.handle || h}</p>
-              <motion.button whileTap={{ scale: 0.92 }} className="btn btn-ghost" style={{ maxWidth: 160 }} onClick={() => send('👋')}>say hi 👋</motion.button>
+              <motion.button whileTap={{ scale: 0.92 }} className="btn btn-ghost" style={{ maxWidth: 160 }} onClick={() => send('👋')}>say hi</motion.button>
               {import.meta.env.DEV && <p className="text-[11px] t-lo mt-3">Messages persist once the server is live.</p>}
             </div>
           ) : st.msgs.map((m, i) => {
@@ -2833,7 +2822,7 @@ function Shell() {
       {/* desktop right rail */}
       <aside className="v2-desk v2-rail">
         <div className="card p-4">
-          <p className="font-bold t-hi t-serif text-[15px]">Hi, {firstName} 👋</p>
+          <p className="font-bold t-hi t-serif text-[15px]">Hi, {firstName}</p>
           <p className="text-[12px] t-mid mt-1">Your education money, sorted.</p>
         </div>
         <div className="card p-3">

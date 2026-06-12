@@ -190,7 +190,7 @@ export function Leeboon({ nav, d, news, inFeed, inChat }) {
     if (chatSince.current) {
       const away = Date.now() - chatSince.current;
       chatSince.current = 0;
-      if (away > 30000) setTimeout(() => react({ mood: 'curious', bubble: 'i was waiting for you… what were you doing ?? 👀' }, 5000), 700);
+      if (away > 30000) setTimeout(() => react({ mood: 'curious', bubble: 'i was waiting for you… what were you doing?' }, 5000), 700);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inChat]);
@@ -203,7 +203,7 @@ export function Leeboon({ nav, d, news, inFeed, inChat }) {
     if (open) return undefined;
     if (!newsCount || inFeed) { setHype(null); wanderPaused.current = false; return undefined; }
     wanderPaused.current = true;
-    const NEWS_LINES = { dm: 'you got a message!! ✉️', like: 'someone liked your post!! ❤️', comment: 'new comment on your post!! 💬', follow: 'new follower!! 🎉', follow_post: 'fresh post from your people!! ✨' };
+    const NEWS_LINES = { dm: 'you got a message!', like: 'someone liked your post!', comment: 'new comment on your post!', follow: 'new follower!', follow_post: 'fresh post from your people!' };
     const excite = () => {
       const w = window.innerWidth, hh = window.innerHeight;
       // anchor to the REAL Feed tab: stand in the footer right beside it, arm toward the icon
@@ -220,8 +220,8 @@ export function Leeboon({ nav, d, news, inFeed, inChat }) {
       goTo(clamp(p.top, 8, hh - SPRITE_H - 2), clamp(p.left, 8, w - SPRITE_W - 8));
       setFacing('left');
       applyMood('excited');
-      const main = NEWS_LINES[news?.latest?.type] || 'something happened in the feed!!';
-      setHype(hypeTick.current % 2 === 0 ? main : 'tap the Feed!!');
+      const main = NEWS_LINES[news?.latest?.type] || 'something happened in the feed!';
+      setHype(hypeTick.current % 2 === 0 ? main : 'tap the Feed!');
       hypeTick.current += 1;
     };
     excite();
@@ -295,10 +295,10 @@ export function Leeboon({ nav, d, news, inFeed, inChat }) {
     if (msgs.length === 0) setMsgs([{ who: 'bot', text: "Hiii, I'm Leeboon 🐥 — tell me what you spent, what to create, or where to go." }]);
     if ((news?.dm || 0) + (news?.other || 0) > 0) {
       const actions = [
-        ...(news.dm > 0 ? [{ label: `💬 ${news.dm} new message${news.dm > 1 ? 's' : ''} — open chats`, go: () => ctx.nav('feed', { sub: 'messages' }) }] : []),
-        ...(news.other > 0 ? [{ label: `❤️ ${news.other} like${news.other > 1 ? 's' : ''}/comment${news.other > 1 ? 's' : ''} & more — see them`, go: () => ctx.nav('feed', { sub: 'notifications' }) }] : []),
+        ...(news.dm > 0 ? [{ label: `${news.dm} new message${news.dm > 1 ? 's' : ''} — open chats`, go: () => ctx.nav('feed', { sub: 'messages' }) }] : []),
+        ...(news.other > 0 ? [{ label: `${news.other} like${news.other > 1 ? 's' : ''} & comment${news.other > 1 ? 's' : ''} — see them`, go: () => ctx.nav('feed', { sub: 'notifications' }) }] : []),
       ];
-      setMsgs((m) => (m[m.length - 1]?.actions ? m : [...m, { who: 'bot', text: 'AAAH big news!! 🎉 look look:', actions }]));
+      setMsgs((m) => (m[m.length - 1]?.actions ? m : [...m, { who: 'bot', text: 'big news — look:', actions }]));
     }
   };
   const send = async () => {
