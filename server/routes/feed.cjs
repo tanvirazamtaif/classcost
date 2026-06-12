@@ -89,7 +89,7 @@ router.get('/posts', async (req, res) => {
     const likedSet = new Set(mine.map((l) => l.postId));
     res.json({
       posts: posts.map((p) => ({
-        id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt,
+        id: p.id, text: p.text, imageUrl: p.imageUrl, pinned: !!p.pinned, createdAt: p.createdAt,
         handle: p.author?.handle, displayName: p.author?.displayName, avatarUrl: p.author?.avatarUrl,
         likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId,
       })),
@@ -123,7 +123,7 @@ router.get('/posts/:id', async (req, res) => {
     const p = await prisma.feedPost.findUnique({ where: { id: req.params.id }, include: { author: true, _count: { select: { likes: true, comments: true } } } });
     if (!p) return res.status(404).json({ error: 'Post not found' });
     const liked = await prisma.feedLike.findUnique({ where: { postId_userId: { postId: p.id, userId } } });
-    res.json({ post: { id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt, handle: p.author.handle, displayName: p.author.displayName, avatarUrl: p.author.avatarUrl, likes: p._count.likes, comments: p._count.comments, likedByMe: !!liked, mine: p.authorId === userId } });
+    res.json({ post: { id: p.id, text: p.text, imageUrl: p.imageUrl, pinned: !!p.pinned, createdAt: p.createdAt, handle: p.author.handle, displayName: p.author.displayName, avatarUrl: p.author.avatarUrl, likes: p._count.likes, comments: p._count.comments, likedByMe: !!liked, mine: p.authorId === userId } });
   } catch (err) { console.error('post get:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
@@ -288,6 +288,19 @@ router.post('/notes', async (req, res) => {
   } catch (err) { console.error('note set:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
+// POST /api/feed/posts/:id/pin { pinned } — pin/unpin own post on the profile grid
+router.post('/posts/:id/pin', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const post = await prisma.feedPost.findUnique({ where: { id: req.params.id } });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.authorId !== userId) return res.status(403).json({ error: 'Not your post' });
+    const pinned = !!req.body.pinned;
+    await prisma.feedPost.update({ where: { id: post.id }, data: { pinned } });
+    res.json({ ok: true, pinned });
+  } catch (err) { console.error('pin:', err); res.status(500).json({ error: 'Failed' }); }
+});
+
 // ── likes ──
 router.post('/posts/:id/like', async (req, res) => {
   const userId = authUser(req, res); if (!userId) return;
@@ -421,11 +434,11 @@ router.get('/profile/u/:handle/posts', async (req, res) => {
   try {
     const profile = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
     if (!profile) return res.status(404).json({ error: 'No such user' });
-    const posts = await prisma.feedPost.findMany({ where: { authorId: profile.userId }, orderBy: { createdAt: 'desc' }, take: 30, include: { author: true, _count: { select: { likes: true, comments: true } } } });
+    const posts = await prisma.feedPost.findMany({ where: { authorId: profile.userId }, orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }], take: 30, include: { author: true, _count: { select: { likes: true, comments: true } } } });
     const ids = posts.map((p) => p.id);
     const mine = ids.length ? await prisma.feedLike.findMany({ where: { userId, postId: { in: ids } }, select: { postId: true } }) : [];
     const likedSet = new Set(mine.map((l) => l.postId));
-    res.json({ posts: posts.map((p) => ({ id: p.id, text: p.text, imageUrl: p.imageUrl, createdAt: p.createdAt, handle: p.author?.handle, displayName: p.author?.displayName, avatarUrl: p.author?.avatarUrl, likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId })) });
+    res.json({ posts: posts.map((p) => ({ id: p.id, text: p.text, imageUrl: p.imageUrl, pinned: !!p.pinned, createdAt: p.createdAt, handle: p.author?.handle, displayName: p.author?.displayName, avatarUrl: p.author?.avatarUrl, likes: p._count.likes, comments: p._count.comments, likedByMe: likedSet.has(p.id), mine: p.authorId === userId })) });
   } catch (err) { console.error('profile posts:', err); res.status(500).json({ error: 'Failed' }); }
 });
 

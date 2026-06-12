@@ -253,6 +253,7 @@ export async function getFeedPost(id) { return request(`/api/feed/posts/${encode
 // Profile edit + content delete
 export async function updateMyProfile(data) { return request('/api/feed/profile', { method: 'POST', body: JSON.stringify(data) }); }
 export async function deletePost(id) { return request(`/api/feed/posts/${id}`, { method: 'DELETE' }); }
+export async function pinPost(id, pinned) { return request(`/api/feed/posts/${encodeURIComponent(id)}/pin`, { method: 'POST', body: JSON.stringify({ pinned }) }); }
 export async function deleteComment(postId, commentId) { return request(`/api/feed/posts/${postId}/comments/${commentId}`, { method: 'DELETE' }); }
 
 // ── Education Fees ─────────────────────────────────────────────────────────

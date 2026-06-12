@@ -96,6 +96,7 @@ model FeedPost {
   author    FeedProfile @relation(fields: [authorId], references: [userId], onDelete: Cascade)
   text      String
   imageUrl  String?
+  pinned    Boolean     @default(false) // pinned to the top of the author's profile grid
   createdAt DateTime    @default(now())
 
   likes    FeedLike[]

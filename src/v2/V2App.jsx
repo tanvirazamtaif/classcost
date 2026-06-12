@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus, Pause, Play } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus, Pause, Play, Pin, EyeOff, Link as LinkIcon } from 'lucide-react';
 import { motion, useDragControls } from 'framer-motion';
 import { haptics } from '../lib/haptics';
 import { V2Provider, useV2 } from './store';
@@ -23,7 +23,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions, getFollowers, getFollowing, getNotes, setNote } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions, getFollowers, getFollowing, getNotes, setNote, pinPost } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -1189,6 +1189,8 @@ const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f97316', '#0ea5e9', '#8b5cf6', '#
 // color follows the INITIAL letter (not the whole string) so "Tanvir Azam", "tanvir" and "@tanvir"
 // all paint identically — no color flash while different name sources hydrate on reload
 const avatarColor = (name) => { const ch = ((name || 'S').toString().trim().charAt(0) || 'S').toUpperCase(); return AVATAR_COLORS[(ch.charCodeAt(0) * 7) % AVATAR_COLORS.length]; };
+const hiddenPosts = () => { try { return new Set(JSON.parse(localStorage.getItem('cc_hidden_posts') || '[]')); } catch { return new Set(); } };
+const hidePostId = (id) => { try { const a = JSON.parse(localStorage.getItem('cc_hidden_posts') || '[]'); if (!a.includes(id)) a.push(id); localStorage.setItem('cc_hidden_posts', JSON.stringify(a.slice(-300))); } catch { /* ignore */ } };
 const fmtCount = (n) => { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K'; return String(n); };
 // emoji-only messages (❤️, 😂😂 …) render bare and big — no bubble around them
 const isEmojiOnly = (t) => {
@@ -1269,7 +1271,9 @@ function FeedScreen({ nav, back, params }) {
   const openThread = (hh) => nav('feed', { ...(params || {}), dm: hh });
   const threadToProfile = (hh) => { const { dm, ...rest } = params || {}; nav('feed', { ...rest, user: (hh || '').replace('@', '') }); };
   const goEdit = () => nav('feed', { sub: 'edit-profile' });
-  const openPost = async (pid) => { try { const r = await getFeedPost(pid); if (r?.post) setCommentsFor(r.post); } catch { ccToast('Post unavailable'); } };
+  const consumedPost = useRef(null);
+  useEffect(() => { const pid = params?.post; if (pid && consumedPost.current !== pid) { consumedPost.current = pid; openPost(pid); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [params?.post]);
+  const openPost = async (pid) => { try { const r = await getFeedPost(pid); if (r?.post) nav('feed', { sub: 'posts', pof: (r.post.handle || '').replace('@', ''), pid }); } catch { ccToast('Post unavailable'); } };
   const openPosts = (hh, pid) => nav('feed', { sub: 'posts', pof: (hh || '').replace('@', ''), pid });
   const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications', posts: 'Posts', discover: 'Discover people' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
@@ -1543,7 +1547,7 @@ function StoryViewer({ groups, start, onClose, onChanged }) {
           <button className="p-1.5 text-[20px] leading-none" style={{ color: '#fff', background: 'none', border: 'none' }} onClick={onClose} aria-label="Close">✕</button>
         </div>
         {/* image + tap zones */}
-        {!loaded && <div className="absolute inset-0 flex items-center justify-center z-[4]"><div className="v2-skel rounded-full" style={{ width: 42, height: 42 }} /></div>}
+        {!loaded && <div className="absolute inset-0 flex items-center justify-center z-[4]"><div className="v2-spin" /></div>}
         <img src={s.imageUrl} alt="" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity .2s' }} draggable={false} onLoad={() => setLoaded(true)} />
         <button className="absolute left-0 z-[5]" style={{ width: '33%', top: 0, bottom: 76, background: 'none', border: 'none' }} onClick={prevStory} aria-label="Previous" />
         <button className="absolute right-0 z-[5]" style={{ width: '67%', top: 0, bottom: 76, background: 'none', border: 'none' }} onClick={nextStory} aria-label="Next" />
@@ -1626,6 +1630,9 @@ function NotificationsPane({ onSeen, onOpenUser, onOpenThread, onOpenPost }) {
           {!expanded && st.items.length > 5 && (
             <button className="btn btn-ghost mt-3" onClick={() => setExpanded(true)}>See all ({st.items.length})</button>
           )}
+          {expanded && st.items.length > 5 && (
+            <button className="btn btn-ghost mt-3" onClick={() => { setExpanded(false); try { window.scrollTo(0, 0); } catch { /* noop */ } }}>Show less</button>
+          )}
         </>
       )}
     </div>
@@ -1696,7 +1703,8 @@ function ExplorePane({ onOpenPost, onOpenUser }) {
     const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) loadMore(); }, { rootMargin: '400px' });
     io.observe(node); return () => io.disconnect();
   }, [st.posts.length, results]);
-  const tiles = st.posts.filter((p) => p.imageUrl);
+  const hiddenT = hiddenPosts();
+  const tiles = st.posts.filter((p) => p.imageUrl && !hiddenT.has(p.id));
   return (
     <div>
       <div className="px-4 pt-3 pb-2">
@@ -1764,7 +1772,7 @@ function FeedOnboard({ onDone }) {
 }
 function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMessage, onEdit, onOpenPosts, onDiscover }) {
   const h = (handle || '').replace('@', '');
-  const { topSpaces } = useV2();
+  const { topSpaces, user: accountUser } = useV2();
   const [prof, setProf] = useState(null);
   const [posts, setPosts] = useState(null);
   const [err, setErr] = useState('');
@@ -1785,14 +1793,23 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
     getUserPosts(h).then((r) => { if (on) setPosts(r?.posts || []); }).catch(() => { if (on) setPosts([]); });
     return () => { on = false; };
   }, [h]);
-  useEffect(() => { // auto-adopt the user's academic institute (school/college/university — never coaching), once
-    if (!prof?.isMe || prof?.institute) return;
-    let done = false; try { done = localStorage.getItem('cc_inst_adopted') === '1'; } catch { /* ignore */ }
-    if (done) return;
-    const elig = (topSpaces() || []).filter((s) => s.type === 'institute' && s.system?.env !== 'coaching');
-    if (!elig.length) return;
-    updateMyProfile({ handle: prof.handle, institute: elig[0].name })
-      .then(() => { setProf((c) => (c ? { ...c, institute: elig[0].name } : c)); try { localStorage.setItem('cc_inst_adopted', '1'); } catch { /* ignore */ } })
+  useEffect(() => { // auto-adopt from the ClassCost account: display name + academic institute (never coaching), once each
+    if (!prof?.isMe) return;
+    let nameDone = false, instDone = false;
+    try { nameDone = localStorage.getItem('cc_name_adopted') === '1'; instDone = localStorage.getItem('cc_inst_adopted') === '1'; } catch { /* ignore */ }
+    const patch = {};
+    const accName = (accountUser?.name || '').trim();
+    if (!prof.displayName && !nameDone && accName && accName !== 'Student') patch.displayName = accName.slice(0, 60);
+    if (!prof.institute && !instDone) {
+      const elig = (topSpaces() || []).filter((s) => s.type === 'institute' && s.system?.env !== 'coaching');
+      if (elig.length) patch.institute = elig[0].name;
+    }
+    if (!Object.keys(patch).length) return;
+    updateMyProfile({ handle: prof.handle, ...patch })
+      .then(() => {
+        setProf((c) => (c ? { ...c, ...patch } : c));
+        try { if (patch.displayName) localStorage.setItem('cc_name_adopted', '1'); if (patch.institute) localStorage.setItem('cc_inst_adopted', '1'); } catch { /* ignore */ }
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prof]);
@@ -1862,6 +1879,7 @@ function FeedProfileView({ handle, onClose, embedded, onComment, onAuthor, onMes
                 {p.imageUrl
                   ? <img src={p.imageUrl} alt="" className="block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
                   : <span className="absolute inset-0 flex items-center justify-center text-center p-2 text-[11px] font-medium t-hi" style={{ lineHeight: 1.3, overflow: 'hidden' }}>{p.text}</span>}
+                {p.pinned && <span className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,.55)' }}><Pin size={11} color="#fff" /></span>}
               </button>
             ))}
           </div>
@@ -2082,15 +2100,32 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
     if (now - lastTap.current < 300) { doLike(true); setPop(true); setTimeout(() => setPop(false), 750); }
     lastTap.current = now;
   };
+  const [pinned, setPinned] = useState(!!p.pinned);
+  const postUrl = `${window.location.origin}/?p=${p.id}`;
   const share = async () => {
     const txt = `${p.displayName || ('@' + p.handle)} on ClassCost:\n${p.text || ''}`;
-    try { if (navigator.share) await navigator.share({ text: txt }); else { await navigator.clipboard.writeText(txt); ccToast('Copied to clipboard'); } } catch { /* cancelled */ }
+    try { if (navigator.share) await navigator.share({ text: txt, url: postUrl }); else { await navigator.clipboard.writeText(postUrl); ccToast('Link copied'); } } catch { /* cancelled */ }
+  };
+  const copyLink = async () => {
+    setMenu(false);
+    try { await navigator.clipboard.writeText(postUrl); ccToast('Link copied'); } catch { ccToast('Could not copy'); }
+  };
+  const togglePin = async () => {
+    setMenu(false);
+    const next = !pinned; setPinned(next);
+    try { await pinPost(p.id, next); ccToast(next ? 'Pinned to your profile' : 'Unpinned'); } catch { setPinned(!next); ccToast('Could not update'); }
+  };
+  const hide = () => {
+    setMenu(false);
+    hidePostId(p.id); ccToast('Post hidden');
+    onDeleted && onDeleted(p.id); // removes it from the current list; persists via localStorage
   };
   const del = async () => {
     setMenu(false);
     if (!window.confirm('Delete this post?')) return;
     try { await deletePost(p.id); ccToast('Post deleted'); onDeleted && onDeleted(p.id); } catch { ccToast('Could not delete'); }
   };
+  const menuItem = 'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium text-left t-hi';
   return (
     <article className="pt-3 pb-2.5" style={{ borderBottom: '.5px solid var(--border)' }}>
       <div className="px-4 flex items-center gap-2 mb-2.5">
@@ -2103,10 +2138,13 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
           {menu && (
             <>
               <div className="fixed inset-0 z-[39]" onClick={() => setMenu(false)} />
-              <div className="absolute right-0 top-7 z-40 card p-1" style={{ minWidth: 150, boxShadow: '0 10px 28px rgba(0,0,0,.35)' }}>
+              <div className="absolute right-0 top-7 z-40 card p-1" style={{ minWidth: 170, boxShadow: '0 10px 28px rgba(0,0,0,.35)' }}>
+                {p.mine && <button className={menuItem} onClick={togglePin}><Pin size={15} />{pinned ? 'Unpin from profile' : 'Pin to profile'}</button>}
+                <button className={menuItem} onClick={copyLink}><LinkIcon size={15} />Copy link</button>
+                {!p.mine && <button className={menuItem} onClick={hide}><EyeOff size={15} />Hide post</button>}
                 {p.mine
                   ? <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium text-left" style={{ color: '#ef4444' }} onClick={del}><Trash2 size={15} />Delete post</button>
-                  : <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium text-left t-hi" onClick={() => { setMenu(false); setReportOpen(true); }}><Flag size={15} />Report post</button>}
+                  : <button className={menuItem} onClick={() => { setMenu(false); setReportOpen(true); }}><Flag size={15} />Report post</button>}
               </div>
             </>
           )}
@@ -2128,7 +2166,7 @@ function FeedPostCard({ p, onComment, onAuthor, onDeleted }) {
       </div>
       <div className="px-4 pt-1.5">
         {likes > 0 && <p className="text-[13px] font-semibold t-hi">{likes} like{likes === 1 ? '' : 's'}</p>}
-        {p.imageUrl && p.text && <p className="text-[13.5px] t-hi mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4 }}><button className="font-semibold" onClick={() => onAuthor && onAuthor(p.handle)}>{p.displayName || p.handle}</button> {p.text}</p>}
+        {p.imageUrl && p.text && <p className="text-[13.5px] t-hi mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4 }}>{p.text}</p>}
         {(p.comments || 0) > 0 && <button className="text-[12.5px] t-lo mt-0.5 block" onClick={() => onComment && onComment(p)}>view all {p.comments} comment{p.comments === 1 ? '' : 's'}</button>}
       </div>
       {reportOpen && <ReportSheet onClose={() => setReportOpen(false)} onSubmit={async (reason) => { try { await reportContent('post', p.id, reason); ccToast("Thanks — we'll review it"); } catch { ccToast('Could not report'); } setReportOpen(false); }} />}
@@ -2175,9 +2213,10 @@ function FeedListPane({ reloadKey, onCompose, onComment, onAuthor }) {
   );
   if (st.error) return <div className="card p-6 text-center mt-3 mx-4"><p className="text-[13px] t-mid">Couldn't load the feed{import.meta.env.DEV ? ' — no backend in local dev.' : '.'} It works once the server is live.</p></div>;
   if (!st.posts.length) return <div className="py-16 px-6 text-center"><p className="font-semibold t-hi mb-1">quiet in here</p><p className="text-[13px] t-mid mb-4">be the first — say what's on your mind.</p><button className="btn btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={onCompose}>write something</button></div>;
+  const hidden = hiddenPosts();
   return (
     <div>
-      {st.posts.map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={removePost} />)}
+      {st.posts.filter((p) => !hidden.has(p.id)).map((p) => <FeedPostCard key={p.id} p={p} onComment={onComment} onAuthor={onAuthor} onDeleted={removePost} />)}
       {cursorRef.current && <div ref={sentinel} className="py-4 text-center text-[12px] t-lo">{more ? 'Loading more…' : ' '}</div>}
     </div>
   );
@@ -2687,9 +2726,11 @@ function Shell() {
   // restore the last route on reload — history.state survives a reload, sessionStorage is the fallback
   const navInit = useRef(undefined);
   if (navInit.current === undefined) {
-    let deepUser = null;
-    try { deepUser = new URLSearchParams(window.location.search).get('u'); } catch { deepUser = null; }
-    if (deepUser) { // shared profile link: classcost.com/?u=handle
+    let deepUser = null, deepPost = null;
+    try { const q = new URLSearchParams(window.location.search); deepUser = q.get('u'); deepPost = q.get('p'); } catch { deepUser = null; deepPost = null; }
+    if (deepPost) { // shared post link: classcost.com/?p=postId
+      navInit.current = { route: { view: 'feed', params: { post: deepPost } }, stack: [{ view: 'feed', params: {} }] };
+    } else if (deepUser) { // shared profile link: classcost.com/?u=handle
       navInit.current = { route: { view: 'feed', params: { user: deepUser.replace('@', '') } }, stack: [{ view: 'feed', params: {} }] };
     } else {
       let snap = null;
@@ -2716,7 +2757,7 @@ function Shell() {
   useEffect(() => {
     try {
       let cleanUrl;
-      try { const uu = new URL(window.location); if (uu.searchParams.has('u')) { uu.searchParams.delete('u'); cleanUrl = uu.toString(); } } catch { cleanUrl = undefined; }
+      try { const uu = new URL(window.location); if (uu.searchParams.has('u') || uu.searchParams.has('p')) { uu.searchParams.delete('u'); uu.searchParams.delete('p'); cleanUrl = uu.toString(); } } catch { cleanUrl = undefined; }
       window.history.replaceState({ ...(window.history.state || {}), ccNav: { route, stack: stack.current } }, '', cleanUrl);
     } catch { /* noop */ }
     const onPop = (e) => {

@@ -99,6 +99,10 @@
   .v2-deskitem.active { background: var(--accent); color: var(--accent-text); }
 }
 
+/* minimal spinner */
+.v2-spin { width: 26px; height: 26px; border-radius: 999px; border: 2px solid rgba(255,255,255,.22); border-top-color: rgba(255,255,255,.85); animation: v2rot .8s linear infinite; }
+@keyframes v2rot { to { transform: rotate(360deg); } }
+
 /* unread DM blink */
 @keyframes v2blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
