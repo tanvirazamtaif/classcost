@@ -1,6 +1,6 @@
 // ClassCost v2 — app shell + screens. Theme from v1's getThemeColors() (light + dark), via CSS vars.
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus, Pause, Play, Pin, EyeOff, Link as LinkIcon } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, ChevronDown, Utensils, Bus, Sparkles, Sun, Moon, Home as HomeIcon, CalendarDays, BarChart3, Settings as SettingsIcon, GraduationCap, Building2, Users, Bike, Repeat, Package, Menu, Bell, LogOut, Lock, Download, Newspaper, PenSquare, Search, Heart, MessageCircle, Share2, Image as ImageIcon, Flag, Send, User, MoreHorizontal, Trash2, Camera, Compass, Reply, UserPlus, Pause, Play, Pin, EyeOff, Link as LinkIcon, Smile } from 'lucide-react';
 import { motion, useDragControls } from 'framer-motion';
 import { haptics } from '../lib/haptics';
 import { V2Provider, useV2 } from './store';
@@ -2402,6 +2402,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [showJump, setShowJump] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [replyTo, setReplyTo] = useState(null); // message being replied to
   const [flashId, setFlashId] = useState(null); // briefly highlight the jumped-to original
   const scrollRef = useRef(null);
@@ -2586,6 +2587,13 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
           </motion.button>
         )}
         <div style={{ borderTop: '.5px solid var(--border)', background: 'var(--sheet-bg)' }}>
+          {emojiOpen && (
+            <div className="flex flex-wrap gap-0.5 px-3 pt-2" style={{ borderBottom: '.5px solid var(--border)', paddingBottom: 8 }}>
+              {['😀','😂','🥰','😍','😊','😉','😎','🤩','😅','🙃','😢','😭','😤','😡','🥺','🤔','🙄','😴','🤗','🤭','👍','👎','👏','🙏','🔥','💯','🎉','❤️','💔','✨','😈','🫶'].map((e) => (
+                <button key={e} className="text-[22px] leading-none p-1" style={{ background: 'none', border: 'none' }} onClick={() => { setText((t) => t + e); inputRef.current?.focus(); }}>{e}</button>
+              ))}
+            </div>
+          )}
           {replyTo && (
             <div className="px-3 pt-2 flex items-center gap-2">
               <div className="flex-1 min-w-0 px-2.5 py-1.5 rounded-md" style={{ background: 'var(--pill-bg)', borderLeft: '2px solid var(--accent)' }}>
@@ -2596,6 +2604,9 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             </div>
           )}
           <div className="px-3 py-2.5 flex items-center gap-2">
+          <button className="p-1 shrink-0" style={{ background: 'none', border: 'none', color: emojiOpen ? 'var(--accent)' : 'var(--text2)' }} onClick={() => setEmojiOpen((v) => !v)} aria-label="Emojis">
+            <Smile size={24} strokeWidth={2} />
+          </button>
           <button className="t-mid p-1 shrink-0" style={{ background: 'none', border: 'none', opacity: upBusy ? 0.5 : 1 }} disabled={upBusy} onClick={() => fileRef.current?.click()} aria-label="Send a photo">
             <ImageIcon size={24} strokeWidth={2} />
           </button>
