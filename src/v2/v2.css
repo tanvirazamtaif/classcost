@@ -98,6 +98,13 @@
   .v2-deskitem.active { background: var(--accent); color: var(--accent-text); }
 }
 
+/* chat typing indicator — three bouncing dots */
+.v2-typing { display: inline-flex; align-items: center; gap: 4px; }
+.v2-typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); display: inline-block; animation: v2typing 1.2s infinite ease-in-out; }
+.v2-typing i:nth-child(2) { animation-delay: .2s; }
+.v2-typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes v2typing { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+
 /* minimal spinner */
 .v2-spin { width: 26px; height: 26px; border-radius: 999px; border: 2px solid rgba(255,255,255,.22); border-top-color: rgba(255,255,255,.85); animation: v2rot .8s linear infinite; }
 @keyframes v2rot { to { transform: rotate(360deg); } }

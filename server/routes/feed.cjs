@@ -522,13 +522,33 @@ router.get('/dm/:handle', async (req, res) => {
       update: {},
       create: { userAId: a, userBId: b },
     });
+    const meIsA = userId === a;
+    // the other side's read + typing state (read BEFORE we stamp our own read)
+    const otherReadAt = meIsA ? thread.bReadAt : thread.aReadAt;
+    const otherTypingAt = meIsA ? thread.bTypingAt : thread.aTypingAt;
+    const otherTyping = !!otherTypingAt && (Date.now() - new Date(otherTypingAt).getTime() < 6000);
+    // opening/viewing the thread marks it read for me
+    await prisma.dmThread.update({ where: { id: thread.id }, data: meIsA ? { aReadAt: new Date() } : { bReadAt: new Date() } });
     const messages = await prisma.dmMessage.findMany({ where: { threadId: thread.id }, orderBy: { createdAt: 'asc' }, take: 300 });
     res.json({
       threadId: thread.id,
       other: { handle: other.handle, displayName: other.displayName, avatarUrl: other.avatarUrl },
+      otherReadAt: otherReadAt || null,
+      otherTyping,
       messages: messages.map((m) => ({ id: m.id, text: m.text, imageUrl: m.imageUrl || null, mine: m.senderId === userId, createdAt: m.createdAt, replyToId: m.replyToId || null })),
     });
   } catch (err) { console.error('dm open:', err); res.status(500).json({ error: 'Failed to open conversation' }); }
+});
+// POST /api/feed/dm/:handle/typing — ephemeral typing heartbeat
+router.post('/dm/:handle/typing', async (req, res) => {
+  const userId = authUser(req, res); if (!userId) return;
+  try {
+    const other = await prisma.feedProfile.findUnique({ where: { handle: normHandle(req.params.handle) } });
+    if (!other || other.userId === userId) return res.json({ ok: true });
+    const [a, b] = orderPair(userId, other.userId);
+    await prisma.dmThread.updateMany({ where: { userAId: a, userBId: b }, data: userId === a ? { aTypingAt: new Date() } : { bTypingAt: new Date() } });
+    res.json({ ok: true });
+  } catch (err) { console.error('dm typing:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
 // POST /api/feed/dm/:handle  { text } — send a message to @handle

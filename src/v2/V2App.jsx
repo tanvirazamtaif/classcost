@@ -23,7 +23,7 @@ const v2Palette = (d) => d ? {
 import { Logo } from '../components/ui/Logo';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Leeboon } from './Leeboon';
-import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions, getFollowers, getFollowing, getNotes, setNote, pinPost } from '../api';
+import { getMyFeedProfile, claimHandle, listFeedPosts, createFeedPost, likePost, unlikePost, getComments, addComment, followUser, unfollowUser, searchUsers, getFeedProfile, getUserPosts, uploadFeedImage, reportContent, listConversations, getThread, sendDm, updateMyProfile, deletePost, deleteComment, getFeedNotifications, markNotificationsRead, getFeedPost, listStories, createStory, deleteStory, getSuggestions, getFollowers, getFollowing, getNotes, setNote, pinPost, sendTyping } from '../api';
 import { V2Landing } from './V2Landing';
 import './v2.css';
 
@@ -2416,11 +2416,14 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [replyTo, setReplyTo] = useState(null); // message being replied to
   const [flashId, setFlashId] = useState(null); // briefly highlight the jumped-to original
+  const [otherReadAt, setOtherReadAt] = useState(null); // when the other last read (seen receipts)
+  const [otherTyping, setOtherTyping] = useState(false); // is the other typing right now
   const scrollRef = useRef(null);
   const atBottomRef = useRef(true);
   const msgRefs = useRef({});
   const dragRef = useRef({ x: 0, id: null });
   const inputRef = useRef(null);
+  const lastTypingPing = useRef(0);
   useEffect(() => {
     let on = true;
     const load = (silent) => {
@@ -2429,17 +2432,20 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
         if (!on) return;
         // keep locally pending/failed bubbles across polls (the server doesn't know them yet)
         setSt((s) => ({ loading: false, msgs: [...(r?.messages || []), ...s.msgs.filter((m) => m.pending || m.failed)], other: r?.other || { handle: h }, err: false }));
+        setOtherReadAt(r?.otherReadAt || null);
+        setOtherTyping(!!r?.otherTyping);
       }).catch(() => { if (on) setSt((s) => ({ ...s, loading: false, err: true })); });
     };
     load(false);
     const id = setInterval(() => load(true), 2000);
     return () => { on = false; clearInterval(id); };
   }, [h]);
+  const pingTyping = () => { const now = Date.now(); if (now - lastTypingPing.current < 2500) return; lastTypingPing.current = now; sendTyping(h).catch(() => {}); };
   useEffect(() => {
     const el = scrollRef.current; if (!el) return;
     if (atBottomRef.current) el.scrollTop = el.scrollHeight;
-    else setShowJump(true);
-  }, [st.msgs.length]);
+    else if (st.msgs.length) setShowJump(true);
+  }, [st.msgs.length, otherTyping]);
   useEffect(() => { // reading the thread clears this sender's unread state (badge + convo dot)
     if (st.loading) return;
     markNotificationsRead(['dm'], h).then(() => { try { window.dispatchEvent(new CustomEvent('cc-news-refresh')); } catch { /* noop */ } }).catch(() => {});
@@ -2590,6 +2596,15 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
               </div>
             );
           })}
+          {(() => { const lm = st.msgs[st.msgs.length - 1]; const seen = lm && lm.mine && !lm.pending && !lm.failed && otherReadAt && new Date(otherReadAt) >= new Date(lm.createdAt); return seen ? <p className="text-[10px] t-lo mt-1 text-right pr-1 font-medium">Seen</p> : null; })()}
+          {otherTyping && (
+            <div className="flex items-end gap-1.5 justify-start" style={{ marginTop: 8 }}>
+              <span className="shrink-0"><Avatar url={other.avatarUrl} name={other.displayName || other.handle || h} size={24} /></span>
+              <div className="px-3.5 py-3" style={{ background: 'var(--card)', border: '.5px solid var(--border)', borderRadius: 16, borderBottomLeftRadius: 4 }}>
+                <span className="v2-typing"><i /><i /><i /></span>
+              </div>
+            </div>
+          )}
         </div>
         {showJump && (
           <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="absolute z-10 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-semibold"
@@ -2622,7 +2637,7 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
             <ImageIcon size={24} strokeWidth={2} />
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickImage} />
-          <input ref={inputRef} className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder={upBusy ? 'sending photo…' : (replyTo ? 'reply…' : 'message…')} autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
+          <input ref={inputRef} className="field flex-1" style={{ borderRadius: 999, padding: '.7rem 1.1rem' }} placeholder={upBusy ? 'sending photo…' : (replyTo ? 'reply…' : 'message…')} autoFocus value={text} onChange={(e) => { setText(e.target.value); if (e.target.value.trim()) pingTyping(); }} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} />
           {typed ? (
             <motion.button whileTap={{ scale: 0.8 }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
               style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '.5px solid var(--border)' }}

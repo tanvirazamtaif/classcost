@@ -156,6 +156,10 @@ model DmThread {
   userAId   String // lexicographically smaller userId of the pair
   userBId   String
   lastAt    DateTime    @default(now())
+  aReadAt   DateTime? // userA last opened the thread (read receipts)
+  bReadAt   DateTime? // userB last opened the thread
+  aTypingAt DateTime? // userA last typing heartbeat (ephemeral, ~6s window)
+  bTypingAt DateTime? // userB last typing heartbeat
   createdAt DateTime    @default(now())
   messages  DmMessage[]
 

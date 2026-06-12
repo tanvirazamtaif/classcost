@@ -232,6 +232,7 @@ export async function reportContent(targetType, targetId, reason) { return reque
 export async function listConversations() { return request('/api/feed/dm'); }
 export async function getThread(handle) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`); }
 export async function sendDm(handle, text, replyToId, imageUrl) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}`, { method: 'POST', body: JSON.stringify({ text, ...(replyToId ? { replyToId } : {}), ...(imageUrl ? { imageUrl } : {}) }) }); }
+export async function sendTyping(handle) { return request(`/api/feed/dm/${encodeURIComponent(String(handle).replace('@', ''))}/typing`, { method: 'POST', body: '{}' }); }
 
 // Notes (24h, atop Messages)
 export async function getNotes() { return request('/api/feed/notes'); }
