@@ -1468,7 +1468,7 @@ function StoriesRail({ myAvatar, myName, onOpen }) {
       <button className="flex flex-col items-center gap-1 shrink-0" style={{ background: 'none', border: 'none' }}
         onClick={() => (mine ? onOpen(groups.indexOf(mine), groups) : fileRef.current?.click())} aria-label={mine ? 'View your story' : 'Add a story'}>
         <span className="relative">
-          <span style={ring(!!mine && hasUnseen(mine))}><span style={inner}><Avatar url={myAvatar} name={myName} size={54} /></span></span>
+          <span style={ring(!!mine)}><span style={inner}><Avatar url={myAvatar} name={myName} size={54} /></span></span>
           <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full flex items-center justify-center font-bold" style={{ background: 'var(--accent)', color: 'var(--accent-text)', border: '2px solid var(--bg)', fontSize: 13, lineHeight: 1 }}
             onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>+</span>
         </span>
