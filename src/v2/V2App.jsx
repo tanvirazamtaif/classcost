@@ -433,7 +433,7 @@ function Institute({ nav, back, params }) {
   const linked = (s.linkedSpaceIds || []).map(spaceById).filter(Boolean);
   const clubs = linked.filter((sp) => sp.type === 'club');
   const residences = linked.filter((sp) => sp.type === 'residence');
-  const TABS = [{ i: 0, label: 'Main', Icon: HomeIcon }, { i: 1, label: 'Semesters', Icon: GraduationCap }, { i: 2, label: 'Club', Icon: Users }, { i: 3, label: 'Residence', Icon: Building2 }];
+  const TABS = [{ i: 0, label: 'Main', Icon: HomeIcon, color: '#6366f1' }, { i: 1, label: 'Semesters', Icon: GraduationCap, color: '#f59e0b' }, { i: 2, label: 'Club', Icon: Users, color: '#10b981' }, { i: 3, label: 'Residence', Icon: Building2, color: '#0ea5e9' }];
   const spaceList = (items, type) => (
     <div style={{ border: '.5px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
       {items.map((sp, i) => (
@@ -490,10 +490,11 @@ function Institute({ nav, back, params }) {
         </motion.div>
       </div>
       <div className="v2-feedfooter">
-        <div className="flex" style={{ background: 'var(--sheet-bg)', borderTop: '.5px solid var(--border)', borderBottom: '.5px solid var(--border)' }}>
-          {TABS.map(({ i, label, Icon }) => (
-            <button key={i} onClick={() => go(i)} className="flex-1 flex flex-col items-center gap-0.5 py-2" style={{ background: pane === i ? 'var(--accent)' : 'transparent', color: pane === i ? 'var(--accent-text)' : 'var(--text2)', borderLeft: i ? '.5px solid var(--border)' : undefined, transition: 'background .15s' }}>
-              <Icon size={17} /><span className="text-[10px] font-semibold tracking-wide">{label}</span>
+        <div className="flex items-center justify-around px-6 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
+          {TABS.map(({ i, label, Icon, color }) => (
+            <button key={i} onClick={() => go(i)} className="flex flex-col items-center shrink-0" aria-label={label} style={{ background: 'none', border: 'none' }}>
+              <Icon size={26} strokeWidth={2.2} style={{ color, opacity: pane === i ? 1 : 0.5 }} />
+              <span style={{ width: 4, height: 4, borderRadius: 999, marginTop: 4, background: pane === i ? color : 'transparent' }} />
             </button>
           ))}
         </div>
@@ -1241,7 +1242,7 @@ function ReportSheet({ onClose, onSubmit }) {
     </div>
   );
 }
-function FeedScreen({ nav, back, params }) {
+function FeedScreen({ nav, back, tab, params }) {
   const { user } = useV2();
   const [handle, setHandle] = useState(() => { try { return localStorage.getItem(FEED_KEY) || ''; } catch { return ''; } });
   const [myAvatar, setMyAvatarState] = useState(() => { try { return localStorage.getItem('cc_feed_avatar') || ''; } catch { return ''; } });
@@ -1288,12 +1289,17 @@ function FeedScreen({ nav, back, params }) {
   const openPosts = (hh, pid) => nav('feed', { sub: 'posts', pof: (hh || '').replace('@', ''), pid });
   const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications', posts: 'Posts', discover: 'Discover people' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
-  const HeadIcon = ({ s, Icon, label, active }) => (
-    <button onClick={() => goSub(s)} className="rounded-full flex items-center justify-center shrink-0" aria-label={label}
-      style={{ width: 38, height: 38, background: active ? 'var(--accent)' : 'var(--pill-bg)', color: active ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
-      <Icon size={19} strokeWidth={2} />
-    </button>
-  );
+  const FOOT_COLOR = { home: '#6366f1', explore: '#0ea5e9', compose: '#ec4899', messages: '#8b5cf6' };
+  const HeadIcon = ({ s, Icon, label, active, badge }) => {
+    const color = FOOT_COLOR[s] || 'var(--text2)';
+    return (
+      <button onClick={() => goSub(s)} className="relative flex flex-col items-center shrink-0" aria-label={label} style={{ background: 'none', border: 'none' }}>
+        <Icon size={27} strokeWidth={2.2} style={{ color, opacity: active ? 1 : 0.5 }} />
+        {badge > 0 && <span className="absolute -top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: '#ef4444' }}>{badge > 9 ? '9+' : badge}</span>}
+        <span style={{ width: 4, height: 4, borderRadius: 999, marginTop: 4, background: active ? color : 'transparent' }} />
+      </button>
+    );
+  };
   return (
     <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: ownHeader ? undefined : 156 }}>
       {/* sticky top bar — home: logo + breadcrumb + messages; sub-pages: back + title */}
@@ -1301,10 +1307,11 @@ function FeedScreen({ nav, back, params }) {
         <header className="px-4 py-3 flex items-center gap-2" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderBottom: '.5px solid var(--border)' }}>
           {sub === 'home' ? (
             <>
-              <span className="flex items-center gap-2 flex-1 min-w-0">
+              <button onClick={() => tab && tab('home')} className="t-mid p-1 -ml-1 shrink-0" aria-label="Back to home"><ChevronLeft size={22} /></button>
+              <button onClick={() => tab && tab('home')} className="flex items-center gap-2 flex-1 min-w-0 text-left" style={{ background: 'none', border: 'none' }}>
                 <Logo size={24} />
                 <span className="text-[15px] t-serif truncate"><span className="t-mid">classcost</span><span className="t-lo"> › </span><span className="font-bold t-hi">feed</span></span>
-              </span>
+              </button>
               <button onClick={() => goSub('notifications')} className="relative rounded-full flex items-center justify-center shrink-0 t-mid" aria-label="Notifications"
                 style={{ width: 38, height: 38, background: 'var(--pill-bg)', border: '.5px solid var(--border)' }}>
                 <Bell size={18} strokeWidth={2} />
@@ -1339,18 +1346,16 @@ function FeedScreen({ nav, back, params }) {
       {/* secondary footer — off-white bar with side borders; persistent feed navigation */}
       {!ownHeader && (
         <div className="v2-feedfooter">
-          <div className="flex items-center justify-center gap-8 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
+          <div className="flex items-center justify-around px-6 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
             <HeadIcon s="home" Icon={HomeIcon} label="Feed home" active={sub === 'home'} />
             <HeadIcon s="explore" Icon={Compass} label="Explore" active={sub === 'explore'} />
             <HeadIcon s="compose" Icon={Plus} label="New post" />
-            <button onClick={() => goSub('messages')} className="relative rounded-full flex items-center justify-center shrink-0" aria-label="Messages"
-              style={{ width: 38, height: 38, background: sub === 'messages' ? 'var(--accent)' : 'var(--pill-bg)', color: sub === 'messages' ? 'var(--accent-text)' : 'var(--text2)', border: '.5px solid var(--border)', transition: 'background .15s, color .15s' }}>
-              <Send size={19} strokeWidth={2} />
-              {unread.dm > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#ef4444' }}>{unread.dm > 9 ? '9+' : unread.dm}</span>}
-            </button>
-            <button onClick={() => goSub('profile')} className="shrink-0" aria-label="Your profile"
-              style={(sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : undefined}>
-              <Avatar url={myAvatar} name={user?.name || myHandle} size={38} />
+            <HeadIcon s="messages" Icon={Send} label="Messages" active={sub === 'messages'} badge={unread.dm} />
+            <button onClick={() => goSub('profile')} className="flex flex-col items-center shrink-0" aria-label="Your profile" style={{ background: 'none', border: 'none' }}>
+              <span style={{ display: 'inline-flex', ...((sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : {}) }}>
+                <Avatar url={myAvatar} name={user?.name || myHandle} size={29} />
+              </span>
+              <span style={{ width: 4, height: 4, borderRadius: 999, marginTop: 4, background: (sub === 'profile' || sub === 'edit-profile') ? 'var(--accent)' : 'transparent' }} />
             </button>
           </div>
         </div>
@@ -2808,6 +2813,8 @@ function Shell() {
   }, []);
   // feed news (likes/comments/follows vs texts) — powers the Feed-tab dot and Leeboon's excitement
   const [news, setNews] = useState({ dm: 0, other: 0, latest: null });
+  const [popup, setPopup] = useState(null); // in-app banner for a brand-new DM / follow
+  const popupSeen = useRef(null); // Set of notif ids already surfaced (null until first pull seeds it)
   const authedNow = !!user?.id || guest;
   useEffect(() => {
     if (!authedNow) return undefined;
@@ -2817,9 +2824,15 @@ function Shell() {
       const items = r?.notifications || [];
       const fresh = items.filter((n) => !n.read);
       setNews({ dm: fresh.filter((n) => n.type === 'dm').length, other: fresh.filter((n) => n.type !== 'dm').length, latest: fresh[0] || null });
+      // popup: only unread DMs / follows; seed silently on the first pull so existing ones don't flood
+      const candidates = items.filter((nn) => !nn.read && (nn.type === 'dm' || nn.type === 'follow') && nn.handle);
+      if (!popupSeen.current) { popupSeen.current = new Set(candidates.map((nn) => nn.id)); return; }
+      const brandNew = candidates.filter((nn) => !popupSeen.current.has(nn.id));
+      brandNew.forEach((nn) => popupSeen.current.add(nn.id));
+      if (brandNew.length) setPopup(brandNew[0]); // items are newest-first
     }).catch(() => {});
     pull();
-    const id = setInterval(pull, 30000);
+    const id = setInterval(pull, 20000);
     window.addEventListener('cc-news-refresh', pull);
     return () => { on = false; clearInterval(id); window.removeEventListener('cc-news-refresh', pull); };
   }, [authedNow]);
@@ -2909,15 +2922,34 @@ function Shell() {
         </div>
       </aside>
 
-      {/* mobile bottom nav */}
-      <nav className="v2-nav">
-        <div className="v2-navrow">
-          {navItems.map(([v, Icon, label]) => (
-            <button key={v} {...(v === 'feed' ? { 'data-cc-feedtab': '1' } : {})} className={`v2-navbtn ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={20} />{label}</button>
-          ))}
-        </div>
-      </nav>
+      {/* mobile bottom nav — hidden on feed & institute, where their own secondary footer takes over */}
+      {!['feed', 'institute'].includes(view) && (
+        <nav className="v2-nav">
+          <div className="v2-navrow">
+            {navItems.map(([v, Icon, label]) => (
+              <button key={v} {...(v === 'feed' ? { 'data-cc-feedtab': '1' } : {})} className={`v2-navbtn ${(v === 'home' ? homeActive : view === v) ? 'active' : ''}`} onClick={() => tab(v)}><NavIcon v={v} Icon={Icon} size={20} />{label}</button>
+            ))}
+          </div>
+        </nav>
+      )}
+      {popup && <NotifPopup n={popup} onClose={() => setPopup(null)} onOpen={() => { const hh = popup.handle; setPopup(null); if (popup.type === 'dm') nav('feed', { dm: '@' + hh }); else nav('feed', { user: hh }); }} />}
     </div>
+  );
+}
+function NotifPopup({ n, onClose, onOpen }) {
+  useEffect(() => { const t = setTimeout(onClose, 4800); return () => clearTimeout(t); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  const verb = n.type === 'dm' ? 'sent you a message' : 'started following you';
+  return (
+    <motion.button initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -80, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+      onClick={onOpen} className="fixed left-3 right-3 flex items-center gap-3 px-3 py-2.5 text-left"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 10px)', zIndex: 200, maxWidth: 440, marginLeft: 'auto', marginRight: 'auto', background: 'var(--sheet-bg)', border: '.5px solid var(--border)', borderRadius: 14, boxShadow: '0 12px 32px rgba(0,0,0,.32)' }}>
+      <Avatar url={n.avatarUrl} name={n.displayName || n.handle} size={40} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] t-hi leading-tight"><span className="font-semibold">{n.displayName || ('@' + n.handle)}</span> {verb}</p>
+        {n.type === 'dm' && n.text ? <p className="text-[12px] t-mid truncate mt-0.5">{n.text}</p> : <p className="text-[11px] t-lo mt-0.5">tap to open</p>}
+      </div>
+      <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
+    </motion.button>
   );
 }
 
