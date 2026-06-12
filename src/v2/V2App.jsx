@@ -1189,6 +1189,14 @@ const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f97316', '#0ea5e9', '#8b5cf6', '#
 // color follows the INITIAL letter (not the whole string) so "Tanvir Azam", "tanvir" and "@tanvir"
 // all paint identically — no color flash while different name sources hydrate on reload
 const avatarColor = (name) => { const ch = ((name || 'S').toString().trim().charAt(0) || 'S').toUpperCase(); return AVATAR_COLORS[(ch.charCodeAt(0) * 7) % AVATAR_COLORS.length]; };
+// story-interaction DMs: story thumbnail + plain label, correct from BOTH sides
+const STORY_REPLY_PREFIX = '↪ story reply: ';
+const isStoryLikeMsg = (t) => t === 'liked your story' || t === '❤️ liked your story';
+const dmDisplay = (text, mine) => {
+  if (isStoryLikeMsg(text)) return { story: true, label: mine ? 'you liked their story' : 'liked your story', text: '' };
+  if (text && text.startsWith(STORY_REPLY_PREFIX)) return { story: true, label: mine ? 'you replied to their story' : 'replied to your story', text: text.slice(STORY_REPLY_PREFIX.length) };
+  return { story: false, label: null, text };
+};
 const hiddenPosts = () => { try { return new Set(JSON.parse(localStorage.getItem('cc_hidden_posts') || '[]')); } catch { return new Set(); } };
 const hidePostId = (id) => { try { const a = JSON.parse(localStorage.getItem('cc_hidden_posts') || '[]'); if (!a.includes(id)) a.push(id); localStorage.setItem('cc_hidden_posts', JSON.stringify(a.slice(-300))); } catch { /* ignore */ } };
 const fmtCount = (n) => { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K'; return String(n); };
@@ -1514,11 +1522,11 @@ function StoryViewer({ groups, start, onClose, onChanged }) {
   };
   const likeStory = async () => {
     if (liked) return; setLiked(true); haptics.light?.();
-    try { await sendDm(g.handle, '❤️ liked your story'); ccToast('Liked'); } catch { setLiked(false); ccToast('Could not like'); }
+    try { await sendDm(g.handle, 'liked your story', null, s.imageUrl); ccToast('Liked'); } catch { setLiked(false); ccToast('Could not like'); }
   };
   const sendReply = async () => {
     const t = reply.trim(); if (!t || sendBusy) return; setSendBusy(true);
-    try { await sendDm(g.handle, `↪ story reply: ${t}`); setReply(''); ccToast('Reply sent'); }
+    try { await sendDm(g.handle, `↪ story reply: ${t}`, null, s.imageUrl); setReply(''); ccToast('Reply sent'); }
     catch { ccToast('Could not send'); } finally { setSendBusy(false); }
   };
   return (
@@ -2372,7 +2380,7 @@ function DMPane({ active, reloadKey, onOpenThread, myAvatar, myName }) {
                       <p className={`text-[14px] t-hi truncate ${c.unread ? 'font-bold' : 'font-semibold'}`}>{c.displayName || ('@' + c.handle)}</p>
                       {c.lastAt && <span className={`text-[11px] shrink-0 ml-auto ${c.unread ? 'font-bold' : 't-lo'}`} style={c.unread ? { color: '#ef4444' } : undefined}>{timeAgo(c.lastAt)}</span>}
                     </div>
-                    <p className={`text-[12.5px] truncate mt-0.5 ${c.unread ? 't-hi font-semibold' : 't-mid'}`}>{c.mine ? 'you: ' : ''}{c.lastText || 'say hi'}</p>
+                    <p className={`text-[12.5px] truncate mt-0.5 ${c.unread ? 't-hi font-semibold' : 't-mid'}`}>{(() => { const sd = dmDisplay(c.lastText, c.mine); if (sd.story) return sd.label + (sd.text ? `: ${sd.text}` : ''); return (c.mine ? 'you: ' : '') + (c.lastText || 'say hi'); })()}</p>
                   </div>
                   {c.unread && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />}
                 </motion.button>
@@ -2549,8 +2557,18 @@ function DMThread({ handle, onClose, onSent, onProfile }) {
                         <span className="block truncate" style={{ fontSize: 11.5, opacity: 0.8 }}>{orig ? (orig.text || '📷 photo') : '…'}</span>
                       </button>
                     )}
-                    {m.imageUrl && <img src={m.imageUrl} alt="" className="block rounded-lg" style={{ maxWidth: '100%', maxHeight: 300, marginBottom: m.text ? 6 : 0 }} draggable={false} />}
-                    {m.text}
+                    {(() => {
+                      const sd = dmDisplay(m.text, m.mine);
+                      if (sd.story) return (<>
+                        <span className="block" style={{ fontSize: 10.5, opacity: 0.7, marginBottom: (m.imageUrl || sd.text) ? 4 : 0 }}>{sd.label}</span>
+                        {m.imageUrl && <img src={m.imageUrl} alt="" className="block rounded-lg" style={{ maxHeight: 150, maxWidth: 112, objectFit: 'cover', marginBottom: sd.text ? 6 : 0 }} draggable={false} />}
+                        {sd.text}
+                      </>);
+                      return (<>
+                        {m.imageUrl && <img src={m.imageUrl} alt="" className="block rounded-lg" style={{ maxWidth: '100%', maxHeight: 300, marginBottom: m.text ? 6 : 0 }} draggable={false} />}
+                        {m.text}
+                      </>);
+                    })()}
                   </motion.div>
                   {!m.mine && replyBtn}
                 </div>
