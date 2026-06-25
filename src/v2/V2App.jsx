@@ -491,10 +491,9 @@ function Institute({ nav, back, params }) {
       </div>
       <div className="v2-feedfooter">
         <div className="flex items-center justify-around px-6 py-2.5" style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderTop: '.5px solid var(--border)', borderLeft: '.5px solid var(--border)', borderRight: '.5px solid var(--border)' }}>
-          {TABS.map(({ i, label, Icon, color }) => (
-            <button key={i} onClick={() => go(i)} className="flex flex-col items-center shrink-0" aria-label={label} style={{ background: 'none', border: 'none' }}>
-              <Icon size={26} strokeWidth={2.2} style={{ color, opacity: pane === i ? 1 : 0.5 }} />
-              <span style={{ width: 4, height: 4, borderRadius: 999, marginTop: 4, background: pane === i ? color : 'transparent' }} />
+          {TABS.map(({ i, label, Icon }) => (
+            <button key={i} onClick={() => go(i)} className="flex items-center justify-center shrink-0" aria-label={label} style={{ background: 'none', border: 'none', padding: '4px 0' }}>
+              <Icon size={25} strokeWidth={pane === i ? 2.4 : 2} style={{ color: pane === i ? 'var(--text1)' : 'var(--text3)' }} />
             </button>
           ))}
         </div>
@@ -1289,17 +1288,12 @@ function FeedScreen({ nav, back, tab, params }) {
   const openPosts = (hh, pid) => nav('feed', { sub: 'posts', pof: (hh || '').replace('@', ''), pid });
   const TITLES = { explore: 'Explore', messages: 'Messages', profile: 'Profile', notifications: 'Notifications', posts: 'Posts', discover: 'Discover people' };
   const ownHeader = sub === 'compose' || sub === 'edit-profile'; // these pages bring their own back+action bar
-  const FOOT_COLOR = { home: '#6366f1', explore: '#0ea5e9', compose: '#ec4899', messages: '#8b5cf6' };
-  const HeadIcon = ({ s, Icon, label, active, badge }) => {
-    const color = FOOT_COLOR[s] || 'var(--text2)';
-    return (
-      <button onClick={() => goSub(s)} className="relative flex flex-col items-center shrink-0" aria-label={label} style={{ background: 'none', border: 'none' }}>
-        <Icon size={27} strokeWidth={2.2} style={{ color, opacity: active ? 1 : 0.5 }} />
-        {badge > 0 && <span className="absolute -top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: '#ef4444' }}>{badge > 9 ? '9+' : badge}</span>}
-        <span style={{ width: 4, height: 4, borderRadius: 999, marginTop: 4, background: active ? color : 'transparent' }} />
-      </button>
-    );
-  };
+  const HeadIcon = ({ s, Icon, label, active, badge }) => (
+    <button onClick={() => goSub(s)} className="relative flex items-center justify-center shrink-0" aria-label={label} style={{ background: 'none', border: 'none', padding: '4px 0' }}>
+      <Icon size={26} strokeWidth={active ? 2.4 : 2} style={{ color: active ? 'var(--text1)' : 'var(--text3)' }} />
+      {badge > 0 && <span className="absolute -top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: '#ef4444' }}>{badge > 9 ? '9+' : badge}</span>}
+    </button>
+  );
   return (
     <div className="v2-scroll" style={{ overflowX: 'hidden', paddingBottom: ownHeader ? undefined : 156 }}>
       {/* sticky top bar — home: logo + breadcrumb + messages; sub-pages: back + title */}
@@ -1351,11 +1345,10 @@ function FeedScreen({ nav, back, tab, params }) {
             <HeadIcon s="explore" Icon={Compass} label="Explore" active={sub === 'explore'} />
             <HeadIcon s="compose" Icon={Plus} label="New post" />
             <HeadIcon s="messages" Icon={Send} label="Messages" active={sub === 'messages'} badge={unread.dm} />
-            <button onClick={() => goSub('profile')} className="flex flex-col items-center shrink-0" aria-label="Your profile" style={{ background: 'none', border: 'none' }}>
-              <span style={{ display: 'inline-flex', ...((sub === 'profile' || sub === 'edit-profile') ? { outline: '2px solid var(--accent)', outlineOffset: 2, borderRadius: 999 } : {}) }}>
-                <Avatar url={myAvatar} name={user?.name || myHandle} size={29} />
+            <button onClick={() => goSub('profile')} className="flex items-center shrink-0" aria-label="Your profile" style={{ background: 'none', border: 'none', padding: '4px 0' }}>
+              <span style={{ display: 'inline-flex', opacity: (sub === 'profile' || sub === 'edit-profile') ? 1 : 0.6, ...((sub === 'profile' || sub === 'edit-profile') ? { outline: '1.5px solid var(--text1)', outlineOffset: 2, borderRadius: 999 } : {}) }}>
+                <Avatar url={myAvatar} name={user?.name || myHandle} size={28} />
               </span>
-              <span style={{ width: 4, height: 4, borderRadius: 999, marginTop: 4, background: (sub === 'profile' || sub === 'edit-profile') ? 'var(--accent)' : 'transparent' }} />
             </button>
           </div>
         </div>
